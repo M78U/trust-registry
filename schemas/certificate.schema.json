@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate certificate record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprintSHA256",
+    "certificateType",
+    "publicKeyAlgorithm",
+    "signatureAlgorithm",
+    "subject",
+    "issuer",
+    "serialNumber",
+    "subjectKeyIdentifier",
+    "authorityKeyIdentifier",
+    "notBefore",
+    "notAfter",
+    "isCA"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "fingerprintSHA256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "certificateType": {
+      "enum": [
+        "CA_CANDIDATE",
+        "END_ENTITY"
+      ]
+    },
+    "publicKeyAlgorithm": {
+      "type": "string"
+    },
+    "signatureAlgorithm": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "issuer": {
+      "type": "string"
+    },
+    "serialNumber": {
+      "type": "string",
+      "pattern": "^[1-9a-f][0-9a-f]*$"
+    },
+    "subjectKeyIdentifier": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "authorityKeyIdentifier": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "notBefore": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notAfter": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "isCA": {
+      "type": "boolean"
+    }
+  }
+}
