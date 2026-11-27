@@ -138,3 +138,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 2: private bounded per-source/mode observation store, indexed exact replay, idempotent append and read-only due plan; no automatic network or trust update. See [source monitoring](SOURCE-MONITOR.md#stage-2-persistent-local-observation-index-and-advisory-plan).
 
 - Maintainer stage 3: explicit bounded online check coordinator, lock-scoped due check and capture/append, partial failure and request accounting; no scheduler, automatic retry or trust changes. See [source monitoring](SOURCE-MONITOR.md#stage-3-bounded-explicit-incremental-run).
+
+- Maintainer stage 4: persisted pre-request reservations, bounded per-source cooldown, failure status and successful observation supersession shared by plan/run. No scheduler, network retry loop, new cloud resource or trust change. See [source monitoring](SOURCE-MONITOR.md#stage-4-persisted-attempt-cooldown).

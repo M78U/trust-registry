@@ -184,6 +184,7 @@ func appendMonitorObservation(dir string,h MonitorHistory,previous,raw []byte,r 
 
 type MonitorPlanRow struct {
 	Source MonitorSource `json:"source"`
+	Attempt *MonitorAttempt `json:"attempt,omitempty"`
 	Status string `json:"status"`
 	Count int `json:"count"`
 	Latest *SourceObservationReceipt `json:"latest,omitempty"`
@@ -198,8 +199,8 @@ type MonitorPlan struct {
 	TrustStatus string `json:"trustStatus"`
 }
 
-// PlanMonitorChecks is read-only. It reads at most one bounded index and one
-// latest original per fixed source. It never creates a stream or fetches.
+// PlanMonitorChecks is read-only. It reads at most one bounded index, one
+// latest original and one small HTTPS attempt record per fixed source.
 func PlanMonitorChecks(root,mode string,at time.Time,interval time.Duration)(MonitorPlan,error){
 	if !intakeTime(at)||interval<time.Hour||interval>30*24*time.Hour||interval%time.Second!=0{return MonitorPlan{},errors.New("explicit UTC evaluation time and whole-second interval of 1h to 30d required")}
 	if mode!="HTTPS_RESPONSE"&&mode!="LOCAL_INPUT"{return MonitorPlan{},errors.New("unknown observation mode")}
@@ -227,6 +228,15 @@ func PlanMonitorChecks(root,mode string,at time.Time,interval time.Duration)(Mon
 					row.NextCheckAt=&due
 					row.Status="NOT_DUE_UNDER_LOCAL_POLICY"
 					if !at.Before(due){row.Status="OBSERVATION_DUE"}
+				}
+			}
+			if mode=="HTTPS_RESPONSE"&&row.Status!="LOCAL_STATE_REVIEW_REQUIRED"{
+				dir,_,e:=monitorStream(root,s.ID,mode)
+				var a *MonitorAttempt
+				if e==nil{a,e=activeMonitorAttempt(dir,s,h,at)}
+				if e!=nil{row.Status="LOCAL_STATE_REVIEW_REQUIRED";row.Detail="attempt state could not be verified";row.NextCheckAt=nil}else if a!=nil{
+					row.Attempt=a
+					if at.Before(a.RetryAt){row.Status="RETRY_COOLDOWN_ACTIVE";if row.NextCheckAt==nil||row.NextCheckAt.Before(a.RetryAt){row.NextCheckAt=&a.RetryAt}}
 				}
 			}
 		}
