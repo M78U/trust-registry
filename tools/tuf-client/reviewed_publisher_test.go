@@ -247,9 +247,15 @@ func TestReviewedPublication(t *testing.T){
  beforeCoordHTTP:=coordinateHTTPHits.Load()
  planResult,planSession,err:=coordinateUpdate(context.Background(),coord,staticServer.Client())
  if err!=nil||planSession!=nil||planResult.Mode!=UpdatePlan||planResult.Status!="PLAN_ONLY"||planResult.ActionAttempted||planResult.Diagnostic==nil{t.Fatal(planResult,err)}
+ adviceCoord:=coord;adviceCoord.RefreshPolicy=&RefreshPlanningPolicy{MaxOnlineAge:time.Hour,ExpiryLead:0}
+ adviceResult,adviceSession,err:=coordinateUpdate(context.Background(),adviceCoord,staticServer.Client())
+ if err!=nil||adviceSession!=nil||adviceResult.Status!="PLAN_ONLY"||adviceResult.ActionAttempted||adviceResult.RefreshPlan==nil||adviceResult.RefreshPlan.Status!="ONLINE_OBSERVATION_REQUIRED"||!adviceResult.RefreshPlan.RefreshSuggested||adviceResult.OnlineObservation!=nil{t.Fatal(adviceResult,err)}
+ if adviceResult.RefreshPlan.Diagnostic.CheckedAt!=adviceResult.Diagnostic.CheckedAt{t.Fatal("planning did not reuse diagnostic")}
+ rejectedAdvice:=adviceCoord;rejectedAdvice.Mode=UpdateOpen
+ if r,s,err:=coordinateUpdate(context.Background(),rejectedAdvice,staticServer.Client());err==nil||s!=nil||r.ActionAttempted||r.OnlineObservation!=nil{t.Fatal(r,err)}
  openCoord:=coord;openCoord.Mode=UpdateOpen
  openResult,openSession,err:=coordinateUpdate(context.Background(),openCoord,staticServer.Client())
- if err!=nil||openSession==nil||openResult.Status!="CONSUMER_READY"||openResult.Checkpoint==nil||*openResult.Checkpoint!=checkpoint{t.Fatal(openResult,err)}
+ if err!=nil||openSession==nil||openResult.Status!="CONSUMER_READY"||openResult.Checkpoint==nil||*openResult.Checkpoint!=checkpoint||openResult.OnlineObservation!=nil{t.Fatal(openResult,err)}
  cancelled,cancelCoord:=context.WithCancel(context.Background());cancelCoord()
  cancelledResult,cancelledSession,err:=coordinateUpdate(cancelled,openCoord,staticServer.Client())
  if err==nil||cancelledSession!=nil||cancelledResult.ActionAttempted||cancelledResult.Status!="CANCELLED"{t.Fatal(cancelledResult,err)}
@@ -297,6 +303,12 @@ func TestReviewedPublication(t *testing.T){
  currentDir.Store(assets2);so.BootstrapRoot=nil
  refreshResult,refreshedSession,err:=coordinateUpdate(context.Background(),refreshCoord,staticServer.Client())
  if err!=nil||refreshedSession==nil||refreshResult.Status!="CONSUMER_READY"||refreshResult.Install==nil||!refreshResult.Install.IndependentCheckpointChecked||refreshResult.Install.RootVersion!=2||refreshResult.Checkpoint==nil||refreshResult.Checkpoint.Sequence!=2{t.Fatal(refreshResult,err)}
+ observation:=refreshResult.OnlineObservation
+ if observation==nil||observation.Checkpoint!=*refreshResult.Checkpoint||observation.InitialRootSHA256!=digest(root)||observation.AuthoritySHA256!=a.SHA256()||observation.CompletedAt.Before(refreshResult.Consumer.VerifiedAt)||!observation.CompletedAt.Before(refreshResult.Consumer.SessionExpiresAt){t.Fatal("invalid online observation",observation)}
+ beforeAdviceHTTP:=coordinateHTTPHits.Load()
+ adviceCoord.RefreshPolicy.LastOnline=observation
+ advised,session,err:=coordinateUpdate(context.Background(),adviceCoord,staticServer.Client())
+ if err!=nil||session!=nil||advised.RefreshPlan==nil||!advised.RefreshPlan.ObservationMatched||advised.RefreshPlan.RefreshSuggested||advised.OnlineObservation!=nil||coordinateHTTPHits.Load()!=beforeAdviceHTTP{t.Fatal("unexpected post-refresh advice",advised,err)}
  if coordinateHTTPHits.Load()<=beforeCoordHTTP||targetHTTPHits.Load()!=2||refreshResult.Install.Transfer==nil||refreshResult.Install.Transfer.TargetSource!="NETWORK"||refreshResult.Install.Transfer.TargetRequests!=1||refreshResult.Install.Transfer.TargetBytes!=int64(len(raw2))||refreshResult.Install.Transfer.ReusedTargetBytes!=0{t.Fatal("new release did not download exact target")}
  beforeCoordHTTP=coordinateHTTPHits.Load()
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
@@ -339,7 +351,7 @@ func TestReviewedPublication(t *testing.T){
  if _,err:=os.Stat(installed2);!os.IsNotExist(err){t.Fatal("invalid recovery committed evidence",err)}
  pendingCoord:=coord;pendingCoord.Mode=UpdateRecoverPending
  pendingResult,pendingSession,err:=coordinateUpdate(context.Background(),pendingCoord,staticServer.Client())
- if err!=nil||pendingSession==nil||pendingResult.Status!="CONSUMER_READY"||pendingResult.Install==nil||!pendingResult.ActionCompleted{t.Fatal(pendingResult,err)}
+ if err!=nil||pendingSession==nil||pendingResult.Status!="CONSUMER_READY"||pendingResult.Install==nil||!pendingResult.ActionCompleted||pendingResult.OnlineObservation!=nil{t.Fatal(pendingResult,err)}
  recovered:=*pendingResult.Install
  if coordinateHTTPHits.Load()!=beforeCoordHTTP{t.Fatal("pending recovery performed networking")}
  if !recovered.RecoveredPendingInstall||!recovered.IndependentCheckpointChecked||recovered.Registry.Manifest.Sequence!=2||recovered.RootVersion!=2||recovered.ReleaseApproval==nil||!recovered.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(recovered,err)}

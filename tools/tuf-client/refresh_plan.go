@@ -10,10 +10,10 @@ import (
 // does not authenticate this record or persist it. Never construct it from an
 // offline open, a failed refresh, or the installed evidence acceptance time.
 type RefreshObservation struct {
-	InitialRootSHA256 string
-	AuthoritySHA256 string
-	Checkpoint ReleaseCheckpoint
-	CompletedAt time.Time
+	InitialRootSHA256 string `json:"initialRootSHA256"`
+	AuthoritySHA256 string `json:"authoritySHA256"`
+	Checkpoint ReleaseCheckpoint `json:"checkpoint"`
+	CompletedAt time.Time `json:"completedAt"`
 }
 
 type RefreshPlanOptions struct {

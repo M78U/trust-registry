@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"bytes"
 	"os/signal"
 	"encoding/json"
 	"errors"
@@ -28,11 +29,18 @@ func run()error{
 	checkpointSequence:=flag.Uint64("checkpoint-sequence",0,"independent strict release sequence")
 	checkpointHash:=flag.String("checkpoint-snapshot-sha256","","independent snapshot SHA-256")
 	checkpointRoot:=flag.Int64("checkpoint-root-version",0,"independent TUF root version")
+	refreshAge:=flag.Duration("refresh-max-age",0,"explicit maximum online observation age (plan only)")
+	expiryLead:=flag.Duration("refresh-expiry-lead",0,"explicit signed expiry lead (plan only)")
+	lastOnline:=flag.String("last-online-observation","","compact JSON onlineObservation from a successful coordinated refresh (plan only)")
 	flag.Parse()
 	if flag.NArg()!=0||*state==""||*pin==""{return errors.New("state and root-sha256 required")}
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
 	checkpointRequested:=false
 	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	var ageSet,leadSet,observationSet bool
+	flag.Visit(func(f *flag.Flag){switch f.Name{case "refresh-max-age":ageSet=true;case "refresh-expiry-lead":leadSet=true;case "last-online-observation":observationSet=true}})
+	planningRequested:=ageSet||leadSet||observationSet
+	if planningRequested&&(*coordinate!="plan"||!ageSet||!leadSet){return errors.New("refresh planning flags require coordinate plan and both explicit duration flags")}
 	if *coordinate!=""{
 		if *diagnose||*recoverPending||*recoverRoot||*fp!=""||*authority==""{return errors.New("coordinate requires strict authority and no separate operation flags")}
 		a,err:=tuf.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err}
@@ -40,6 +48,13 @@ func run()error{
 		if checkpointRequested{
 			if *checkpointSequence==0||*checkpointHash==""||*checkpointRoot<1{return errors.New("all three checkpoint flags required together")}
 			o.Checkpoint=&tuf.ReleaseCheckpoint{Sequence:*checkpointSequence,SnapshotSHA256:*checkpointHash,RootVersion:*checkpointRoot}
+		}
+		if planningRequested{
+			o.RefreshPolicy=&tuf.RefreshPlanningPolicy{MaxOnlineAge:*refreshAge,ExpiryLead:*expiryLead}
+			if observationSet{
+				x,err:=parseOnlineObservation(*lastOnline);if err!=nil{return err}
+				o.RefreshPolicy.LastOnline=&x
+			}
 		}
 		ctx,cancel:=signal.NotifyContext(context.Background(),os.Interrupt);defer cancel()
 		r,_,err:=tuf.CoordinateUpdate(ctx,o)
@@ -83,5 +98,14 @@ func run()error{
 	if *fp==""{return json.NewEncoder(os.Stdout).Encode(r)}
 	record,err:=v.Find(*fp);if err!=nil{return err}
 	return json.NewEncoder(os.Stdout).Encode(struct{Report tuf.Report `json:"report"`; Certificate any `json:"certificate"`}{r,record})
+}
+// Accept only the compact exact JSON representation emitted by the SDK.
+ // Re-encoding rejects unknown, duplicate, omitted and reordered fields.
+func parseOnlineObservation(raw string)(tuf.RefreshObservation,error){
+	var x tuf.RefreshObservation
+	if len(raw)==0||len(raw)>4096||json.Unmarshal([]byte(raw),&x)!=nil{return x,errors.New("invalid online observation JSON")}
+	canonical,err:=json.Marshal(x)
+	if err!=nil||!bytes.Equal(canonical,[]byte(raw)){return tuf.RefreshObservation{},errors.New("online observation must be exact compact SDK JSON")}
+	return x,nil
 }
 func main(){if err:=run();err!=nil{fmt.Fprintln(os.Stderr,err);os.Exit(1)}}
