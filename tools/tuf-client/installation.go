@@ -124,9 +124,16 @@ func LoadInstalled(stateDir,initialRootSHA256 string)(*snapshot.Loaded,Report,er
 	if err:=os.Mkdir(lock,0700);err!=nil{return nil,Report{},err};defer os.Remove(lock)
 	v,_,err:=latestEvidence(filepath.Join(root,"installed"));if err!=nil{return nil,Report{},err}
 	if v==nil{return nil,Report{},errors.New("no installed evidence")}
-	// Reject a known root rotation rather than silently using old root evidence.
-	cached,err:=readRegular(filepath.Join(root,"metadata","root.json"),maxRoot);if err!=nil{return nil,Report{},err}
-	if digest(cached)!=initialRootSHA256{return nil,Report{},errors.New("cached root differs from pinned initial root")}
+	// A refresh can advance cache metadata before installation commits. Do
+	// not silently use an older installed record when that has happened.
+	if err:=regularDir(filepath.Join(root,"metadata"));err!=nil{return nil,Report{},err}
+	for _,f:=range []struct{name string;limit int64;expected []byte}{
+		{"root.json",maxRoot,v.Root},{"timestamp.json",16384,v.Timestamp},
+		{"snapshot.json",2_000_000,v.SnapshotMetadata},{"targets.json",5_000_000,v.Targets},
+	}{
+		cached,err:=readRegular(filepath.Join(root,"metadata",f.name),f.limit);if err!=nil{return nil,Report{},err}
+		if !bytes.Equal(cached,f.expected){return nil,Report{},errors.New("cached metadata differs from installed evidence; successful refresh/install required")}
+	}
 	at:=time.Now().UTC()
 	report,err:=verifyEvidence(*v,initialRootSHA256,at);if err!=nil{return nil,Report{},err}
 	view,_,err:=snapshot.LoadPinnedResearch(v.Snapshot,v.SnapshotSHA256,at);if err!=nil{return nil,Report{},err}

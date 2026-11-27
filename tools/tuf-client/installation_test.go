@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,10 +38,12 @@ func TestPublisherClientInstallRoundTrip(t *testing.T){
 		return repo
 	}
 	repo:=build(1)
+	var mu sync.RWMutex
+	setRepo:=func(v Repository){mu.Lock();defer mu.Unlock();repo=v}
 	// No external network or real keys. TLS server transport only through
 	// the private test seam, not the public API.
 	server:=httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){
-		b,ok:=repo.Files[strings.TrimPrefix(r.URL.Path,"/")]
+		mu.RLock();b,ok:=repo.Files[strings.TrimPrefix(r.URL.Path,"/")];mu.RUnlock()
 		if !ok{http.NotFound(w,r);return}
 		_,_ = w.Write(b)
 	}));defer server.Close()
@@ -50,11 +54,24 @@ func TestPublisherClientInstallRoundTrip(t *testing.T){
 	v,r,err:=LoadInstalled(state,digest(rb))
 	if err!=nil||v==nil||r.Registry.Manifest.Sequence!=1{t.Fatalf("load: %+v %v",r,err)}
 	o.BootstrapRoot=nil
-	repo=build(2)
+	setRepo(build(2))
+	// Download-only refresh advances metadata but not installation.
+	if _,_,err:=refresh(context.Background(),o,false,server.Client());err!=nil{t.Fatal(err)}
+	if _,_,err:=LoadInstalled(state,digest(rb));err==nil{t.Fatal("old evidence loaded after metadata advance")}
 	if _,_,err:=refresh(context.Background(),o,true,server.Client());err!=nil{t.Fatal(err)}
 	_,r,err=LoadInstalled(state,digest(rb));if err!=nil||r.Registry.Manifest.Sequence!=2{t.Fatalf("update: %+v %v",r,err)}
-	repo=build(1)
+	setRepo(build(1))
 	if _,_,err:=refresh(context.Background(),o,true,server.Client());err==nil{t.Fatal("rollback accepted")}
+	// Recheck application rollback independently of upstream metadata rollback.
+	firstRaw,err:=readRegular(filepath.Join(state,"installed",evidenceName(1)),maxEvidenceBytes);if err!=nil{t.Fatal(err)}
+	var first evidence
+	if err:=json.Unmarshal(firstRaw,&first);err!=nil{t.Fatal(err)}
+	firstReport,err:=verifyEvidence(first,digest(rb),time.Now().UTC());if err!=nil{t.Fatal(err)}
+	for _,f:=range []struct{name string;data []byte}{{"root.json",first.Root},{"timestamp.json",first.Timestamp},{"snapshot.json",first.SnapshotMetadata},{"targets.json",first.Targets}}{
+		if err:=os.WriteFile(filepath.Join(state,"metadata",f.name),f.data,0600);err!=nil{t.Fatal(err)}
+	}
+	if err:=installEvidence(state,digest(rb),first.Snapshot,firstReport,time.Now().UTC());err==nil||!strings.Contains(err.Error(),"sequence rollback"){t.Fatalf("application rollback: %v",err)}
+	if _,_,err:=LoadInstalled(state,digest(rb));err==nil{t.Fatal("metadata mismatch accepted")}
 	if err:=os.WriteFile(filepath.Join(state,"installed",evidenceName(2)),[]byte("{}"),0600);err!=nil{t.Fatal(err)}
 	if _,_,err:=LoadInstalled(state,digest(rb));err==nil{t.Fatal("corrupt newest fallback")}
 }
