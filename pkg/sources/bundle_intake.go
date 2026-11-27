@@ -113,23 +113,47 @@ func readBundleArchiveFile(dir,name string,limit int64)([]byte,error){
  if len(raw)==0||int64(len(raw))>limit{return nil,errors.New("archive file exceeds limit")}
  return raw,nil
 }
-func applyBundleArchive(s *registry.Store,c MultiCACatalog,dir,pin string,selected []string)(BundleImportReport,error){
- st,err:=os.Lstat(dir);if err!=nil{return BundleImportReport{},err}
- if !st.IsDir(){return BundleImportReport{},errors.New("private bundle archive directory required")}
- raw,err:=readBundleArchiveFile(dir,"original.bin",registry.MaxCertificateBundleBytes);if err!=nil{return BundleImportReport{},err}
- pb,err:=readBundleArchiveFile(dir,"plan.json",MaxBundlePlanBytes);if err!=nil{return BundleImportReport{},err}
- p,members,err:=verifyBundle(c,raw,pb,pin);if err!=nil{return BundleImportReport{},err}
- d,err:=os.Open(dir);if err!=nil{return BundleImportReport{},err}
+func readVerifiedBundle(c MultiCACatalog,dir,pin string)(BundlePlan,[]registry.BundleCertificate,[]byte,error){
+ st,err:=os.Lstat(dir);if err!=nil{return BundlePlan{},nil,nil,err}
+ if !st.IsDir(){return BundlePlan{},nil,nil,errors.New("private bundle archive directory required")}
+ raw,err:=readBundleArchiveFile(dir,"original.bin",registry.MaxCertificateBundleBytes);if err!=nil{return BundlePlan{},nil,nil,err}
+ pb,err:=readBundleArchiveFile(dir,"plan.json",MaxBundlePlanBytes);if err!=nil{return BundlePlan{},nil,nil,err}
+ p,members,err:=verifyBundle(c,raw,pb,pin);if err!=nil{return BundlePlan{},nil,nil,err}
+ d,err:=os.Open(dir);if err!=nil{return BundlePlan{},nil,nil,err}
  entries,err:=d.ReadDir(registry.MaxCertificateBundleMembers+3);d.Close()
- if err!=nil&&err!=io.EOF{return BundleImportReport{},err}
- if len(entries)!=len(members)+2{return BundleImportReport{},errors.New("unexpected bundle archive membership")}
+ if err!=nil&&err!=io.EOF{return BundlePlan{},nil,nil,err}
+ if len(entries)!=len(members)+2{return BundlePlan{},nil,nil,errors.New("unexpected bundle archive membership")}
  allowed:=map[string]bool{"original.bin":true,"plan.json":true}
  for _,m:=range members{
   name:=m.Certificate.FingerprintSHA256+".der";allowed[name]=true
   der,err:=readBundleArchiveFile(dir,name,registry.MaxCertificateInput)
-  if err!=nil||!bytes.Equal(der,m.DER){return BundleImportReport{},errors.New("archive DER differs from original member")}
+  if err!=nil||!bytes.Equal(der,m.DER){return BundlePlan{},nil,nil,errors.New("archive DER differs from original member")}
  }
- for _,e:=range entries{if !allowed[e.Name()]||!e.Type().IsRegular(){return BundleImportReport{},errors.New("unexpected bundle archive entry")}}
+ for _,e:=range entries{if !allowed[e.Name()]||!e.Type().IsRegular(){return BundlePlan{},nil,nil,errors.New("unexpected bundle archive entry")}}
+ return p,members,raw,nil
+}
+
+// InspectBundleArchive validates the exact private archive and rederives
+// provenance only for members eligible under the current source catalog.
+// The original source and time are still unauthenticated assertions.
+func InspectBundleArchive(dir,pin string)(BundlePlan,[]registry.ProvenanceRecord,error){
+ c,err:=MultiCA();if err!=nil{return BundlePlan{},nil,err}
+ return inspectBundleArchive(c,dir,pin)
+}
+func inspectBundleArchive(c MultiCACatalog,dir,pin string)(BundlePlan,[]registry.ProvenanceRecord,error){
+ p,members,_,err:=readVerifiedBundle(c,dir,pin);if err!=nil{return BundlePlan{},nil,err}
+ records:=[]registry.ProvenanceRecord{}
+ for i,m:=range p.Members{
+  if m.MatchStatus!="MATCHED_PUBLISHED_LEAD"{continue}
+  _,prov,_,err:=registry.ImportCandidate(members[i].DER,p.Listing.SourceURL,p.RecordedAt);if err!=nil{return BundlePlan{},nil,err}
+  prov.SourceFileSHA256=p.OriginalSHA256
+  records=append(records,prov)
+ }
+ return p,records,nil
+}
+func applyBundleArchive(s *registry.Store,c MultiCACatalog,dir,pin string,selected []string)(BundleImportReport,error){
+ if s==nil{return BundleImportReport{},errors.New("initialized store required")}
+ p,members,raw,err:=readVerifiedBundle(c,dir,pin);if err!=nil{return BundleImportReport{},err}
  matches:=map[string]bool{}
  for _,m:=range p.Members{if m.MatchStatus=="MATCHED_PUBLISHED_LEAD"{matches[m.Certificate.FingerprintSHA256]=true}}
  if len(selected)==0||len(selected)>len(members){return BundleImportReport{},errors.New("explicit matched certificate selection required")}

@@ -18,16 +18,31 @@ import (
 )
 
 const MaxWorkspaceArchives=32
+const MaxWorkspaceBundles=4
 
 type ArchiveReference struct {
  ListingID string `json:"listingId"`
  SHA256 string `json:"sha256"`
+}
+type BundleReference struct {
+ Directory string
+ SHA256 string
+}
+type WorkspaceBundle struct {
+ PlanSHA256 string `json:"planSHA256"`
+ ListingID string `json:"listingId"`
+ OriginalSHA256 string `json:"originalSHA256"`
+ MemberCount int `json:"memberCount"`
+ EligibleMembers int `json:"eligibleMembers"`
+ MatchedProvenanceIDs []string `json:"matchedProvenanceIds"`
+ Status string `json:"status"`
 }
 type WorkspaceOptions struct {
  SnapshotSHA256 string
  EvidenceDir string
  ArchiveDir string
  Archives []ArchiveReference
+ Bundles []BundleReference
  At time.Time
 }
 type WorkspaceArchive struct {
@@ -40,6 +55,7 @@ type WorkspaceProvenance struct {
  Record registry.ProvenanceRecord `json:"record"`
  ArchiveStatus string `json:"archiveStatus"`
  Archives []ArchiveReference `json:"archives"`
+ BundlePlanSHA256s []string `json:"bundlePlanSHA256s"`
 }
 type WorkspaceCertificate struct {
  Certificate registry.CertificateRecord `json:"certificate"`
@@ -71,6 +87,9 @@ type WorkspaceReport struct {
  Certificates []WorkspaceCertificate `json:"certificates"`
  Provenance []WorkspaceProvenance `json:"provenance"`
  Archives []WorkspaceArchive `json:"archives"`
+ Bundles []WorkspaceBundle `json:"bundles"`
+ Progress WorkspaceProgress `json:"progress"`
+ ReviewQueue []QueueItem `json:"reviewQueue"`
  Tasks []WorkspaceTask `json:"tasks"`
  MissingArchiveRecords int `json:"missingArchiveRecords"`
  MissingOrInvalidSlots int `json:"missingOrInvalidSlots"`
@@ -156,7 +175,7 @@ func workspace(raw []byte,d Dossier,o WorkspaceOptions,inspect inspectArchiveFun
  if err:=workspaceDir(o.EvidenceDir);err!=nil{return WorkspaceReport{},err}
  if len(o.Archives)>MaxWorkspaceArchives||len(o.Archives)==0&&o.ArchiveDir!=""{return WorkspaceReport{},errors.New("explicit archive pins and directory must be provided together")}
  if len(o.Archives)>0{if err:=workspaceDir(o.ArchiveDir);err!=nil{return WorkspaceReport{},err}}
- result:=WorkspaceReport{SnapshotSHA256:sr.SnapshotSHA256,DossierSHA256:digest(db),EvaluationTime:o.At,Certificates:[]WorkspaceCertificate{},Provenance:[]WorkspaceProvenance{},Archives:[]WorkspaceArchive{},Tasks:[]WorkspaceTask{},Status:"HUMAN_REVIEW_REQUIRED",EvidenceConclusionStatus:"NOT_ESTABLISHED",TrustStatus:"NOT_ESTABLISHED"}
+ result:=WorkspaceReport{SnapshotSHA256:sr.SnapshotSHA256,DossierSHA256:digest(db),EvaluationTime:o.At,Certificates:[]WorkspaceCertificate{},Provenance:[]WorkspaceProvenance{},Archives:[]WorkspaceArchive{},Bundles:[]WorkspaceBundle{},Tasks:[]WorkspaceTask{},Status:"HUMAN_REVIEW_REQUIRED",EvidenceConclusionStatus:"NOT_ESTABLISHED",TrustStatus:"NOT_ESTABLISHED"}
  rows:=map[string]Attestation{}
  for _,v:=range d.Reviews{if _,ok:=rows[v.Requirement.ID];ok{return WorkspaceReport{},errors.New("duplicate dossier task")};rows[v.Requirement.ID]=v}
  for _,t:=range tasks{v,ok:=rows[t.ID];if !ok||v.Requirement!=t{return WorkspaceReport{},errors.New("unknown, missing or altered dossier requirement")}}
@@ -174,7 +193,7 @@ func workspace(raw []byte,d Dossier,o WorkspaceOptions,inspect inspectArchiveFun
    if err:=json.Unmarshal(f.Data,&v);err!=nil{return WorkspaceReport{},err}
    key,err:=json.Marshal(v);if err!=nil{return WorkspaceReport{},err}
    byRecord[string(key)]=append(byRecord[string(key)],len(result.Provenance))
-   result.Provenance=append(result.Provenance,WorkspaceProvenance{ID:digest(f.Data),Record:v,ArchiveStatus:"NO_MATCHING_PINNED_ACQUISITION_ARCHIVE",Archives:[]ArchiveReference{}})
+   result.Provenance=append(result.Provenance,WorkspaceProvenance{ID:digest(f.Data),Record:v,ArchiveStatus:"NO_MATCHING_PINNED_ARCHIVE",Archives:[]ArchiveReference{},BundlePlanSHA256s:[]string{}})
   }
  }
  refs:=append([]ArchiveReference{},o.Archives...)
@@ -195,7 +214,29 @@ func workspace(raw []byte,d Dossier,o WorkspaceOptions,inspect inspectArchiveFun
   }
   result.Archives=append(result.Archives,link)
  }
- for _,v:=range result.Provenance{if len(v.Archives)==0{result.MissingArchiveRecords++}}
+ if len(o.Bundles)>MaxWorkspaceBundles{return WorkspaceReport{},errors.New("workspace bundle count limit")}
+ bundles:=append([]BundleReference{},o.Bundles...)
+ sort.Slice(bundles,func(i,j int)bool{return bundles[i].SHA256<bundles[j].SHA256})
+ lastPin:=""
+ for _,ref:=range bundles{
+  if !hashPattern.MatchString(ref.SHA256)||ref.SHA256==lastPin||strings.TrimSpace(ref.Directory)==""{return WorkspaceReport{},errors.New("invalid or duplicate bundle reference")}
+  lastPin=ref.SHA256
+  p,records,err:=sources.InspectBundleArchive(ref.Directory,ref.SHA256)
+  if err!=nil{return WorkspaceReport{},fmt.Errorf("bundle %s: %w",ref.SHA256,err)}
+  link:=WorkspaceBundle{PlanSHA256:ref.SHA256,ListingID:p.Listing.ID,OriginalSHA256:p.OriginalSHA256,MemberCount:len(p.Members),EligibleMembers:len(records),MatchedProvenanceIDs:[]string{},Status:"NOT_IN_SNAPSHOT"}
+  for _,record:=range records{
+   key,err:=json.Marshal(record);if err!=nil{return WorkspaceReport{},err}
+   for _,i:=range byRecord[string(key)]{
+    v:=&result.Provenance[i];v.ArchiveStatus="PINNED_OBSERVATION_BYTES_MATCHED"
+    v.BundlePlanSHA256s=append(v.BundlePlanSHA256s,ref.SHA256)
+    link.MatchedProvenanceIDs=append(link.MatchedProvenanceIDs,v.ID)
+    link.Status="MATCHED_SNAPSHOT_PROVENANCE"
+   }
+  }
+  sort.Strings(link.MatchedProvenanceIDs)
+  result.Bundles=append(result.Bundles,link)
+ }
+ for _,v:=range result.Provenance{if len(v.Archives)==0&&len(v.BundlePlanSHA256s)==0{result.MissingArchiveRecords++}}
  av:=workspaceArtifacts{dir:o.EvidenceDir,statuses:map[string]string{}}
  identityReviewers:=map[string]map[string]bool{}
  for _,t:=range tasks{
@@ -236,6 +277,7 @@ func workspace(raw []byte,d Dossier,o WorkspaceOptions,inspect inspectArchiveFun
   }
   result.Tasks=append(result.Tasks,row)
  }
+ result.Progress,result.ReviewQueue=workspaceProgress(result.Tasks)
  result.ArtifactFilesRead=av.reads
  result.ArtifactBytesRead=av.total
  return result,nil
