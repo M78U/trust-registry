@@ -1,7 +1,6 @@
 package tufclient
 
 import (
- "bytes"
  "fmt"
  "crypto/ed25519"
  "errors"
