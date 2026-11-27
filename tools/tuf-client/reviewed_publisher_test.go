@@ -218,6 +218,29 @@ func TestReviewedPublication(t *testing.T){
  state:=filepath.Join(t.TempDir(),"static-client")
  so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a,Checkpoint:&checkpoint}
  if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ // Simulate interruption after the next numbered root is archived, before
+ // the upstream updater replaces the cached root.
+ if err:=commitRoot(filepath.Join(state,"roots"),2,root2);err!=nil{t.Fatal(err)}
+ cachedRootPath:=filepath.Join(state,"metadata","root.json")
+ oldTimestamp,err:=readRegular(filepath.Join(state,"metadata","timestamp.json"),16384);if err!=nil{t.Fatal(err)}
+ if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("archive ahead of cache was loadable")}
+ repair:=RootRecoveryOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,ExpectedHeadSHA256:digest(root2)}
+ wrongRepair:=repair;wrongRepair.ExpectedHeadSHA256=digest(root)
+ if _,err:=RecoverRootCache(wrongRepair);err==nil{t.Fatal("stale head selection accepted")}
+ wrongRepair=repair;wrongRepair.Authority=nil
+ if _,err:=RecoverRootCache(wrongRepair);err==nil{t.Fatal("missing authority accepted")}
+ if err:=os.Mkdir(filepath.Join(state,".lock"),0700);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverRootCache(repair);err==nil{t.Fatal("root repair bypassed lock")}
+ if err:=os.Remove(filepath.Join(state,".lock"));err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(cachedRootPath,[]byte("{}"),0600);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverRootCache(repair);err==nil{t.Fatal("unknown cached root accepted")}
+ if err:=os.WriteFile(cachedRootPath,root,0600);err!=nil{t.Fatal(err)}
+ repairReport,err:=RecoverRootCache(repair)
+ if err!=nil||!repairReport.CacheAdvanced||repairReport.PreviousRootVersion!=1||repairReport.RootChain.RootVersion!=2||!repairReport.RequiresOnlineRefresh||repairReport.RootChain.ReleaseAuthenticated{t.Fatal(repairReport,err)}
+ repairedRoot,err:=readRegular(cachedRootPath,maxRoot);if err!=nil||!bytes.Equal(repairedRoot,root2){t.Fatal("incorrect repaired root",err)}
+ keptTimestamp,err:=readRegular(filepath.Join(state,"metadata","timestamp.json"),16384);if err!=nil||!bytes.Equal(keptTimestamp,oldTimestamp){t.Fatal("rollback metadata modified",err)}
+ if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("repair made old installation loadable")}
+ if rr,err:=RecoverRootCache(repair);err!=nil||rr.CacheAdvanced{t.Fatal("idempotent repair",rr,err)}
  currentDir.Store(assets2);so.BootstrapRoot=nil
  if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
