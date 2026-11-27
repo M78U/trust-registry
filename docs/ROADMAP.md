@@ -136,3 +136,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 1: [private source observations](SOURCE-MONITOR.md), fixed catalog URLs, explicit bounded fetch/local capture, independent pin comparison and raw-body change review signal. No semantic membership inference, scheduler, production CA changes or new release. Homebrew preview formula updated; test runner blocked in Bundler, direct installed acceptance not yet reported.
 
 - Maintainer stage 2: private bounded per-source/mode observation store, indexed exact replay, idempotent append and read-only due plan; no automatic network or trust update. See [source monitoring](SOURCE-MONITOR.md#stage-2-persistent-local-observation-index-and-advisory-plan).
+
+- Maintainer stage 3: explicit bounded online check coordinator, lock-scoped due check and capture/append, partial failure and request accounting; no scheduler, automatic retry or trust changes. See [source monitoring](SOURCE-MONITOR.md#stage-3-bounded-explicit-incremental-run).
