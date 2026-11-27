@@ -193,3 +193,8 @@ func(s *EvidenceSet)EvaluatePair(child,issuer []byte,at time.Time)(Report,error)
  if s==nil{return Report{},errors.New("loaded evidence set required")}
  return EvaluatePair(child,issuer,s.crls,s.ocsp,Options{At:at,KnownAt:s.cutoff})
 }
+
+// MatchesCutoff checks the detached evidence set's exact validated cutoff.
+func(s *EvidenceSet)MatchesCutoff(at time.Time)bool{
+ return s!=nil&&s.crls!=nil&&s.ocsp!=nil&&validTime(at)&&s.cutoff.Equal(at)
+}

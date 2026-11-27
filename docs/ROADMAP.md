@@ -100,3 +100,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Pinned Registry release diff and structural consumer impact report (PR #48): certificate/provenance deltas, policy declarations and recorded decision/review changes, optional strict transition. No effective trust or production release claims.
 
 - Effective local authorization impact (PR #49): same-cutoff snapshot comparison, optional earlier cutoff on previous snapshot, shared inventory index and separate certificate validity; no actual path or production trust claim.
+
+- Certificate path impact (PR #50): explicit same-scope local path comparison, shared detached revocation evidence and optional replacement comparison; no production trust claim.

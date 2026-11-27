@@ -45,6 +45,14 @@ func strongest(a,b string)string{
 // Aggregate status is the worst observed risk, not a chosen trust path.
 func VerifyLocalPathWithRevocation(s *registry.Store,d policy.Document,input []byte,purpose,dnsName string,at,knownAt time.Time,evidence *revocation.EvidenceStore)(LocalPathWithRevocationReport,error){
  set,err:=evidence.Load(knownAt);if err!=nil{return LocalPathWithRevocationReport{},err}
+ return VerifyLocalPathWithEvidence(s,d,input,purpose,dnsName,at,knownAt,set)
+}
+
+// VerifyLocalPathWithEvidence uses a detached, already validated evidence
+// set at the identical cutoff, so comparative callers cannot observe a
+// store mutation between evaluations.
+func VerifyLocalPathWithEvidence(s *registry.Store,d policy.Document,input []byte,purpose,dnsName string,at,knownAt time.Time,set *revocation.EvidenceSet)(LocalPathWithRevocationReport,error){
+ if !set.MatchesCutoff(knownAt){return LocalPathWithRevocationReport{},errors.New("validated evidence set with matching knowledge cutoff required")}
  local,err:=VerifyLocalPath(s,d,input,purpose,dnsName,at,knownAt);if err!=nil{return LocalPathWithRevocationReport{},err}
  out:=LocalPathWithRevocationReport{LocalPathReport:local,Revocation:PathRevocation{Status:"NO_VALID_PATH",Scope:"ALL_RETURNED_TECHNICAL_PATHS_WORST_RISK_EXCLUDING_ANCHORS_NO_FRESHNESS_OR_RECEIPT_PROOF",ObservationCutoff:knownAt,Observations:set.Records(),Pairs:[]revocation.Report{},Chains:[]ChainRevocation{}}}
  if local.Path.PathStatus!="VALID_UNDER_EXPLICIT_CA_SET"{return out,nil}
