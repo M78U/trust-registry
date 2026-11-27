@@ -185,3 +185,5 @@ Review workspace now accepts explicit pinned bundle archives, reports task count
 `snapshot diff` compares independently pinned snapshots, including certificate/provenance changes, policy declarations and recorded review/decision events. Reports structural candidate impact for SigLens and optional strict append-only transition checks. No effective trust evaluation. See [release diff](docs/REGISTRY-DIFF.md).
 
 `snapshot authorization-impact` compares effective local policy authorizations at identical cutoffs across pinned snapshots, optionally isolating time effects on the previous snapshot. See [authorization impact](docs/AUTHORIZATION-IMPACT.md). No path or release trust determination.
+
+`snapshot path-impact` compares a local signer certificate under exact shared policy and time cutoffs across pinned snapshots, optionally isolating changes in private revocation evidence. See [path impact](docs/PATH-IMPACT.md). No production trust or document validation.
