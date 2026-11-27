@@ -7,3 +7,32 @@
 
 # Local manual release validation receipts
 /.release-validation/
+
+# Private local work: prefer a separate directory outside this repository.
+# These exclusions are a safety net, not a secret scanner.
+/.private/
+/local-registry/
+/local-state/
+/local-snapshot*.json
+/private-ledger/
+/private-evidence/
+/private-acquisition/
+/private-review/
+/private-keys/
+/private-release/
+/tuf-state/
+/.release-audit/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pkcs8
+
+# Do not globally ignore PEM, DER, JSON or testdata: reviewed public and
+# synthetic fixtures must remain visible to code review.

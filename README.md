@@ -2,13 +2,13 @@
 
 **Discover trust. Verify independently.**
 
-Independent, open-source PKI trust infrastructure by M78U Labs. Planned explorer: trust.m78u.com. The first consumer is [SigLens](https://github.com/M78U/siglens/issues/23), but this project is independently versioned.
+Independent PKI trust infrastructure by M78U Labs, intended for open-source development. Live research preview: [trust.m78u.com](https://trust.m78u.com/). The first consumer is [SigLens](https://github.com/M78U/siglens/issues/23), but this project is independently versioned.
 
 Certificate discovery never implies trust. Trust is explicit, scoped, auditable and offline-first. No system trust fallback. Unknown is not trusted.
 
 ## Current status
 
-Pre-release foundation. No real CA certificates or default trust anchors. The initial implementation parses standard and SM2 X.509 DER/PEM and persists CA candidates and independent source assertions in a local content-addressed inventory. Local policy evaluation is experimental and explicitly unauthenticated; no production trust evaluation or snapshot verification yet. Direct issuer discovery reports local candidate evidence only, never trust.
+Public Explorer research preview; source repository private pending the [public-source readiness gate](docs/OPEN-SOURCE-READINESS.md). No released real CA dataset or default trust anchors. The local toolkit parses standard and SM2 X.509 DER/PEM, manages candidate provenance, evaluates research policies and supports experimental snapshot authentication, strict TUF installation, recovery and consumer sessions. Committed-lock validation and independent security review remain outstanding. Distribution authentication and candidate discovery do not establish certificate trust.
 
 ```sh
 go test ./...
@@ -96,7 +96,7 @@ Experimental TUF `tuf-fetch --install` persists signed metadata and snapshot tog
 
 ## Registry Explorer research preview
 
-`cd web && npm test && npm run build` creates a dependency-free static research preview in `web/dist`. See [Explorer deployment](docs/EXPLORER.md). The public projection contains only selected source-directory leads and empty policy templates, never certificate bytes or local snapshots. Planned Workers custom domain trust.m78u.com; not deployed.
+`cd web && npm test && npm run build` creates a dependency-free static research preview in `web/dist`. See [Explorer deployment](docs/EXPLORER.md). The public projection contains only selected source-directory leads and empty policy templates, never certificate bytes or local snapshots. The operator reports successful deployment at [trust.m78u.com](https://trust.m78u.com/) on 2026-11-27. Research preview only; no signed dataset deployment.
 
 Explorer includes an interactive evidence constellation with direct catalog/source/fingerprint/name associations, keyboard navigation, relation filters and complete neighbor list. These are research associations, not verified certificate chains.
 
@@ -201,3 +201,7 @@ Strict local state diagnostics: `tuf-load --diagnose` or `tufclient.DiagnoseStat
 Strict update coordination: `tuf-load --coordinate plan|open|recover-root|recover-pending|refresh` or `tufclient.CoordinateUpdate` combines explicit diagnosis, recovery and strict installation/session reopening. See [update coordinator](docs/TUF-UPDATE-ORCHESTRATOR.md).
 
 Strict online installation reuses the latest identical authenticated target after metadata and approval checks, with per-refresh transfer statistics. See [transfer optimization](docs/TUF-TRANSFER-OPTIMIZATION.md).
+
+## License and security
+
+Software and original technical documentation: [MIT](LICENSE), with separate brand, third-party material and dependency rights described in [NOTICE](NOTICE.md). See [SECURITY](SECURITY.md) for private vulnerability reporting and [CONTRIBUTING](CONTRIBUTING.md) for contribution requirements. Public source visibility remains a separate owner-approved gate; see [readiness checklist](docs/OPEN-SOURCE-READINESS.md).
