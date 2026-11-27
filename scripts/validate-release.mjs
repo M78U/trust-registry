@@ -61,8 +61,12 @@ try{
    assert.equal(git("tracked lock "+rel,["ls-files","--error-unmatch",rel]),rel);
   }
  });
+ // Resolve both module graphs before executing tests, so a main-module
+ // test failure does not prevent collecting the TUF lock candidate.
  for(const m of modules){
   command(m.name+" dependency "+mode,"go",mode==="locked"?["mod","tidy","-diff"]:["mod","tidy"],m.dir);
+ }
+ for(const m of modules){
   command(m.name+" module verify","go",["mod","verify"],m.dir);
   command(m.name+" vet","go",["vet","-mod=readonly","./..."],m.dir);
   command(m.name+" tests","go",["test","-mod=readonly","-count=1","-timeout=5m","./..."],m.dir);
