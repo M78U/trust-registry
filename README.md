@@ -31,8 +31,18 @@ Master roadmap: [#1](https://github.com/M78U/trust-registry/issues/1).
 
 ## Direct issuer discovery
 
-Exact DER issuer/subject names or nonempty AKI/SKI equality select candidates. Signature and limited CA constraints are evaluated separately; unsupported signatures, identifier conflicts and unknown critical extensions do not match. No validity time, full path constraints, policy, revocation or trust-anchor evaluation. `trustStatus` is always `NOT_ESTABLISHED`. Names with equivalent but differently encoded DNs may be missed. The candidate scan is local, bounded to 256 matches, and assumes an operator-controlled inventory. No system roots or network requests.
+Exact DER issuer/subject names or nonempty AKI/SKI equality select candidates. Signature and limited CA constraints are evaluated separately; unsupported signatures, identifier conflicts and unknown critical extensions do not match. No validity time, full path constraints, policy, revocation or trust-anchor evaluation. `trustStatus` is always `NOT_ESTABLISHED`. Names with equivalent but differently encoded DNs may be missed. The candidate scan uses a rebuilt, validated local index, is bounded to 256 matches, and assumes an operator-controlled inventory. No system roots or network requests.
 
 ## Local policy evaluation
 
 `trust-registry policy list` and `policy inspect cn.document-signing` expose empty built-in profiles. `policy evaluate --file policy-review.json --registry ./local-registry --at 2026-01-01T00:00:00Z --known-at 2026-01-01T00:00:00Z` evaluates a local review document. It never establishes release authenticity or certificate trust; even explicit local approvals are reported only as `locallyAuthorizedAnchors`. See [policy format](docs/TRUST-POLICY.md).
+
+## Indexed queries and unified validation
+
+```sh
+go run ./cmd/trust-registry search --registry ./local-registry --source-host example.org --key-algorithm SM2 --limit 50
+go run ./cmd/trust-registry search --registry ./local-registry --ski HEX --issuer 'CN=Example CA'
+go run ./cmd/trust-registry validate --registry ./local-registry --policy testdata/policies/empty-cn-document-signing.json
+```
+
+All search filters are exact AND matches. Serial/SKI/AKI/fingerprint use canonical lowercase hexadecimal. DN display text and asserted source host are discovery keys only, not proof of identity or source authenticity. Results are ordered by fingerprint; pass nextAfter as --after with the same filters and unchanged inventory to continue. The SDK reuses Store.BuildIndex() across queries; rebuild after any change. No persistent index or authenticated snapshot. Repeat --policy to check multiple local documents against one validated inventory; duplicate policy versions and scope changes under the same ID are rejected. Only supplied documents are checked. General JSON Schema engine integration, authenticated completeness and certificate path validation remain pending.

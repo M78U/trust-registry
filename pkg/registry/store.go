@@ -228,20 +228,30 @@ type ValidationReport struct {
 	ProvenanceRecords int `json:"provenanceRecords"`
 }
 
-// Validate checks canonical records, content addresses and cross references.
-// It does not authenticate asserted sources or validate certificate paths.
-func (s *Store) Validate() (ValidationReport,error) {
-	certs,err := s.List()
-	if err != nil { return ValidationReport{},err }
-	sources,err := s.allProvenance()
-	if err != nil { return ValidationReport{},err }
-	counts := make(map[string]int,len(certs))
-	for _,c := range certs { counts[c.FingerprintSHA256]=0 }
-	for _,p := range sources {
-		fp:=p.Record.CertificateSHA256
-		if _,ok:=counts[fp]; !ok { return ValidationReport{},fmt.Errorf("orphan provenance: %s",p.ID) }
+// validatedInventory checks the complete local inventory once and returns the
+// exact records checked. No assertion of source authenticity is made.
+func (s *Store) validatedInventory() ([]CertificateRecord, []ProvenanceEntry, error) {
+	certs, err := s.List()
+	if err != nil { return nil, nil, err }
+	sources, err := s.allProvenance()
+	if err != nil { return nil, nil, err }
+	counts := make(map[string]int, len(certs))
+	for _, c := range certs { counts[c.FingerprintSHA256] = 0 }
+	for _, p := range sources {
+		fp := p.Record.CertificateSHA256
+		if _, ok := counts[fp]; !ok { return nil, nil, fmt.Errorf("orphan provenance: %s", p.ID) }
 		counts[fp]++
 	}
-	for fp,n := range counts { if n==0 { return ValidationReport{},fmt.Errorf("certificate lacks provenance: %s",fp) } }
-	return ValidationReport{len(certs),len(sources)},nil
+	for _, c := range certs {
+		if counts[c.FingerprintSHA256] == 0 { return nil, nil, fmt.Errorf("certificate lacks provenance: %s", c.FingerprintSHA256) }
+	}
+	return certs, sources, nil
+}
+
+// Validate checks canonical records, content addresses and cross references.
+// It does not authenticate asserted sources or validate certificate paths.
+func (s *Store) Validate() (ValidationReport, error) {
+	certs, sources, err := s.validatedInventory()
+	if err != nil { return ValidationReport{}, err }
+	return ValidationReport{len(certs), len(sources)}, nil
 }
