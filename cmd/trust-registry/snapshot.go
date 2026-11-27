@@ -15,7 +15,8 @@ import (
 )
 
 func runSnapshot(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: snapshot build | verify")}
+	if len(args)==0{return errors.New("usage: snapshot build | verify | sign-research | authenticate-research")}
+	if args[0]=="sign-research"||args[0]=="authenticate-research"{return runResearchSignature(args,out)}
 	flags:=flag.NewFlagSet("snapshot "+args[0],flag.ContinueOnError)
 	enc:=json.NewEncoder(out)
 	switch args[0]{

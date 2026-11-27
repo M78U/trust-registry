@@ -19,3 +19,11 @@ No release tag, GitHub Release, binary package or production trust bundle is cre
 ## Local snapshot implementation
 
 See [SNAPSHOT.md](SNAPSHOT.md). The unsigned local research envelope is a deterministic payload format only, not an update protocol. Do not ship it as trusted roots. Sequence, revision and expiry fields are assertions until independently authenticated. Evaluate TUF before implementing production distribution.
+
+## Development CI and TUF decision
+
+At the project owner's request, automatic pull_request and main push CI triggers are disabled during development. CI remains available through workflow_dispatch with the same three-platform checks. Certificate Research remains independently manual. No automatic validation is implied by an open or merged PR. Before any public release, restore mandatory successful checks and independent review; PR #18 was merged despite failed jobs without available logs.
+
+TUF is the preferred production update architecture (https://theupdateframework.github.io/specification/latest/ and https://theupdateframework.io/docs/metadata/). Its root, targets, snapshot and timestamp roles separate trust bootstrap/rotation, target authorization, consistent versions and expiry. The local JSON envelope should be a TUF target, not a replacement for these roles. Evaluate a maintained Go implementation and lock dependencies when executable tests are available. Production deployment remains blocked until authenticated root bootstrap, threshold/rotation, timestamp/snapshot/targets metadata verification, rollback persistence and atomic installation are implemented and independently reviewed.
+
+The current Ed25519 detached-signature feature is explicitly a local research mechanism, not TUF. It verifies a domain-separated envelope SHA-256 with independently provided public keys, distinct signer threshold, explicit time window and caller-owned checkpoint comparison. It does not set releaseAuthenticated or authorize CA trust, implement root/key rotation, persist rollback state or prevent a frozen still-valid snapshot. Do not deploy it as a production updater.

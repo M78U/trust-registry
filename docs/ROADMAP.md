@@ -33,4 +33,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 ## v0.3 distribution foundation
 
-- Deterministic unsigned local snapshot builder and verifier: PR #18. Signature authentication, TUF evaluation, persistent rollback/freeze protection and approved release data remain pending.
+- Deterministic unsigned local snapshot builder and verifier: merged in #18 (CI not verified). Signature authentication, TUF evaluation, persistent rollback/freeze protection and approved release data remain pending.
+
+- Local research Ed25519 signature and threshold verification, explicit time and caller checkpoint checks: PR #19. Automatic CI suspended by owner; manual checks retained. TUF production integration, authenticated key rotation and durable rollback state remain separate gates.

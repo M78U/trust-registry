@@ -71,3 +71,7 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 ## Local research snapshots
 
 `trust-registry snapshot build --registry ./local-registry --sequence 1 --revision GIT_SHA --created-at RFC3339 --expires-at RFC3339 --out local-snapshot.json` builds a deterministic unsigned local envelope. Repeat `--policy FILE` for explicitly supplied policy documents. `trust-registry snapshot verify local-snapshot.json` checks manifest hashes and semantic consistency, not authenticity, freshness or rollback. See [snapshot format](docs/SNAPSHOT.md). Do not publish research snapshots before redistribution and release authorization.
+
+### Local research signatures
+
+`snapshot sign-research --key KEY.pem --out signature.json SNAPSHOT` and `snapshot authenticate-research --public-key PINNED.pem --signature signature.json --threshold 1 --at RFC3339 --bootstrap SNAPSHOT` demonstrate offline research signature verification. Keys must be independently obtained; use a protected local checkpoint on subsequent checks. See [research authentication](docs/RESEARCH-AUTHENTICATION.md). Not production release trust. Automatic PR/push CI is temporarily disabled; run CI manually before release.
