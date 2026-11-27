@@ -118,3 +118,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Strict target reuse and transfer reporting: unchanged installed release skips redundant target transfer only after current signed metadata, credential, checkpoint and target length/hash checks. New releases still download; no new cloud bindings, cache format or telemetry. Locked Go acceptance pending.
 
 - Public Explorer Research Preview reported deployed at trust.m78u.com on 2026-11-27. Public-source preparation: MIT/NOTICE, security and contribution policy, private workspace ignores and explicit visibility gate. Full Git/GitHub history audit, third-party rights/license review, dependency locks and tests, and owner visibility approval remain pending.
+
+- Pre-public audit preflight: bounded offline reachable-tree/blob inspection with redacted object identifiers, private-path and selected credential-marker review, synthetic deleted-history/branch-only/partial-clone test fixtures. Independent full clone scan, rights review, GitHub metadata review and locked validation remain required; no visibility change.
