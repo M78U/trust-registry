@@ -1,3 +1,6 @@
 /dist/
 /trust-registry
 /trust-registry.exe
+
+# Local prepared release assets (never commit or publish ledger receipts)
+/web/release-dist/

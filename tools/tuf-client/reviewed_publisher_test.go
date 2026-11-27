@@ -114,16 +114,32 @@ func TestReviewedPublication(t *testing.T){
  if _,_,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err==nil{t.Fatal("strict online downgrade")}
  // Ledger commits exact signed metadata, with an independently retainable head.
  ledger:=filepath.Join(t.TempDir(),"publication")
+ o.PublicCredential=publicBytes
  lo:=LedgerOptions{Directory:ledger,AuthoritySHA256:digest(ab),Reviewed:o}
  receipt,err:=BuildInLedger(root,raw,lo);if err!=nil||receipt.Sequence!=1||receipt.Status!="LOCAL_REVIEWED_BUILD_COMMITTED"{t.Fatal(receipt,err)}
  exported,er,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt.RecordSHA256,now)
  if err!=nil||er.RecordSHA256!=receipt.RecordSHA256||len(exported.Files)!=5{t.Fatal(er,err)}
- for name,data:=range repo.Files{if !bytes.Equal(exported.Files[name],data){t.Fatal("changed export",name)}}
+ for name,data:=range publicRepo.Files{if !bytes.Equal(exported.Files[name],data){t.Fatal("changed export",name)}}
  if _,err:=BuildInLedger(root,raw,lo);err==nil{t.Fatal("repeat bootstrap")}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),strings.Repeat("b",64),now);err==nil{t.Fatal("wrong head pin")}
  if err:=os.Mkdir(filepath.Join(ledger,".lock"),0700);err!=nil{t.Fatal(err)}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),"",now);err==nil{t.Fatal("concurrent operation")}
  if err:=os.Remove(filepath.Join(ledger,".lock"));err!=nil{t.Fatal(err)}
+ // Build from exact ledger and preview assets; no private files exported.
+ explorer:=t.TempDir()
+ for _,name:=range explorerAssets{data:=[]byte("fixture "+name);if name=="_headers"{data=[]byte(baseHeaders)};if err:=os.WriteFile(filepath.Join(explorer,name),data,0600);err!=nil{t.Fatal(err)}}
+ staticOpts:=StaticOptions{LedgerDir:ledger,InitialRootSHA256:digest(root),ExpectedHeadSHA256:receipt.RecordSHA256,Authority:a,ExplorerDir:explorer,At:now,First:true}
+ files,plan,err:=PrepareStaticPublication(staticOpts);if err!=nil||plan.NewFiles!=len(explorerAssets)+5||plan.Deployed{t.Fatal(plan,err)}
+ oldManifest,err:=StaticManifestBytes(plan.Manifest);if err!=nil{t.Fatal(err)}
+ if !bytes.Equal(files["tuf/metadata/1.targets.json"],publicRepo.Files["metadata/1.targets.json"]){t.Fatal("metadata changed")}
+ assets:=t.TempDir()
+ for name,data:=range files{path:=filepath.Join(assets,filepath.FromSlash(name));if err:=os.MkdirAll(filepath.Dir(path),0700);err!=nil{t.Fatal(err)};if err:=os.WriteFile(path,data,0600);err!=nil{t.Fatal(err)}}
+ if err:=VerifyStaticDirectory(assets,plan.Manifest,now);err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(filepath.Join(assets,"extra.txt"),[]byte("private"),0600);err!=nil{t.Fatal(err)}
+ if err:=VerifyStaticDirectory(assets,plan.Manifest,now);err==nil{t.Fatal("extra asset accepted")}
+ if err:=os.Remove(filepath.Join(assets,"extra.txt"));err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(filepath.Join(assets,"app.js"),[]byte("changed"),0600);err!=nil{t.Fatal(err)}
+ if err:=VerifyStaticDirectory(assets,plan.Manifest,now);err==nil{t.Fatal("changed asset accepted")}
  // Sequence two reuses inventory but needs a fresh signed approval.
  later:=now.Add(time.Minute)
  raw2,_,err:=snapshot.Build(s,nil,snapshot.Options{Sequence:2,SourceRevision:strings.Repeat("b",40),CreatedAt:later,ExpiresAt:now.Add(24*time.Hour)});if err!=nil{t.Fatal(err)}
@@ -142,11 +158,20 @@ func TestReviewedPublication(t *testing.T){
  lo.Reviewed.Publish.TargetsSigners=[]ed25519.PrivateKey{nextKeys[metadata.TARGETS]}
  lo.Reviewed.Publish.SnapshotSigners=[]ed25519.PrivateKey{nextKeys[metadata.SNAPSHOT]}
  lo.Reviewed.Publish.TimestampSigners=[]ed25519.PrivateKey{nextKeys[metadata.TIMESTAMP]}
+ b2:=review.ReleaseBinding{InitialRootSHA256:digest(root),CurrentRootSHA256:digest(root2),SnapshotSHA256:digest(raw2),Sequence:2,TargetsExpires:lo.Reviewed.Publish.TargetsExpires,SnapshotMetadataExpires:lo.Reviewed.Publish.SnapshotExpires,TimestampExpires:lo.Reviewed.Publish.TimestampExpires}
+ c2,err:=review.PrepareCredential(raw2,d2,dir,a,a2,b2,later);if err!=nil{t.Fatal(err)}
+ for _,id:=range []string{"release-a","release-b"}{c2,err=review.SignCredential(raw2,d2,dir,a,a2,c2,id,reviewers[id],later);if err!=nil{t.Fatal(err)}}
+ lo.Reviewed.PublicCredential,err=review.CredentialBytes(c2);if err!=nil{t.Fatal(err)}
  noPin:=lo;noPin.ExpectedHeadSHA256=""
  if _,err:=BuildInLedger(root2,raw2,noPin);err==nil{t.Fatal("rotation without prior head pin")}
  receipt2,err:=BuildInLedger(root2,raw2,lo);if err!=nil||receipt2.Sequence!=2||receipt2.PreviousRecordSHA256!=receipt.RecordSHA256{t.Fatal(receipt2,err)}
  if receipt2.RootVersion!=2||receipt2.InitialRootSHA256!=digest(root)||receipt2.RootSHA256!=digest(root2){t.Fatal(receipt2)}
  rotated,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,later);if err!=nil||len(rotated.Files)!=6||!bytes.Equal(rotated.Files["metadata/1.root.json"],root)||!bytes.Equal(rotated.Files["metadata/2.root.json"],root2){t.Fatal(err)}
+ staticOpts.First=false;staticOpts.At=later;staticOpts.ExpectedHeadSHA256=receipt2.RecordSHA256;staticOpts.PreviousManifest=oldManifest;staticOpts.PreviousManifestSHA256=plan.ManifestSHA256
+ files2,delta,err:=PrepareStaticPublication(staticOpts)
+ if err!=nil||delta.NewFiles!=4||delta.ChangedFiles!=1||delta.UnchangedFiles!=len(files)-1||!bytes.Equal(files2["tuf/metadata/1.targets.json"],files["tuf/metadata/1.targets.json"]){t.Fatal(delta,err)}
+ staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)
+ if _,_,err:=PrepareStaticPublication(staticOpts);err==nil{t.Fatal("bad prior manifest pin")}
  if _,err:=BuildInLedger(root2,raw2,lo);err==nil{t.Fatal("stale head replay")}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,now.Add(time.Hour));err==nil{t.Fatal("expired timestamp exported")}
  if err:=os.Remove(filepath.Join(ledger,evidenceName(1)));err!=nil{t.Fatal(err)}

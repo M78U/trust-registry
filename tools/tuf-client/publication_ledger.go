@@ -81,7 +81,7 @@ type ledgerHead struct{
 // Validate every bounded record in order, including historical TUF signatures
 // at its asserted build time and exact snapshot transitions. The hash chain
 // is local integrity, not a cryptographically authenticated approval ledger.
-func scanPublication(dir,rootPin,authorityPin,expected string)(ledgerHead,error){
+func scanPublication(dir,rootPin,authorityPin,expected string,visitors ...func(publicationRecord)error)(ledgerHead,error){
  if !hashPattern.MatchString(rootPin)||!hashPattern.MatchString(authorityPin)||expected!=""&&!hashPattern.MatchString(expected){return ledgerHead{},errors.New("explicit independent root and authority pins required")}
  f,err:=os.Open(dir);if err!=nil{return ledgerHead{},err};defer f.Close()
  entries,err:=f.ReadDir(MaxPublicationRecords+2);if err!=nil&&err!=io.EOF{return ledgerHead{},err}
@@ -113,6 +113,7 @@ func scanPublication(dir,rootPin,authorityPin,expected string)(ledgerHead,error)
    prior=head.record.Evidence.Snapshot;priorPin=head.record.Evidence.SnapshotSHA256
   }
   if _,err:=snapshot.CheckPublicationTransition(prior,v.Evidence.Snapshot,priorPin,i==0);err!=nil{return ledgerHead{},err}
+  for _,visit:=range visitors{if err:=visit(v);err!=nil{return ledgerHead{},err}}
   head=ledgerHead{record:&v,hash:digest(raw),count:i+1,total:head.total+int64(len(raw))}
  }
  if expected!=""&&head.hash!=expected{return ledgerHead{},errors.New("independent ledger head pin mismatch")}

@@ -147,3 +147,7 @@ Rotated `build-ledger` accepts the full ordered `--root-chain` and `--initial-ro
 ### Independent public release approval
 
 `review prepare-public` / `sign-public` produce a compact threshold-signed receipt. Reviewed TUF builds accept `--public-credential`; strict `tuf-fetch` and `tuf-load` use independent `--authority` and `--authority-sha256` pins. Receipt is embedded in existing Targets metadata, no extra HTTP request or private dossier. See [client release authorization](docs/CLIENT-RELEASE-AUTHORIZATION.md).
+
+### Static release staging
+
+`tuf-publish static-prepare` builds a complete static Explorer/TUF asset collection from a pinned public-authorized ledger and produces a private SHA-256 manifest and delta estimate. `static-check` verifies the exact asset collection before manual deployment using `web/wrangler.release.jsonc`. See [static publication](docs/STATIC-PUBLICATION.md). No Cloudflare bindings or live deployment.

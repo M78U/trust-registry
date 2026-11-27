@@ -57,7 +57,7 @@ func writeNew(path string,b []byte)error{
 	if _,err=f.Write(b);err==nil{err=f.Sync()};e:=f.Close();if err==nil{err=e};if err!=nil{_ = os.Remove(path)};return err
 }
 func run(args []string)error{
-	if len(args)==0{return errors.New("usage: tuf-publish root | rotate-root | verify-root-chain | build | build-rotated | build-reviewed | build-ledger | ledger-export")}
+	if len(args)==0{return errors.New("usage: tuf-publish root | rotate-root | verify-root-chain | build | build-rotated | build-reviewed | build-ledger | ledger-export | static-prepare | static-check")}
 	f:=flag.NewFlagSet(args[0],flag.ContinueOnError)
 	out:=f.String("out","","new output file or directory")
 	switch args[0]{
@@ -77,6 +77,8 @@ func run(args []string)error{
 		return writeNew(*out,raw)
 	case "rotate-root","verify-root-chain":
 		return runRotation(args[0],f,args[1:],out)
+	case "static-prepare","static-check":
+		return runStatic(args[0],f,args[1:],out)
 	case "ledger-export":
 		return exportLedger(f,args[1:],out)
 	case "build","build-rotated","build-reviewed","build-ledger":

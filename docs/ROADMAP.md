@@ -78,3 +78,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Persistent root chains in reviewed publication ledger and network/offline client installation: PR #37. V1 compatibility, exact history prefix, numbered archive and fail-closed mismatch. Independent client-side release approval and rotation-specific reviewer authorization remain pending.
 
 - Public threshold release credential embedded in TUF targets custom metadata; independent pinned strict online/offline client mode: PR #38. No private evidence publication or extra network request. Production release validation pending.
+
+- Static publication preparation and preflight: PR #39. Full authorized ledger history, pinned manifest delta, bounded static assets, timestamp freshness, separate no-worker release config. No cloud API or deployment. Production validation remains open.
