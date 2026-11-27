@@ -45,3 +45,5 @@ The optional `build-ledger` mode uses a protected local publication ledger to se
 Root rotation research tools are available (TUF-ROOT-ROTATION.md). Do not use rotated research outputs in the reviewed v1 ledger or production distribution. Historical root-chain persistence, reviewed rotation authorization, ledger integration and installed-state migration remain gates.
 
 Reviewed ledger and client installation now support persisted TUF root chains (TUF-PERSISTENT-ROOT-CHAIN.md). Old initial root pin remains the ledger/export anchor. Rotation still requires separate operator/root-role authorization; review approvals do not bind root configuration, and clients authenticate TUF bytes only. No live publication or production trust.
+
+Strict clients can now require an independent public release credential bound to exact root pins, snapshot digest/sequence and online metadata expiries. Reviewed publishers embed it in Targets custom metadata. See CLIENT-RELEASE-AUTHORIZATION.md. Research mode remains separate; strict state must be explicitly initialized with independent authority. No production trust or live publication.

@@ -1,6 +1,7 @@
 package tufclient
 
 import (
+ "fmt"
  "crypto/ed25519"
  "errors"
 
@@ -17,6 +18,8 @@ type ReviewedPublishOptions struct{
  PreviousSnapshot []byte
  PreviousSHA256 string
  Bootstrap bool
+ // Optional public credential; required by strict clients, not legacy research.
+ PublicCredential []byte
 }
 type ReviewedPublicationReport struct{
  Authorization review.AuthorizationReport `json:"authorization"`
@@ -74,6 +77,16 @@ func buildReviewedChain(chain [][]byte,initialPin string,raw []byte,o ReviewedPu
  auth,err:=review.Authenticate(raw,o.Dossier,o.EvidenceDir,o.Authority,o.Approval,o.Publish.Now);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
  transition,err:=snapshot.CheckPublicationTransition(o.PreviousSnapshot,raw,o.PreviousSHA256,o.Bootstrap);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
  if !auth.LocalReleaseApprovalVerified||auth.Review.SnapshotSHA256!=transition.NextSHA256||o.Publish.Version<1||uint64(o.Publish.Version)!=transition.NextSequence{return Repository{},ReviewedPublicationReport{},errors.New("approval, transition and TUF sequence mismatch")}
- repo,_,err:=BuildRotatedRepository(chain,initialPin,raw,o.Publish);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ var repo Repository
+ if len(o.PublicCredential)>0{
+  c,err:=review.DecodeCredential(o.PublicCredential);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+  binding:=review.ReleaseBinding{InitialRootSHA256:initialPin,CurrentRootSHA256:rr.CurrentRootSHA256,SnapshotSHA256:auth.Review.SnapshotSHA256,Sequence:auth.Review.Sequence,TargetsExpires:o.Publish.TargetsExpires,SnapshotMetadataExpires:o.Publish.SnapshotExpires,TimestampExpires:o.Publish.TimestampExpires}
+  if c.ApprovalSHA256!=auth.ApprovalSHA256||c.DossierSHA256!=auth.Review.DossierSHA256||c.IssuedAt.Before(o.Approval.ApprovedFrom)||!c.IssuedAt.Before(o.Approval.ApprovedUntil){return Repository{},ReviewedPublicationReport{},errors.New("public credential differs from private approval")}
+  if _,err:=review.VerifyCredential(o.Authority,c,binding,o.Publish.Now);err!=nil{return Repository{},ReviewedPublicationReport{},err}
+  repo,err=buildRepositoryCustom(chain[len(chain)-1],raw,o.Publish,rr.RootVersion,o.PublicCredential);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+  for i,root:=range chain{repo.Files[fmt.Sprintf("metadata/%d.root.json",i+1)]=bytes.Clone(root)}
+ }else{
+  repo,_,err=BuildRotatedRepository(chain,initialPin,raw,o.Publish);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ }
  return repo,ReviewedPublicationReport{Authorization:auth,Transition:transition,RootSHA256:repo.RootSHA256,TargetSHA256:repo.TargetSHA256,Version:repo.Version,Status:"REVIEWED_LOCAL_PUBLICATION_CANDIDATE",TrustStatus:"NOT_ESTABLISHED"},nil
 }

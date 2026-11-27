@@ -20,10 +20,14 @@ func run()error{
 	root:=flag.String("bootstrap-root","","independently obtained root.json for first use")
 	out:=flag.String("out","","new local snapshot output file")
 	install:=flag.Bool("install",false,"install verified snapshot and evidence into state")
+	authority:=flag.String("authority","","independently provisioned review authority file")
+	authorityPin:=flag.String("authority-sha256","","independent authority pin; enables strict mode")
 	flag.Parse()
 	if flag.NArg()!=0||*state==""||*meta==""||*targets==""||*pin==""||(*out=="")==(!*install){return errors.New("state, metadata-url, targets-url, root-sha256 and exactly one of out/install required")}
 	if *out!=""{if _,err:=os.Lstat(*out);err==nil{return errors.New("output exists")}else if !os.IsNotExist(err){return err}}
 	o:=tufclient.Options{StateDir:*state,MetadataURL:*meta,TargetsURL:*targets,InitialRootSHA256:*pin}
+	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
+	if *authority!=""{a,err:=tufclient.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err};o.ReviewAuthority=a}
 	if *root!=""{
 		i,err:=os.Lstat(*root);if err!=nil{return err}
 		if !i.Mode().IsRegular()||i.Size()>512000{return errors.New("invalid bootstrap root file")}

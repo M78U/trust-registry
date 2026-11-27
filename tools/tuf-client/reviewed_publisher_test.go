@@ -2,6 +2,10 @@ package tufclient
 
 import (
  "bytes"
+ "context"
+ "net/http"
+ "net/http/httptest"
+ "sync/atomic"
  "crypto/ecdsa"
  "crypto/ed25519"
  "crypto/elliptic"
@@ -22,7 +26,7 @@ import (
  "github.com/theupdateframework/go-tuf/v2/metadata"
 )
 func TestReviewedPublication(t *testing.T){
- now:=time.Date(2026,1,1,0,0,0,0,time.UTC)
+ now:=time.Now().UTC().Truncate(time.Second)
  opts:=RootOptions{Expires:now.Add(48*time.Hour),Roles:map[string]RoleKeys{}}
  keys:=map[string]ed25519.PrivateKey{}
  for _,role:=range roles{
@@ -68,6 +72,46 @@ func TestReviewedPublication(t *testing.T){
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("missing baseline")}
  bad=o;bad.Publish.Now=now.Add(time.Hour)
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("expired approval")}
+ // Public receipt adds no target file and uses separate approval signatures.
+ binding:=review.ReleaseBinding{InitialRootSHA256:digest(root),CurrentRootSHA256:digest(root),SnapshotSHA256:digest(raw),Sequence:1,TargetsExpires:o.Publish.TargetsExpires,SnapshotMetadataExpires:o.Publish.SnapshotExpires,TimestampExpires:o.Publish.TimestampExpires}
+ credential,err:=review.PrepareCredential(raw,d,dir,a,approval,binding,now);if err!=nil{t.Fatal(err)}
+ if _,err:=review.VerifyCredential(a,credential,binding,now);err==nil{t.Fatal("unsigned credential")}
+ if _,err:=review.SignCredential(raw,d,dir,a,approval,credential,"rights",reviewers["rights"],now);err==nil{t.Fatal("review key signed public credential")}
+ for _,id:=range []string{"release-a","release-b"}{credential,err=review.SignCredential(raw,d,dir,a,approval,credential,id,reviewers[id],now);if err!=nil{t.Fatal(err)}}
+ publicBytes,err:=review.CredentialBytes(credential);if err!=nil{t.Fatal(err)}
+ strict:=o;strict.PublicCredential=publicBytes
+ publicRepo,_,err:=BuildReviewedRepository(root,raw,strict);if err!=nil||len(publicRepo.Files)!=5{t.Fatal(err)}
+ targets,err:=metadata.Targets().FromBytes(publicRepo.Files["metadata/1.targets.json"]);if err!=nil{t.Fatal(err)}
+ info:=targets.Signed.Targets[TargetName]
+ check,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,1,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires,now)
+ if err!=nil||!check.ReleaseApprovalVerified||check.PrivateEvidenceVerified{t.Fatal(check,err)}
+ if _,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,2,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires,now);err==nil{t.Fatal("sequence substitution")}
+ if _,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,1,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires.Add(time.Minute),now);err==nil{t.Fatal("expiry substitution")}
+ strict.PublicCredential=[]byte("{}")
+ if _,_,err:=BuildReviewedRepository(root,raw,strict);err==nil{t.Fatal("invalid public credential")}
+ // Strict clients require the receipt before fetching the target. Separate
+ // state directories ensure research and strict bootstrap are not mixed.
+ serve:=func(repository Repository)(*httptest.Server,*atomic.Int32){
+  hits:=&atomic.Int32{}
+  server:=httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter,req *http.Request){
+   if strings.HasPrefix(req.URL.Path,"/targets/"){hits.Add(1)}
+   data,ok:=repository.Files[strings.TrimPrefix(req.URL.Path,"/")]
+   if !ok{http.NotFound(w,req);return};_,_=w.Write(data)
+  }))
+  t.Cleanup(server.Close)
+  return server,hits
+ }
+ unsignedServer,unsignedHits:=serve(repo)
+ strictOptions:=Options{StateDir:filepath.Join(t.TempDir(),"state"),MetadataURL:unsignedServer.URL+"/metadata",TargetsURL:unsignedServer.URL+"/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a}
+ if _,_,err:=refresh(context.Background(),strictOptions,true,unsignedServer.Client());err==nil||unsignedHits.Load()!=0{t.Fatal("missing credential did not stop target download",err)}
+ signedServer,signedHits:=serve(publicRepo)
+ strictOptions.StateDir=filepath.Join(t.TempDir(),"state")
+ strictOptions.MetadataURL=signedServer.URL+"/metadata";strictOptions.TargetsURL=signedServer.URL+"/targets"
+ if _,r,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err!=nil||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified||signedHits.Load()!=1{t.Fatal(r,err)}
+ if view,r,err:=LoadAuthorizedInstalled(strictOptions.StateDir,digest(root),a);err!=nil||view==nil||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ if _,_,err:=LoadInstalled(strictOptions.StateDir,digest(root));err==nil{t.Fatal("strict offline downgrade")}
+ strictOptions.BootstrapRoot=nil;strictOptions.ReviewAuthority=nil
+ if _,_,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err==nil{t.Fatal("strict online downgrade")}
  // Ledger commits exact signed metadata, with an independently retainable head.
  ledger:=filepath.Join(t.TempDir(),"publication")
  lo:=LedgerOptions{Directory:ledger,AuthoritySHA256:digest(ab),Reviewed:o}
