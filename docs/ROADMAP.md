@@ -45,4 +45,8 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - TUF authenticated research installation and offline evidence loader: PR #23. Initial-root v1, version-aligned publisher profile only; protected filesystem and independent root pin. End-to-end synthetic TLS fixture added, not executed. Rotation evidence, dependency lock and production trust gates pending.
 
-- SigLens candidate exchange v1 and loaded-view issuer discovery: PR #24. Explicit intermediate candidates only, no authenticated release trust.
+- SigLens candidate exchange v1 and loaded-view issuer discovery: merged in #24. Explicit intermediate candidates only, no authenticated release trust.
+
+## v0.4 Explorer
+
+- Static Cloudflare Workers research preview with client-side catalog search, detail/provenance leads, SATL name references and empty policy templates: PR #25. No production graph, approved data publication, deployment or signed release yet.
