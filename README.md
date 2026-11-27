@@ -179,3 +179,7 @@ Explorer now projects four CA research catalogs into one static browser-local in
 `review evidence-add` stages exact local artifact bytes by SHA-256. `review workspace` checks a pinned snapshot and existing dossier, optionally links independently pinned acquisition observations by exact provenance equality, and reports missing/invalid evidence slots and technical CA properties. Diagnostic only; no automatic approval or evidence conclusion. See [CA review workspace](docs/CA-REVIEW-WORKSPACE.md).
 
 Review workspace now accepts explicit pinned bundle archives, reports task counts and a private review queue. `review reuse-evidence` builds a fresh pending dossier for a newer pinned snapshot, rechecking only references from identical requirements. No approvals or signatures carried over. See [review lifecycle](docs/REVIEW-LIFECYCLE.md).
+
+### Registry release diff
+
+`snapshot diff` compares independently pinned snapshots, including certificate/provenance changes, policy declarations and recorded review/decision events. Reports structural candidate impact for SigLens and optional strict append-only transition checks. No effective trust evaluation. See [release diff](docs/REGISTRY-DIFF.md).
