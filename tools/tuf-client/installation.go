@@ -17,7 +17,7 @@ import (
 )
 
 const maxInstalled=128
-const maxEvidenceBytes=76<<20
+const maxEvidenceBytes=(76<<20)+(MaxRootChain-1)*((maxRoot+2)/3*4+4)
 var versionName=regexp.MustCompile(`^[0-9]{20}\.json$`)
 
 type evidence struct {
@@ -26,6 +26,7 @@ type evidence struct {
 	Sequence uint64 `json:"sequence"`
 	SnapshotSHA256 string `json:"snapshotSHA256"`
 	Root []byte `json:"root"`
+	RootHistory [][]byte `json:"rootHistory,omitempty"`
 	Timestamp []byte `json:"timestamp"`
 	SnapshotMetadata []byte `json:"snapshotMetadata"`
 	Targets []byte `json:"targets"`
@@ -35,10 +36,10 @@ type evidence struct {
 func evidenceName(n uint64)string{return fmt.Sprintf("%020d.json",n)}
 func encodeEvidence(v evidence)([]byte,error){b,err:=json.Marshal(v);if err!=nil{return nil,err};return append(b,'\n'),nil}
 
-// Offline verification intentionally supports only the independently pinned
-// version-one root. No trusting a rotated root from the mutable cache.
+// Historical roots are verified from the independent v1 pin. V1 records
+// omit RootHistory, preserving their original canonical representation.
 func verifyEvidence(v evidence,pin string,at time.Time)(Report,error){
-	return verifyEvidenceWithChain(v,pin,at,[][]byte{v.Root})
+	return verifyEvidenceWithChain(v,pin,at,evidenceChain(v))
 }
 
 func verifyEvidenceWithChain(v evidence,pin string,at time.Time,chain [][]byte)(Report,error){
@@ -86,11 +87,13 @@ func latestEvidence(dir string)(*evidence,int,error){
 }
 
 func installEvidence(root,pin string,raw []byte,report Report,at time.Time)error{
-	if report.RootVersion!=1{return errors.New("rotated-root offline installation not supported")}
 	v:=evidence{SchemaVersion:"1",AcceptedAt:at,Sequence:report.Registry.Manifest.Sequence,SnapshotSHA256:digest(raw),Snapshot:raw}
 	for _,f:=range []struct{name string;limit int64;dst *[]byte}{{"root.json",maxRoot,&v.Root},{"timestamp.json",16384,&v.Timestamp},{"snapshot.json",2_000_000,&v.SnapshotMetadata},{"targets.json",5_000_000,&v.Targets}}{
 		b,err:=readRegular(filepath.Join(root,"metadata",f.name),f.limit);if err!=nil{return err};*f.dst=b
 	}
+	chain,err:=readRootArchive(root,pin,v.Root,at,false);if err!=nil{return err}
+	if report.RootVersion!=int64(len(chain)){return errors.New("root version differs from verified archive")}
+	v.RootHistory=append([][]byte(nil),chain[:len(chain)-1]...)
 	if _,err:=verifyEvidence(v,pin,at);err!=nil{return err}
 	dir:=filepath.Join(root,"installed")
 	if err:=os.Mkdir(dir,0700);err!=nil&&!os.IsExist(err){return err}
@@ -98,9 +101,10 @@ func installEvidence(root,pin string,raw []byte,report Report,at time.Time)error
 	if old!=nil{
 		if at.Before(old.AcceptedAt){return errors.New("clock earlier than previous acceptance")}
 		if _,err:=verifyEvidence(*old,pin,old.AcceptedAt);err!=nil{return err}
+		if !rootPrefix(evidenceChain(*old),chain){return errors.New("installed root history rollback or replacement")}
 		if v.Sequence<old.Sequence{return errors.New("registry sequence rollback")}
 		if v.Sequence==old.Sequence{
-			if v.SnapshotSHA256!=old.SnapshotSHA256||!bytes.Equal(v.Timestamp,old.Timestamp)||!bytes.Equal(v.SnapshotMetadata,old.SnapshotMetadata)||!bytes.Equal(v.Targets,old.Targets){return errors.New("same sequence publication conflict")}
+			if len(evidenceChain(*old))!=len(chain)||!bytes.Equal(v.Root,old.Root)||v.SnapshotSHA256!=old.SnapshotSHA256||!bytes.Equal(v.Timestamp,old.Timestamp)||!bytes.Equal(v.SnapshotMetadata,old.SnapshotMetadata)||!bytes.Equal(v.Targets,old.Targets){return errors.New("same sequence publication conflict")}
 			_,err:=verifyEvidence(*old,pin,at);return err
 		}
 	}
@@ -136,6 +140,8 @@ func LoadInstalled(stateDir,initialRootSHA256 string)(*snapshot.Loaded,Report,er
 		if !bytes.Equal(cached,f.expected){return nil,Report{},errors.New("cached metadata differs from installed evidence; successful refresh/install required")}
 	}
 	at:=time.Now().UTC()
+	chain,err:=readRootArchive(root,initialRootSHA256,v.Root,at,false);if err!=nil{return nil,Report{},err}
+	if len(chain)!=len(evidenceChain(*v))||!rootPrefix(evidenceChain(*v),chain){return nil,Report{},errors.New("installed root chain differs from archive")}
 	report,err:=verifyEvidence(*v,initialRootSHA256,at);if err!=nil{return nil,Report{},err}
 	view,_,err:=snapshot.LoadPinnedResearch(v.Snapshot,v.SnapshotSHA256,at);if err!=nil{return nil,Report{},err}
 	return view,report,nil

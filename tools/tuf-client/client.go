@@ -80,6 +80,7 @@ type boundedFetcher struct {
 	metadataBase,targetsBase string
 	requests int
 	remaining int64
+	rootCapture *rootArchiveCapture
 }
 
 func (f *boundedFetcher) DownloadFile(raw string,maxLength int64,_ time.Duration)([]byte,error){
@@ -99,6 +100,7 @@ func (f *boundedFetcher) DownloadFile(raw string,maxLength int64,_ time.Duration
 	f.remaining-=int64(len(data))
 	if err!=nil{return nil,err}
 	if int64(len(data))>maxLength{return nil,errors.New("download exceeds bound")}
+	if f.rootCapture!=nil&&strings.HasPrefix(raw,f.metadataBase){if err:=f.rootCapture.accept(strings.TrimPrefix(raw,f.metadataBase),data);err!=nil{return nil,err}}
 	return data,nil
 }
 
@@ -171,6 +173,9 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 		if !i.Mode().IsRegular()||i.Size()>5_000_000{return nil,Report{},errors.New("invalid cached metadata")}
 	}
 	root,err:=readRegular(rootPath,maxRoot);if err!=nil{return nil,Report{},err}
+	chain,err:=readRootArchive(dir,o.InitialRootSHA256,root,time.Now().UTC(),true);if err!=nil{return nil,Report{},err}
+	if err:=checkInstalledRootBaseline(dir,o.InitialRootSHA256,chain);err!=nil{return nil,Report{},err}
+	capture:=&rootArchiveCapture{state:dir,pin:o.InitialRootSHA256,chain:chain,at:time.Now().UTC()}
 	cfg,err:=config.New(metaURL,root);if err!=nil{return nil,Report{},err}
 	cfg.LocalMetadataDir=metadataDir
 	cfg.LocalTargetsDir=targetDir
@@ -182,9 +187,12 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirect disabled")}}
 	if testClient!=nil{client=testClient} // private integration test seam only
 	ctx,cancel:=context.WithTimeout(ctx,5*time.Minute);defer cancel()
-	cfg.Fetcher=&boundedFetcher{ctx:ctx,client:client,metadataBase:metaURL,targetsBase:targetURL,remaining:maxDownloadBytes}
+	cfg.Fetcher=&boundedFetcher{ctx:ctx,client:client,metadataBase:metaURL,targetsBase:targetURL,remaining:maxDownloadBytes,rootCapture:capture}
 	u,err:=updater.New(cfg);if err!=nil{return nil,Report{},err}
 	if err:=u.Refresh();err!=nil{return nil,Report{},err}
+	updatedRoot,err:=readRegular(rootPath,maxRoot);if err!=nil{return nil,Report{},err}
+	rr,err:=VerifyRootChain(capture.chain,o.InitialRootSHA256,time.Now().UTC());if err!=nil{return nil,Report{},err}
+	if !bytes.Equal(updatedRoot,capture.chain[len(capture.chain)-1])||u.GetTrustedMetadataSet().Root.Signed.Version!=rr.RootVersion{return nil,Report{},errors.New("updater root differs from verified archive")}
 	info:=u.GetTopLevelTargets()[TargetName]
 	if info==nil||info.Path!=TargetName||info.Length<=0||info.Length>snapshot.MaxEnvelopeBytes||len(info.Hashes)!=1||len(info.Hashes["sha256"])!=sha256.Size{return nil,Report{},errors.New("required top-level snapshot target with SHA-256 absent or invalid")}
 	// Temporary file is only transport staging; do not leave a mutable

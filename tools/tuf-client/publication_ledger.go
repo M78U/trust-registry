@@ -33,6 +33,8 @@ type LedgerReceipt struct{
  PreviousRecordSHA256 string `json:"previousRecordSHA256"`
  SnapshotSHA256 string `json:"snapshotSHA256"`
  RootSHA256 string `json:"rootSHA256"`
+ InitialRootSHA256 string `json:"initialRootSHA256"`
+ RootVersion int `json:"rootVersion"`
  AuthoritySHA256 string `json:"authoritySHA256"`
  ApprovalSHA256 string `json:"approvalSHA256"`
  DossierSHA256 string `json:"dossierSHA256"`
@@ -47,6 +49,9 @@ type LedgerOptions struct{
  AuthoritySHA256 string
  ExpectedHeadSHA256 string // optional independently retained record pin
  Reviewed ReviewedPublishOptions
+ // Optional explicit complete chain for a rotated ledger. Initial pin stays fixed.
+ RootChain [][]byte
+ InitialRootSHA256 string
 }
 func encodePublication(v publicationRecord)([]byte,error){
  raw,err:=json.Marshal(v);if err!=nil{return nil,err}
@@ -103,6 +108,7 @@ func scanPublication(dir,rootPin,authorityPin,expected string)(ledgerHead,error)
   if _,err:=verifyEvidence(v.Evidence,rootPin,v.Evidence.AcceptedAt);err!=nil{return ledgerHead{},err}
   var prior []byte;var priorPin string
   if head.record!=nil{
+   if !rootPrefix(evidenceChain(head.record.Evidence),evidenceChain(v.Evidence)){return ledgerHead{},errors.New("ledger root history rollback or replacement")}
    if v.Evidence.AcceptedAt.Before(head.record.Evidence.AcceptedAt){return ledgerHead{},errors.New("publication build time rollback")}
    prior=head.record.Evidence.Snapshot;priorPin=head.record.Evidence.SnapshotSHA256
   }
@@ -114,17 +120,18 @@ func scanPublication(dir,rootPin,authorityPin,expected string)(ledgerHead,error)
 }
 func receipt(head ledgerHead,status string)LedgerReceipt{
  v:=head.record
- return LedgerReceipt{Sequence:v.Evidence.Sequence,RecordSHA256:head.hash,PreviousRecordSHA256:v.PreviousRecordSHA256,SnapshotSHA256:v.Evidence.SnapshotSHA256,RootSHA256:digest(v.Evidence.Root),AuthoritySHA256:v.AuthoritySHA256,ApprovalSHA256:v.ApprovalSHA256,DossierSHA256:v.DossierSHA256,BuiltAt:v.Evidence.AcceptedAt,Records:head.count,Status:status,TrustStatus:"NOT_ESTABLISHED"}
+ return LedgerReceipt{Sequence:v.Evidence.Sequence,RecordSHA256:head.hash,PreviousRecordSHA256:v.PreviousRecordSHA256,SnapshotSHA256:v.Evidence.SnapshotSHA256,RootSHA256:digest(v.Evidence.Root),InitialRootSHA256:digest(evidenceChain(v.Evidence)[0]),RootVersion:len(evidenceChain(v.Evidence)),AuthoritySHA256:v.AuthoritySHA256,ApprovalSHA256:v.ApprovalSHA256,DossierSHA256:v.DossierSHA256,BuiltAt:v.Evidence.AcceptedAt,Records:head.count,Status:status,TrustStatus:"NOT_ESTABLISHED"}
 }
 func repositoryFromRecord(v publicationRecord)Repository{
  e:=v.Evidence
- return Repository{RootSHA256:digest(e.Root),TargetSHA256:e.SnapshotSHA256,Version:int64(e.Sequence),Files:map[string][]byte{
-  "metadata/1.root.json":bytes.Clone(e.Root),
+ repo:=Repository{RootSHA256:digest(e.Root),TargetSHA256:e.SnapshotSHA256,Version:int64(e.Sequence),Files:map[string][]byte{
   fmt.Sprintf("metadata/%d.targets.json",e.Sequence):bytes.Clone(e.Targets),
   fmt.Sprintf("metadata/%d.snapshot.json",e.Sequence):bytes.Clone(e.SnapshotMetadata),
   "metadata/timestamp.json":bytes.Clone(e.Timestamp),
   "targets/"+e.SnapshotSHA256+"."+TargetName:bytes.Clone(e.Snapshot),
  }}
+ for i,raw:=range evidenceChain(e){repo.Files[fmt.Sprintf("metadata/%d.root.json",i+1)]=bytes.Clone(raw)}
+ return repo
 }
 // BuildInLedger commits exact signed staging bytes before any external
 // export. No previous snapshot is accepted from callers in ledger mode.
@@ -133,21 +140,32 @@ func BuildInLedger(rootBytes,raw []byte,o LedgerOptions)(LedgerReceipt,error){
  v:=o.Reviewed
  if len(v.PreviousSnapshot)!=0||v.PreviousSHA256!=""||!hashPattern.MatchString(o.AuthoritySHA256)||v.Approval.AuthoritySHA256!=o.AuthoritySHA256||v.Bootstrap&&o.ExpectedHeadSHA256!=""{return LedgerReceipt{},errors.New("ledger mode requires authority pin and no caller baseline")}
  if !validTime(v.Publish.Now)||v.Publish.Version<1||!hashPattern.MatchString(v.Publish.RootSHA256){return LedgerReceipt{},errors.New("invalid publication time, sequence or root pin")}
- if v.Bootstrap&&v.Publish.Version!=1{return LedgerReceipt{},errors.New("bootstrap requires version one")}
+ chain:=o.RootChain
+ initialPin:=o.InitialRootSHA256
+ if len(chain)==0{
+  if initialPin!=""{return LedgerReceipt{},errors.New("initial root pin requires explicit chain")}
+  chain=[][]byte{rootBytes};initialPin=v.Publish.RootSHA256
+ }
+ if !bytes.Equal(chain[len(chain)-1],rootBytes){return LedgerReceipt{},errors.New("root differs from chain head")}
+ rr,err:=VerifyRootChain(chain,initialPin,v.Publish.Now);if err!=nil{return LedgerReceipt{},err}
+ if rr.CurrentRootSHA256!=v.Publish.RootSHA256{return LedgerReceipt{},errors.New("current root pin mismatch")}
+ if v.Bootstrap&&(v.Publish.Version!=1||len(chain)!=1){return LedgerReceipt{},errors.New("bootstrap requires root and sequence one")}
  var result LedgerReceipt
- err:=publicationLock(o.Directory,v.Bootstrap,func(dir string)error{
-  head,err:=scanPublication(dir,v.Publish.RootSHA256,o.AuthoritySHA256,o.ExpectedHeadSHA256);if err!=nil{return err}
+ err=publicationLock(o.Directory,v.Bootstrap,func(dir string)error{
+  head,err:=scanPublication(dir,initialPin,o.AuthoritySHA256,o.ExpectedHeadSHA256);if err!=nil{return err}
   if head.count>=MaxPublicationRecords{return errors.New("publication ledger full")}
   if v.Bootstrap!=(head.record==nil){return errors.New("explicit new ledger bootstrap or existing nonempty ledger required")}
   if uint64(v.Publish.Version)!=uint64(head.count)+1{return errors.New("publication sequence must advance ledger head exactly once")}
   if head.record!=nil{
+   if !rootPrefix(evidenceChain(head.record.Evidence),chain){return errors.New("new root chain must extend exact ledger history")}
+   if len(chain)>len(evidenceChain(head.record.Evidence))&&o.ExpectedHeadSHA256==""{return errors.New("independent ledger head pin required for rotation")}
    if v.Publish.Now.Before(head.record.Evidence.AcceptedAt){return errors.New("publication clock rollback")}
    v.PreviousSnapshot=head.record.Evidence.Snapshot;v.PreviousSHA256=head.record.Evidence.SnapshotSHA256
   }
-  repo,report,err:=BuildReviewedRepository(rootBytes,raw,v);if err!=nil{return err}
+  repo,report,err:=buildReviewedChain(chain,initialPin,raw,v);if err!=nil{return err}
   if report.Authorization.AuthoritySHA256!=o.AuthoritySHA256{return errors.New("verified authority differs from ledger pin")}
-  ev:=evidence{SchemaVersion:"1",AcceptedAt:v.Publish.Now,Sequence:uint64(repo.Version),SnapshotSHA256:repo.TargetSHA256,Root:repo.Files["metadata/1.root.json"],Timestamp:repo.Files["metadata/timestamp.json"],SnapshotMetadata:repo.Files[fmt.Sprintf("metadata/%d.snapshot.json",repo.Version)],Targets:repo.Files[fmt.Sprintf("metadata/%d.targets.json",repo.Version)],Snapshot:repo.Files["targets/"+repo.TargetSHA256+"."+TargetName]}
-  if _,err:=verifyEvidence(ev,v.Publish.RootSHA256,v.Publish.Now);err!=nil{return err}
+  ev:=evidence{SchemaVersion:"1",AcceptedAt:v.Publish.Now,Sequence:uint64(repo.Version),SnapshotSHA256:repo.TargetSHA256,Root:repo.Files[fmt.Sprintf("metadata/%d.root.json",len(chain))],RootHistory:append([][]byte(nil),chain[:len(chain)-1]...),Timestamp:repo.Files["metadata/timestamp.json"],SnapshotMetadata:repo.Files[fmt.Sprintf("metadata/%d.snapshot.json",repo.Version)],Targets:repo.Files[fmt.Sprintf("metadata/%d.targets.json",repo.Version)],Snapshot:repo.Files["targets/"+repo.TargetSHA256+"."+TargetName]}
+  if _,err:=verifyEvidence(ev,initialPin,v.Publish.Now);err!=nil{return err}
   record:=publicationRecord{SchemaVersion:"1",PreviousRecordSHA256:head.hash,AuthoritySHA256:o.AuthoritySHA256,ApprovalSHA256:report.Authorization.ApprovalSHA256,DossierSHA256:report.Authorization.Review.DossierSHA256,Evidence:ev}
   data,err:=encodePublication(record);if err!=nil{return err}
   if int64(len(data))>int64(MaxPublicationLedgerBytes)-head.total{return errors.New("publication ledger byte budget exceeded")}

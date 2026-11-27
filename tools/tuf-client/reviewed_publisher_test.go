@@ -91,8 +91,19 @@ func TestReviewedPublication(t *testing.T){
  for _,v:=range d2.Reviews{a2,err=review.SignReview(raw2,d2,dir,a,a2,v.Requirement.ID,reviewers[v.Reviewer],later);if err!=nil{t.Fatal(err)}}
  for _,id:=range []string{"release-a","release-b"}{a2,err=review.SignRelease(raw2,d2,dir,a,a2,id,reviewers[id],later);if err!=nil{t.Fatal(err)}}
  lo.Reviewed.Bootstrap=false;lo.Reviewed.Publish.Version=2;lo.Reviewed.Publish.Now=later;lo.Reviewed.Dossier=d2;lo.Reviewed.Approval=a2;lo.ExpectedHeadSHA256=receipt.RecordSHA256
- receipt2,err:=BuildInLedger(root,raw2,lo);if err!=nil||receipt2.Sequence!=2||receipt2.PreviousRecordSHA256!=receipt.RecordSHA256{t.Fatal(receipt2,err)}
- if _,err:=BuildInLedger(root,raw2,lo);err==nil{t.Fatal("stale head replay")}
+ nextRootOpts,nextKeys:=rotationFixture(t,now.Add(72*time.Hour))
+ root2,_,err:=RotateRoot([][]byte{root},digest(root),RotateRootOptions{Now:later,Next:nextRootOpts,OldSigners:opts.Signers,ExpectedCurrentSHA256:digest(root)});if err!=nil{t.Fatal(err)}
+ lo.RootChain=[][]byte{root,root2};lo.InitialRootSHA256=digest(root)
+ lo.Reviewed.Publish.RootSHA256=digest(root2)
+ lo.Reviewed.Publish.TargetsSigners=[]ed25519.PrivateKey{nextKeys[metadata.TARGETS]}
+ lo.Reviewed.Publish.SnapshotSigners=[]ed25519.PrivateKey{nextKeys[metadata.SNAPSHOT]}
+ lo.Reviewed.Publish.TimestampSigners=[]ed25519.PrivateKey{nextKeys[metadata.TIMESTAMP]}
+ noPin:=lo;noPin.ExpectedHeadSHA256=""
+ if _,err:=BuildInLedger(root2,raw2,noPin);err==nil{t.Fatal("rotation without prior head pin")}
+ receipt2,err:=BuildInLedger(root2,raw2,lo);if err!=nil||receipt2.Sequence!=2||receipt2.PreviousRecordSHA256!=receipt.RecordSHA256{t.Fatal(receipt2,err)}
+ if receipt2.RootVersion!=2||receipt2.InitialRootSHA256!=digest(root)||receipt2.RootSHA256!=digest(root2){t.Fatal(receipt2)}
+ rotated,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,later);if err!=nil||len(rotated.Files)!=6||!bytes.Equal(rotated.Files["metadata/1.root.json"],root)||!bytes.Equal(rotated.Files["metadata/2.root.json"],root2){t.Fatal(err)}
+ if _,err:=BuildInLedger(root2,raw2,lo);err==nil{t.Fatal("stale head replay")}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,now.Add(time.Hour));err==nil{t.Fatal("expired timestamp exported")}
  if err:=os.Remove(filepath.Join(ledger,evidenceName(1)));err!=nil{t.Fatal(err)}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,later);err==nil{t.Fatal("gap ignored")}

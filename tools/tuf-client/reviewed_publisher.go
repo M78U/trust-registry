@@ -58,10 +58,22 @@ func checkRoleSeparation(rootBytes []byte,pin string,a *review.Authority)error{
 // research builder is deliberately not a release authority. Protect keys,
 // pins and baseline independently; never serve research outputs to clients.
 func BuildReviewedRepository(rootBytes,raw []byte,o ReviewedPublishOptions)(Repository,ReviewedPublicationReport,error){
- if err:=checkRoleSeparation(rootBytes,o.Publish.RootSHA256,o.Authority);err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ return buildReviewedChain([][]byte{rootBytes},o.Publish.RootSHA256,raw,o)
+}
+
+// buildReviewedChain checks every generation against the same pinned review
+// authority before signing. The ledger additionally enforces history prefix.
+func buildReviewedChain(chain [][]byte,initialPin string,raw []byte,o ReviewedPublishOptions)(Repository,ReviewedPublicationReport,error){
+ if o.Authority==nil{return Repository{},ReviewedPublicationReport{},errors.New("pinned review authority required")}
+ rr,err:=VerifyRootChain(chain,initialPin,o.Publish.Now);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ if rr.CurrentRootSHA256!=o.Publish.RootSHA256{return Repository{},ReviewedPublicationReport{},errors.New("current root pin mismatch")}
+ for _,rawRoot:=range chain{
+  root,err:=metadata.Root().FromBytes(rawRoot);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+  if err:=strictRootProfile(root,o.Authority);err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ }
  auth,err:=review.Authenticate(raw,o.Dossier,o.EvidenceDir,o.Authority,o.Approval,o.Publish.Now);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
  transition,err:=snapshot.CheckPublicationTransition(o.PreviousSnapshot,raw,o.PreviousSHA256,o.Bootstrap);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
  if !auth.LocalReleaseApprovalVerified||auth.Review.SnapshotSHA256!=transition.NextSHA256||o.Publish.Version<1||uint64(o.Publish.Version)!=transition.NextSequence{return Repository{},ReviewedPublicationReport{},errors.New("approval, transition and TUF sequence mismatch")}
- repo,err:=BuildRepository(rootBytes,raw,o.Publish);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
+ repo,_,err:=BuildRotatedRepository(chain,initialPin,raw,o.Publish);if err!=nil{return Repository{},ReviewedPublicationReport{},err}
  return repo,ReviewedPublicationReport{Authorization:auth,Transition:transition,RootSHA256:repo.RootSHA256,TargetSHA256:repo.TargetSHA256,Version:repo.Version,Status:"REVIEWED_LOCAL_PUBLICATION_CANDIDATE",TrustStatus:"NOT_ESTABLISHED"},nil
 }

@@ -138,4 +138,8 @@ The experimental isolated `tuf-publish build-reviewed` mode requires a complete 
 
 ### TUF root rotation (research)
 
-`tuf-publish rotate-root`, `verify-root-chain` and `build-rotated` support consecutive dual-authorized root updates and rotated research staging. The offline SDK verifies staged rotated repositories from independently pinned v1 and current roots. See [root rotation](docs/TUF-ROOT-ROTATION.md). Reviewed ledger and network installation remain v1-only pending migration.
+`tuf-publish rotate-root`, `verify-root-chain` and `build-rotated` support consecutive dual-authorized root updates and rotated research staging. The offline SDK verifies staged rotated repositories from independently pinned v1 and current roots. See [root rotation](docs/TUF-ROOT-ROTATION.md). Reviewed ledger and network installation now persist verified numbered root history.
+
+### Persistent root history
+
+Rotated `build-ledger` accepts the full ordered `--root-chain` and `--initial-root-sha256` plus the existing current root pin; exports retain every numbered root. Network client archives independently verified roots and rechecks the full chain on offline load. See [persistent root chain](docs/TUF-PERSISTENT-ROOT-CHAIN.md).
