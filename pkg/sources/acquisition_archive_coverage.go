@@ -34,6 +34,7 @@ type ArchiveMemberCoverage struct{
 }
 type PinnedArchiveLink struct{
  Kind string `json:"kind"`
+ ObservationMode string `json:"observationMode,omitempty"`
  Authority string `json:"authority"`
  ListingID string `json:"listingId"`
  PinSHA256 string `json:"pinSHA256"`
@@ -102,7 +103,7 @@ func attachArchiveCoverage(r *AcquisitionCoverage,c Catalog,endpoints []Endpoint
   a,_,err:=readArchive(c,endpoints,o.ArchiveDir,ref.ListingID,ref.SHA256)
   if err!=nil{return fmt.Errorf("endpoint archive %s: %w",ref.ListingID,err)}
   p:=a.Report.Preview.Provenance
-  link:=PinnedArchiveLink{Kind:"ENDPOINT_ARCHIVE",Authority:"SHECA",ListingID:ref.ListingID,PinSHA256:ref.SHA256,OriginalSHA256:p.SourceFileSHA256,MemberCount:1,Members:[]ArchiveMemberCoverage{},Status:"NO_EXACT_LOCAL_PROVENANCE"}
+  link:=PinnedArchiveLink{Kind:"ENDPOINT_ARCHIVE",ObservationMode:a.ObservationMode,Authority:"SHECA",ListingID:ref.ListingID,PinSHA256:ref.SHA256,OriginalSHA256:p.SourceFileSHA256,MemberCount:1,Members:[]ArchiveMemberCoverage{},Status:"NO_EXACT_LOCAL_PROVENANCE"}
   if o.Technical{
    if err:=technical.add(&link,a.Raw,p.CertificateSHA256,"MATCHED_PUBLISHED_LEAD");err!=nil{return err}
   }

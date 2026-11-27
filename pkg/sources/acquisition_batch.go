@@ -113,7 +113,7 @@ func importArchivedBatch(s *registry.Store,c Catalog,endpoints []Endpoint,dir st
  report:=ArchiveBatchImportReport{Status:"INCOMPLETE_LOCAL_BATCH_IMPORT",RequestedIDs:selected,Before:before,Imports:[]ArchiveImportReport{},TrustStatus:"NOT_ESTABLISHED"}
  for _,v:=range items{
   a:=v.archive
-  imported,err:=s.Import(a.Raw,a.Report.Endpoint.DownloadURL,a.RecordedAt)
+  imported,err:=s.Import(a.Raw,a.Report.Preview.Provenance.SourceURL,a.RecordedAt)
   if err!=nil{report.FailedListingID=a.ListingID;return report,fmt.Errorf("import %s: %w",a.ListingID,err)}
   report.Imports=append(report.Imports,ArchiveImportReport{Receipt:v.receipt,Import:imported,Status:"LOCAL_IMPORT_WRITTEN_VALIDATION_PENDING",TrustStatus:"NOT_ESTABLISHED"})
  }
