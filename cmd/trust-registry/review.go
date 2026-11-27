@@ -10,8 +10,8 @@ import (
  "github.com/M78U/trust-registry/pkg/review"
 )
 func runReview(args []string,out io.Writer)error{
- if len(args)==0{return errors.New("usage: review plan | check | prepare-approval | sign-task | approve-release | authenticate-approval | prepare-public | sign-public")}
- switch args[0]{case "prepare-public","sign-public":return runPublicCredential(args,out);case "prepare-approval","sign-task","approve-release","authenticate-approval":return runReviewApproval(args,out)}
+ if len(args)==0{return errors.New("usage: review plan | check | prepare-approval | sign-task | approve-release | authenticate-approval | prepare-public | sign-public | workspace | evidence-add")}
+ switch args[0]{case "workspace","evidence-add":return runReviewWorkspace(args,out);case "prepare-public","sign-public":return runPublicCredential(args,out);case "prepare-approval","sign-task","approve-release","authenticate-approval":return runReviewApproval(args,out)}
  flags:=flag.NewFlagSet("review "+args[0],flag.ContinueOnError)
  dossier:=flags.String("dossier","","local review dossier JSON")
  evidence:=flags.String("evidence","","private artifact directory")
