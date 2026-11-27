@@ -201,3 +201,23 @@ Four synthetic test methods added, covering transitions, reopen, stale head, wro
 python3 -B -m unittest discover -s scripts -p 'test_sheca_source_*.py' -v
 ```
 Native execution of these new tests and actual SHECA page acceptance remain pending. No dependency, cloud operations, certificate inventory mutation, formal review signatures or trust decisions.
+
+
+## Stage 10: bounded advisory pending-review index
+
+Refresh one explicitly selected batch from its original pinned observation pair and independent batch pin. This verifies the batch once and replays the selected batch's task histories, not all historical batches. Index storage is a private canonical JSON file with one cooperative writer lock and atomic replacement. Task and batch IDs are deterministic; conflicting pins, corrupt index, backwards refresh time, future disposition relative to refresh time, and loss/rewrite of previously indexed nonempty event heads are refused. No automatic deletion. Limits: 64 batches, 512 tasks per batch, 4096 total tasks, 4 MiB index; at most 32 existing events per task. A batch exceeding these limits remains reviewable using the earlier selected-task tools. No migration or automatic eviction. If capacity is reached, preserve the old store/index and establish a reviewed new workspace.
+
+```sh
+python3 -B scripts/sheca_source_review_index.py refresh \
+  --queue "$HOME/trust-maintainer-queue" --batch-sha256 BATCH_PIN \
+  --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  --at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  /path/to/private-first.json /path/to/private-next.json
+
+python3 -B scripts/sheca_source_review_index.py list \
+  --queue "$HOME/trust-maintainer-queue" --status open --limit 50
+```
+
+List reads only the index, no network, writes, directory enumeration or event replay. Default open includes pending and investigation; all and individual statuses are available, with deterministic batch/task ID ordering and offset pagination (max 200 per page). Counts cover explicitly refreshed batches only. An absent index means zero indexed batches, not zero pending work. Each task includes its cached head, status and batch refresh timestamp. Refresh again after any disposition or new batch; stage 8/9 commands do not update this advisory cache automatically. Refresh can race a disposition writer; it is not an atomic snapshot across tasks or batches. Do not authorize a disposition or publication from cached data: use the selected-task history tool and independently retained head. No reviewer notes or original page contents in the index. Local cache is not authenticated, not rollback resistant, and cannot detect a deleted index, omitted batches or concurrent changes after replay; retain independent pins and backups. Stale index locks require operator inspection. No directory fsync.
+
+Added four synthetic test methods for explicit refresh, filters/pagination, multiple batches, repeat, missing prior history, wrong pins, lock and corrupt cache. Test execution and real SHECA profile acceptance remain pending. No Go dependency changes, cloud services, scheduling, inventory modification, or trust authorization. Next: operator-oriented workflow validation and practical maintenance entrypoint before expanding adapters.
