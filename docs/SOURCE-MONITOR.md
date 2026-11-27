@@ -335,3 +335,44 @@ Retain the returned new configuration digest. Reverting is another explicit work
 Workspace-mode check and update hold one cooperative workspace lock from config read/binary validation through Go subprocess completion or config commit. A stale lock must be investigated, not removed blindly. Direct stage 11 calls and older versions do not participate in this workspace lock; stop them before updating. Queue operations do not change config and can read a complete old or new config. If an update fails or its response is lost, inspect workspace-info and the archived prior pin before retrying. No directory fsync, hostile-filesystem rollback prevention or race-free executable identity between hash and exec. Archive replay verifies bytes against the provided pin, not binary bytes or reviewer identity.
 
 Added three synthetic test methods for explicit rebind, preserved observations/review queue, config history/no-op, wrong digest, shared lock, corrupt archive, reuse and explicit restore. Not executed against a full checkout in this environment. Actual SHECA DOM acceptance and native locked validation remain open. No release or trust decision.
+
+
+## Stage 14: manual macOS LaunchAgent and latest check receipt
+
+Schedule generation is read-only: one daily local-clock StartCalendarInterval, explicit absolute paths to the current reviewed Python interpreter, entrypoint and private workspace, no shell, no RunAtLoad or KeepAlive. A workspace-specific label is derived from the resolved path. No installation, bootstrapping, immediate request or automatic start by the generator. This is a per-user LaunchAgent (requires logged-in user session), not a system LaunchDaemon; an asleep Mac may defer/coalesce calendar events. One daily wake-up is independent of the per-source check interval; Go still enforces due time, cooldown and per-pass fetch budget. Daily runs may delay due checks by up to the scheduling cadence or longer if asleep/offline.
+
+After completing local Go/Python tests and manually checking a real source, use a trusted stable checkout, not a changing branch. From the checkout on the Mac mini, render a plist to a NEW private output path:
+
+```sh
+umask 077
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" \
+  schedule-plist --hour 9 --minute 15 > "$HOME/trust-maintainer/maintainer-agent.plist"
+plutil -lint "$HOME/trust-maintainer/maintainer-agent.plist"
+plutil -p "$HOME/trust-maintainer/maintainer-agent.plist"
+```
+
+Inspect all paths/arguments and label. The scheduled-check command uses the shared workspace check/update lock and executable pin before invoking the same Go monitor-run, without semantic parsing or enqueue. It retains one private atomically replaced last-scheduled-check.json receipt, maximum 256 KiB, containing the parsed bounded Go output (including local observation receipts), exit code and UTC start/end. Retained stdout is limited to 128 KiB after capture from the explicitly trusted CLI; this is not a memory bound on arbitrary executable output. stderr is not persisted. No automatic log accumulation; LaunchAgent stdout/stderr go to /dev/null. A busy workspace, interrupted process or receipt write error can leave a stale receipt; inspect launchctl exit status and timestamp, not just the last report. Receipts are local operational assertions, not independently approved source pins. No report history, heartbeat or notification yet. Run once manually before installation:
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" scheduled-check
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" last-check
+```
+
+Only when satisfied, install into your user LaunchAgents directory (no sudo; do not overwrite an existing installed job):
+
+```sh
+source_plist="$HOME/trust-maintainer/maintainer-agent.plist"
+label="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$source_plist")"
+mkdir -p "$HOME/Library/LaunchAgents"
+dest="$HOME/Library/LaunchAgents/$label.plist"
+# Stop if dest already exists; inspect/bootout the old job first.
+if [ -e "$dest" ] || [ -L "$dest" ]; then
+  printf '%s\n' "Existing job; stop and inspect before replacing"
+else
+  install -m 600 "$source_plist" "$dest" &&
+    launchctl bootstrap "gui/$(id -u)" "$dest"
+fi
+launchctl print "gui/$(id -u)/$label"
+```
+
+Optional explicit immediate run (no -k; do not kill an active process): launchctl kickstart "gui/$(id -u)/$label". Inspect last-check again after completion. Disable by launchctl bootout "gui/$(id -u)" "$dest", verify unloaded, then move the installed plist to a private backup outside LaunchAgents to prevent reload at login. Stop the job before updating the Python checkout/interpreter; the Go executable binding does not pin Python source/interpreter contents. workspace-info now reports schedulerInstallation=NOT_CHECKED rather than asserting no installed scheduler. No automatic trust, certificate inventory mutation, semantic processing, cloud resources or dependencies. Four synthetic test methods added; actual macOS launchctl and full checkout tests pending. Real SHECA HTML acceptance remains open.
