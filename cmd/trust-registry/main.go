@@ -33,7 +33,7 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | search | policy | sources") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | policy | sources") }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
 	if args[0]=="sources" { return runSources(args[1:],out) }
 	if args[0]=="inspect" {
@@ -94,6 +94,23 @@ func run(args []string,out io.Writer) error {
 		if args[0]=="graph"{report,err:=g.Export();if err!=nil{return err};return encode.Encode(report)}
 		report,err:=g.Paths(*fp,*depth);if err!=nil{return err}
 		return encode.Encode(report)
+	case "verify-path":
+		file:=flags.String("policy","","local policy review JSON")
+		purpose:=flags.String("purpose","","explicit requested policy purpose")
+		at:=flags.String("at","","evaluation time RFC3339")
+		known:=flags.String("known-at","","knowledge cutoff RFC3339")
+		dns:=flags.String("dns-name","","server authentication DNS name")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if flags.NArg()!=1||*file==""||*purpose==""||*at==""||*known==""{return errors.New("usage: verify-path --policy FILE --purpose PURPOSE --at RFC3339 --known-at RFC3339 CERT")}
+		e,err:=time.Parse(time.RFC3339Nano,*at);if err!=nil{return err}
+		k,err:=time.Parse(time.RFC3339Nano,*known);if err!=nil{return err}
+		d,err:=policy.LoadDocument(*file);if err!=nil{return err}
+		input,err:=readInput(flags.Arg(0));if err!=nil{return err}
+		s,err:=registry.OpenStore(*root);if err!=nil{return err}
+		report,err:=validation.VerifyLocalPath(s,d,input,*purpose,*dns,e.UTC(),k.UTC());if err!=nil{return err}
+		if err:=encode.Encode(report);err!=nil{return err}
+		if report.Path.PathStatus!="VALID_UNDER_EXPLICIT_CA_SET"{return errors.New("no valid path under explicit local CA set")}
+		return nil
 	case "search":
 		var q registry.Query
 		flags.StringVar(&q.Fingerprint,"fingerprint","","exact lowercase SHA-256")

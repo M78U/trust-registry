@@ -63,3 +63,7 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 ## Certificate relationship graph
 
 `trust-registry graph --registry ./local-registry` exports deterministic candidate nodes and edges. `trust-registry paths --registry ./local-registry --certificate signer.cer` enumerates matched direct-issuer paths without saving the input; `--fingerprint HEX` selects a stored CA. Self-signature, missing issuer, cycle and depth limit are explicit path terminal states. No trusted root or complete path verification is established. See [relationship graph](docs/RELATIONSHIP-GRAPH.md). Do not publish graphs containing a private signer certificate.
+
+## Offline path validation
+
+`verify-path --registry ./local-registry --policy local-policy.json --purpose document-signing --at 2026-01-02T00:00:00Z --known-at 2026-01-02T00:00:00Z signer.cer` evaluates only locally authorized anchors and explicitly listed intermediates. A valid technical path does not establish business purpose, revocation status or trust. See [path validation](docs/PATH-VALIDATION.md).
