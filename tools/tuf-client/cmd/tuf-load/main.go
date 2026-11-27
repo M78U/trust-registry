@@ -16,9 +16,27 @@ func run()error{
 	fp:=flag.String("fingerprint","","optional certificate fingerprint")
 	authority:=flag.String("authority","","independently provisioned review authority file")
 	authorityPin:=flag.String("authority-sha256","","independent authority pin")
+	recoverPending:=flag.Bool("recover-pending",false,"finish a strict pending installation offline")
+	checkpointSequence:=flag.Uint64("checkpoint-sequence",0,"independent strict release sequence")
+	checkpointHash:=flag.String("checkpoint-snapshot-sha256","","independent snapshot SHA-256")
+	checkpointRoot:=flag.Int64("checkpoint-root-version",0,"independent TUF root version")
 	flag.Parse()
 	if flag.NArg()!=0||*state==""||*pin==""{return errors.New("state and root-sha256 required")}
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
+	checkpointRequested:=false
+	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	if checkpointRequested&&!*recoverPending{return errors.New("checkpoint flags require recover-pending")}
+	if *recoverPending{
+		if *authority==""||*fp!=""{return errors.New("recover-pending requires strict authority and no fingerprint")}
+		a,err:=tuf.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err}
+		o:=tuf.RecoveryOptions{StateDir:*state,InitialRootSHA256:*pin,Authority:a}
+		if checkpointRequested{
+			if *checkpointSequence==0||*checkpointHash==""||*checkpointRoot<1{return errors.New("all three checkpoint flags required together")}
+			o.Checkpoint=&tuf.ReleaseCheckpoint{Sequence:*checkpointSequence,SnapshotSHA256:*checkpointHash,RootVersion:*checkpointRoot}
+		}
+		r,err:=tuf.RecoverPendingInstall(o);if err!=nil{return err}
+		return json.NewEncoder(os.Stdout).Encode(r)
+	}
 	var v *snapshot.Loaded;var r tuf.Report;var err error
 	if *authority!=""{a,e:=tuf.LoadReviewAuthority(*authority,*authorityPin);if e!=nil{return e};v,r,err=tuf.LoadAuthorizedInstalled(*state,*pin,a)}else{v,r,err=tuf.LoadInstalled(*state,*pin)}
 	if err!=nil{return err}

@@ -70,6 +70,7 @@ type Report struct {
 	Registry snapshot.Report `json:"registry"`
 	ApplicationRollbackStatus string `json:"applicationRollbackStatus"`
 	IndependentCheckpointChecked bool `json:"independentCheckpointChecked,omitempty"`
+	RecoveredPendingInstall bool `json:"recoveredPendingInstall,omitempty"`
 	ReleaseAuthenticated bool `json:"releaseAuthenticated"`
 	ReleaseApproval *review.CredentialReport `json:"releaseApproval,omitempty"`
 	TrustStatus string `json:"trustStatus"`
