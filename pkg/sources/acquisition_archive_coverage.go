@@ -24,6 +24,7 @@ type AcquisitionArchiveOptions struct{
  ArchiveDir string
  Archives []AcquisitionArchiveReference
  Bundles []AcquisitionBundleReference
+ Technical bool
 }
 type ArchiveMemberCoverage struct{
  ListingID string `json:"listingId"`
@@ -39,6 +40,7 @@ type PinnedArchiveLink struct{
  OriginalSHA256 string `json:"originalSHA256"`
  MemberCount int `json:"memberCount"`
  Members []ArchiveMemberCoverage `json:"members"`
+ ResearchMembers []ArchiveResearchMember `json:"researchMembers,omitempty"`
  Status string `json:"status"`
 }
 type PinnedArchiveCoverage struct{
@@ -46,6 +48,7 @@ type PinnedArchiveCoverage struct{
  CheckedArchives int `json:"checkedArchives"`
  MatchedArchives int `json:"matchedArchives"`
  MatchedProvenanceRecords int `json:"matchedProvenanceRecords"`
+ TechnicalEvidence *ArchiveTechnicalEvidence `json:"technicalEvidence,omitempty"`
 }
 
 // Check only explicit independent references; never discover a pin from a
@@ -53,7 +56,7 @@ type PinnedArchiveCoverage struct{
 // validation), fetch, repair, or write. A bad selection fails the whole report.
 func attachArchiveCoverage(r *AcquisitionCoverage,c Catalog,endpoints []Endpoint,m MultiCACatalog,i *registry.Index,o AcquisitionArchiveOptions)error{
  if len(o.Archives)>MaxCoverageArchives||len(o.Bundles)>MaxCoverageBundles||(len(o.Archives)>0)!=(strings.TrimSpace(o.ArchiveDir)!=""){return errors.New("invalid archive reference count or directory")}
- if len(o.Archives)==0&&len(o.Bundles)==0{return nil}
+ if len(o.Archives)==0&&len(o.Bundles)==0{if o.Technical{return errors.New("technical evidence requires explicit archive pins")};return nil}
  refs:=append([]AcquisitionArchiveReference{},o.Archives...)
  bundles:=append([]AcquisitionBundleReference{},o.Bundles...)
  sort.Slice(refs,func(a,b int)bool{return refs[a].ListingID<refs[b].ListingID})
@@ -74,6 +77,7 @@ func attachArchiveCoverage(r *AcquisitionCoverage,c Catalog,endpoints []Endpoint
  for n:=range r.Tasks{t:=&r.Tasks[n];tasks[t.Authority+"/"+t.ListingID]=t}
  out:=&PinnedArchiveCoverage{Archives:[]PinnedArchiveLink{}}
  matched:=map[string]bool{}
+ technical:=newArchiveTechnicalCollector()
  mark:=func(authority,id string,linked bool)error{
   t:=tasks[authority+"/"+id];if t==nil{return errors.New("archive listing absent from coverage catalog")}
   if linked{t.ArchiveStatus="PINNED_ARCHIVE_MATCHED_PROVENANCE"}else if t.ArchiveStatus=="NOT_CHECKED"{t.ArchiveStatus="PINNED_ARCHIVE_CHECKED"}
@@ -99,15 +103,22 @@ func attachArchiveCoverage(r *AcquisitionCoverage,c Catalog,endpoints []Endpoint
   if err!=nil{return fmt.Errorf("endpoint archive %s: %w",ref.ListingID,err)}
   p:=a.Report.Preview.Provenance
   link:=PinnedArchiveLink{Kind:"ENDPOINT_ARCHIVE",Authority:"SHECA",ListingID:ref.ListingID,PinSHA256:ref.SHA256,OriginalSHA256:p.SourceFileSHA256,MemberCount:1,Members:[]ArchiveMemberCoverage{},Status:"NO_EXACT_LOCAL_PROVENANCE"}
+  if o.Technical{
+   if err:=technical.add(&link,a.Raw,p.CertificateSHA256,"MATCHED_PUBLISHED_LEAD");err!=nil{return err}
+  }
   if err:=addMember(&link,ref.ListingID,p);err!=nil{return err}
   if err:=finish(link);err!=nil{return err}
  }
  for _,ref:=range bundles{
-  p,records,err:=inspectBundleArchive(m,ref.Directory,ref.SHA256)
+  p,members,_,err:=readVerifiedBundle(m,ref.Directory,ref.SHA256)
   if err!=nil{return fmt.Errorf("bundle pin %s: %w",ref.SHA256,err)}
+  records,err:=bundleProvenance(p,members);if err!=nil{return err}
   link:=PinnedArchiveLink{Kind:"BUNDLE_PLAN",Authority:p.Listing.Authority,ListingID:p.Listing.ID,PinSHA256:ref.SHA256,OriginalSHA256:p.OriginalSHA256,MemberCount:len(p.Members),Members:[]ArchiveMemberCoverage{},Status:"NO_EXACT_LOCAL_PROVENANCE"}
   n:=0
-  for _,member:=range p.Members{
+  for pos,member:=range p.Members{
+   if o.Technical{
+    if err:=technical.add(&link,members[pos].DER,member.Certificate.FingerprintSHA256,member.MatchStatus);err!=nil{return err}
+   }
    if member.MatchStatus!="MATCHED_PUBLISHED_LEAD"{continue}
    if n>=len(records)||records[n].CertificateSHA256!=member.Certificate.FingerprintSHA256{return errors.New("bundle provenance/member mismatch")}
    if err:=addMember(&link,member.MatchedListingID,records[n]);err!=nil{return err}
@@ -117,6 +128,7 @@ func attachArchiveCoverage(r *AcquisitionCoverage,c Catalog,endpoints []Endpoint
   if n==0{link.Status="NO_ELIGIBLE_MEMBERS"}
   if err:=finish(link);err!=nil{return err}
  }
+ if o.Technical{v,err:=technical.report();if err!=nil{return err};out.TechnicalEvidence=&v}
  out.MatchedProvenanceRecords=len(matched)
  r.ArchiveCoverage=out
  return nil

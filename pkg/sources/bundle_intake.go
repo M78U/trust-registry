@@ -159,14 +159,19 @@ func InspectBundleArchive(dir,pin string)(BundlePlan,[]registry.ProvenanceRecord
 }
 func inspectBundleArchive(c MultiCACatalog,dir,pin string)(BundlePlan,[]registry.ProvenanceRecord,error){
  p,members,_,err:=readVerifiedBundle(c,dir,pin);if err!=nil{return BundlePlan{},nil,err}
+ records,err:=bundleProvenance(p,members)
+ return p,records,err
+}
+func bundleProvenance(p BundlePlan,members []registry.BundleCertificate)([]registry.ProvenanceRecord,error){
+ if len(p.Members)!=len(members){return nil,errors.New("bundle member count mismatch")}
  records:=[]registry.ProvenanceRecord{}
  for i,m:=range p.Members{
   if m.MatchStatus!="MATCHED_PUBLISHED_LEAD"{continue}
-  _,prov,_,err:=registry.ImportCandidate(members[i].DER,p.Listing.SourceURL,p.RecordedAt);if err!=nil{return BundlePlan{},nil,err}
+  _,prov,_,err:=registry.ImportCandidate(members[i].DER,p.Listing.SourceURL,p.RecordedAt);if err!=nil{return nil,err}
   prov.SourceFileSHA256=p.OriginalSHA256
   records=append(records,prov)
  }
- return p,records,nil
+ return records,nil
 }
 func applyBundleArchive(s *registry.Store,c MultiCACatalog,dir,pin string,selected []string)(BundleImportReport,error){
  if s==nil{return BundleImportReport{},errors.New("initialized store required")}
