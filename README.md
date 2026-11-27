@@ -159,3 +159,7 @@ Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and N
 ### Offline batch CA candidate intake
 
 `sources intake-plan` checks selected local `ID.cer` files against the embedded SHECA catalog and observed endpoints, binds original file and DER hashes, catalog hashes and explicit observation time. `sources intake-apply --plan-sha256` repeats preflight and imports only unreviewed candidates into an initialized local store. No network or trust promotion. See [batch intake](docs/CA-INTAKE.md).
+
+### Multi-CA research leads
+
+`sources multi-ca [--authority CFCA|BJCA|GDCA]` lists selected observed official chain/certificate leads and scoped third-party SHA-256 observations. `sources multi-ca-audit --id ID FILE` checks a single local certificate only when an exact published SHA-256 lead exists. No network, import or trust authorization. See [multi-CA research](docs/MULTI-CA-RESEARCH.md).

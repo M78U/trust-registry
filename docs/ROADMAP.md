@@ -84,3 +84,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Manual two-module release validation, dependency-lock candidate artifacts, CLI negative smoke cases, rotated static-directory strict client integration and scriptless config guard: PR #40. No PR/push triggers or deployment. Actual Go execution and locked module acceptance still required.
 
 - Offline pinned SHECA batch candidate intake with preflight, source catalog binding and idempotent provenance: PR #41. Real certificate acquisition, actual Go build/lock and human review remain pending.
+
+- CFCA/BJCA/GDCA multi-CA research catalog, separate chain listings and exact-name fingerprint leads, offline local audit: PR #42. No real certificate acquisition or policy approval. Source review and dependency-lock validation pending.

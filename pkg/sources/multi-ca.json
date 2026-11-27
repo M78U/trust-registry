@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "1",
+  "observedOn": "2026-11-27",
+  "coverage": "SELECTED_RESEARCH_LEADS",
+  "trustStatus": "NOT_ESTABLISHED",
+  "entries": [
+    {
+      "id": "bjca-docsign-ca3-chain",
+      "authority": "BJCA",
+      "label": "BJCA DocSign CA3",
+      "kind": "CHAIN_LISTING",
+      "track": "DOCUMENT_SIGNING",
+      "sourceURL": "https://www.bjca.cn/service/down_198.html",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "bjca-docsign-ca4-chain",
+      "authority": "BJCA",
+      "label": "BJCA DocSign CA4",
+      "kind": "CHAIN_LISTING",
+      "track": "DOCUMENT_SIGNING",
+      "sourceURL": "https://www.bjca.cn/service/down_198.html",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "bjca-global-root-ca1",
+      "authority": "BJCA",
+      "label": "BJCA Global Root CA1",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "GENERAL",
+      "sourceURL": "https://repo.bjca.cn/global/cert/",
+      "sourceStatus": "OFFICIAL_SEARCH_INDEX_ONLY",
+      "publishedSHA256": {
+        "fingerprint": "f3896f88fe7c0a882766a7fa6ad2749fb57a7f3e98fb769c1fa7b09c2c44d5ae",
+        "sourceURL": "https://bugzilla.mozilla.org/show_bug.cgi?id=1822921",
+        "scope": "MOZILLA_ROOT_INCLUSION_RECORD"
+      },
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "bjca-global-root-ca4",
+      "authority": "BJCA",
+      "label": "BJCA Global Root CA4",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "SM2",
+      "sourceURL": "https://repo.bjca.cn/global/cert/",
+      "sourceStatus": "OFFICIAL_SEARCH_INDEX_ONLY",
+      "publishedSHA256": {
+        "fingerprint": "93afa65f07c88bee1c657ee505268718ea90489bd68bf324ca4c49cb1cca5fee",
+        "sourceURL": "https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-sm-root-certificate-20261030",
+        "scope": "HUAWEI_SM_ROOT_LIST"
+      },
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "bjca-timestamp-ca1-chain",
+      "authority": "BJCA",
+      "label": "BJCA TimeStamp CA1",
+      "kind": "CHAIN_LISTING",
+      "track": "TIMESTAMPING",
+      "sourceURL": "https://www.bjca.cn/service/down_198.html",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "bjca-timestamp-ca4-chain",
+      "authority": "BJCA",
+      "label": "BJCA TimeStamp CA4",
+      "kind": "CHAIN_LISTING",
+      "track": "TIMESTAMPING",
+      "sourceURL": "https://www.bjca.cn/service/down_198.html",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "cfca-document-chain",
+      "authority": "CFCA",
+      "label": "CFCA文档签名证书链",
+      "kind": "CHAIN_LISTING",
+      "track": "DOCUMENT_SIGNING",
+      "sourceURL": "https://www.cfca.com.cn/zhengshuzizhu/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "cfca-identity-ca",
+      "authority": "CFCA",
+      "label": "CFCA Identity CA",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "DOCUMENT_SIGNING",
+      "sourceURL": "https://www.cfca.com.cn/zhengshuzizhu/",
+      "sourceStatus": "OFFICIAL_RELATED_POLICY_PAGE",
+      "publishedSHA256": {
+        "fingerprint": "ffb85c26308a961351249ea641f659d49f639e91daed9c92d046ccdcecc93d2f",
+        "sourceURL": "https://ccadb.my.salesforce-sites.com/microsoft/includedcacertificatereportformsft",
+        "scope": "MICROSOFT_DOCUMENT_SIGNING_LIST"
+      },
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "cfca-national-rsa-chain",
+      "authority": "CFCA",
+      "label": "国家信任源RSA证书链",
+      "kind": "CHAIN_LISTING",
+      "track": "GENERAL",
+      "sourceURL": "https://www.cfca.com.cn/zhengshuzizhu/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "cfca-national-sm2-chain",
+      "authority": "CFCA",
+      "label": "国家信任源SM2证书链",
+      "kind": "CHAIN_LISTING",
+      "track": "SM2",
+      "sourceURL": "https://www.cfca.com.cn/zhengshuzizhu/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "gdca-docsign-sm2-ca",
+      "authority": "GDCA",
+      "label": "GDCA DocSign SM2 CA",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "DOCUMENT_SIGNING",
+      "sourceURL": "https://www.gdca.com.cn/customer_service/knowledge_universe/ca_cq/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "gdca-gm-sm2-root",
+      "authority": "GDCA",
+      "label": "GDCA GM SM2 ROOT",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "SM2",
+      "sourceURL": "https://www.gdca.com.cn/customer_service/knowledge_universe/ca_cq/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "publishedSHA256": {
+        "fingerprint": "81869fe44b0c83e0c873b97996da5d3db0a6fe413c8693239666ac68fb7fff9d",
+        "sourceURL": "https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-sm-root-certificate-20261030",
+        "scope": "HUAWEI_SM_ROOT_LIST"
+      },
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "gdca-timestamp-sm2-ca",
+      "authority": "GDCA",
+      "label": "GDCA TimeStamp SM2 CA",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "TIMESTAMPING",
+      "sourceURL": "https://www.gdca.com.cn/customer_service/knowledge_universe/ca_cq/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "gdca-trustauth-e1-ca",
+      "authority": "GDCA",
+      "label": "GDCA TrustAUTH E1 CA",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "SM2",
+      "sourceURL": "https://www.gdca.com.cn/customer_service/knowledge_universe/ca_cq/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "gdca-trustauth-r5-root",
+      "authority": "GDCA",
+      "label": "GDCA TrustAUTH R5 ROOT",
+      "kind": "CERTIFICATE_NAME_LEAD",
+      "track": "GENERAL",
+      "sourceURL": "https://www.gdca.com.cn/customer_service/knowledge_universe/ca_cq/",
+      "sourceStatus": "OFFICIAL_PAGE_OBSERVED",
+      "publishedSHA256": {
+        "fingerprint": "bfff8fd04433487d6a8aa60c1a29767a9fc2bbb05e420f713a13b992891d3893",
+        "sourceURL": "https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-root-certificate-20261030",
+        "scope": "HUAWEI_ROOT_LIST"
+      },
+      "redistributionStatus": "NOT_REVIEWED"
+    }
+  ]
+}
