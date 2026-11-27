@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1",
+  "programId": "satl",
+  "programName": "Suwell Approved Trust List",
+  "listingURL": "https://satl.ofd.cn/list",
+  "strategyURL": "https://satl.ofd.cn/strategy",
+  "observedOn": "2026-11-27",
+  "coverage": "SELECTED_INDEXED_PAGE_ROWS",
+  "evidenceStatus": "SEARCH_INDEXED_PAGE_ONLY",
+  "programScope": "DOCUMENT_SIGNING",
+  "trustStatus": "NOT_ESTABLISHED",
+  "entries": [
+    {
+      "id": "sheca-rapid",
+      "authority": "上海数字证书认证中心有限公司",
+      "label": "UCA Rapid Root",
+      "matchStatus": "NAME_LEAD_ONLY"
+    },
+    {
+      "id": "sheca-g2",
+      "authority": "上海数字证书认证中心有限公司",
+      "label": "UCA Root G2",
+      "matchStatus": "NAME_LEAD_ONLY",
+      "candidateListingId": "uca-root-g2"
+    },
+    {
+      "id": "sheca-sm2",
+      "authority": "上海数字证书认证中心有限公司",
+      "label": "SHECA SM2",
+      "matchStatus": "NAME_LEAD_ONLY"
+    },
+    {
+      "id": "gdca-root-ca1",
+      "authority": "数安时代科技股份有限公司",
+      "label": "GDCA ROOT CA1",
+      "matchStatus": "NAME_LEAD_ONLY"
+    },
+    {
+      "id": "gdca-r5",
+      "authority": "数安时代科技股份有限公司",
+      "label": "GDCA TrustAUTH R5 ROOT",
+      "matchStatus": "NAME_LEAD_ONLY"
+    },
+    {
+      "id": "gdca-gm-sm2",
+      "authority": "数安时代科技股份有限公司",
+      "label": "GDCA GM SM2 ROOT",
+      "matchStatus": "NAME_LEAD_ONLY"
+    },
+    {
+      "id": "gdca-e1",
+      "authority": "数安时代科技股份有限公司",
+      "label": "GDCA TrustAUTH E1 CA",
+      "matchStatus": "NAME_LEAD_ONLY"
+    }
+  ]
+}

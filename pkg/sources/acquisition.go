@@ -130,9 +130,8 @@ func Fetch(ctx context.Context,id,outPath string,allowLegacyOnly bool)(Acquisiti
 	if outPath==""{return AcquisitionReport{},errors.New("output file is required")}
 	if e.PublishedSHA256==nil&&!allowLegacyOnly{return AcquisitionReport{},errors.New("no published SHA-256; explicit legacy-only research opt-in required")}
 	if _,err:=os.Lstat(outPath);err==nil{return AcquisitionReport{},errors.New("output already exists")}else if !os.IsNotExist(err){return AcquisitionReport{},err}
-	tr:=&http.Transport{TLSClientConfig:&tls.Config{MinVersion:tls.VersionTLS12},DisableCompression:true,ResponseHeaderTimeout:15*time.Second}
-	defer tr.CloseIdleConnections()
-	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirects disabled")}}
+	client,closeClient:=newResearchClient()
+	defer closeClient()
 	input,report,err:=fetchBytes(ctx,client,c,e,allowLegacyOnly)
 	if err!=nil{return AcquisitionReport{},err}
 	f,err:=os.OpenFile(outPath,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600);if err!=nil{return AcquisitionReport{},err}
@@ -162,4 +161,10 @@ func fetchBytes(ctx context.Context,client *http.Client,c Catalog,e Endpoint,all
 	report.Preview.Provenance=provenance
 	report.AcquisitionStatus="DOWNLOADED_UNREVIEWED"
 	return input,report,nil
+}
+
+func newResearchClient() (*http.Client,func()){
+	tr:=&http.Transport{TLSClientConfig:&tls.Config{MinVersion:tls.VersionTLS12},DisableCompression:true,ResponseHeaderTimeout:15*time.Second}
+	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirects disabled")}}
+	return client,tr.CloseIdleConnections
 }

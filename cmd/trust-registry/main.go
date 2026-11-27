@@ -170,7 +170,7 @@ func runPolicy(args []string,out io.Writer) error {
 }
 
 func runSources(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch")}
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl")}
 	c,err:=sources.SHECA();if err!=nil{return err}
 	enc:=json.NewEncoder(out)
 	switch args[0]{
@@ -181,6 +181,20 @@ func runSources(args []string,out io.Writer)error{
 		if len(args)!=2{return errors.New("usage: sources inspect ID")}
 		e,err:=c.Find(args[1]);if err!=nil{return err}
 		return enc.Encode(e)
+	case "satl":
+		if len(args)!=1{return errors.New("usage: sources satl")}
+		catalog,err:=sources.SATL();if err!=nil{return err}
+		return enc.Encode(catalog)
+	case "research":
+		flags:=flag.NewFlagSet("sources research",flag.ContinueOnError)
+		legacy:=flags.Bool("include-legacy",false,"explicitly include endpoints without a third-party SHA-256 lead")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if flags.NArg()!=0{return errors.New("usage: sources research [--include-legacy]")}
+		ctx,cancel:=context.WithTimeout(context.Background(),7*time.Minute)
+		defer cancel()
+		report,researchErr:=sources.Research(ctx,*legacy)
+		if err:=enc.Encode(report);err!=nil{return err}
+		return researchErr
 	case "endpoints":
 		if len(args)!=1{return errors.New("usage: sources endpoints")}
 		e,err:=sources.Endpoints();if err!=nil{return err}

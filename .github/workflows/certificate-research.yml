@@ -1,0 +1,67 @@
+name: Certificate Research
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "SHECA research acquisition scope"
+        type: choice
+        options:
+          - sha256-only
+          - include-legacy
+        default: sha256-only
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sheca:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify module lock and build
+        run: |
+          go mod tidy -diff
+          go mod verify
+          go build -mod=readonly -o "$RUNNER_TEMP/trust-registry" ./cmd/trust-registry
+      - name: Collect unreviewed report
+        env:
+          RESEARCH_MODE: ${{ inputs.mode }}
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/research"
+          case "$RESEARCH_MODE" in
+            sha256-only)
+              "$RUNNER_TEMP/trust-registry" sources research > "$RUNNER_TEMP/research/sheca-report.json"
+              ;;
+            include-legacy)
+              "$RUNNER_TEMP/trust-registry" sources research --include-legacy > "$RUNNER_TEMP/research/sheca-report.json"
+              ;;
+            *) exit 2 ;;
+          esac
+      - name: Summarize results
+        if: always()
+        shell: bash
+        run: |
+          path="$RUNNER_TEMP/research/sheca-report.json"
+          if [ -s "$path" ]; then
+            printf '### SHECA research (unreviewed)\n\n' >> "$GITHUB_STEP_SUMMARY"
+            jq -r '"Attempted: \(.attempted) | Succeeded: \(.succeeded) | Failed: \(.failed) | Skipped: \(.skipped)"' "$path" >> "$GITHUB_STEP_SUMMARY"
+            printf '\nNo trust authorization or certificate files published.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload research JSON only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sheca-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/research/sheca-report.json
+          if-no-files-found: warn
+          retention-days: 7
