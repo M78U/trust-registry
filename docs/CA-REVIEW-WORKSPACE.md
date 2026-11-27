@@ -1,0 +1,19 @@
+# CA evidence review workspace
+
+Private local diagnostics for the existing review dossier, not a second approval system. Supply the exact independently retained snapshot SHA-256, the existing dossier from review plan, a private evidence directory and evaluation time within snapshot validity. Optional explicit SHECA acquisition archive references (max 32, one directory) are verified with sources.InspectArchived using each independent archive digest. No directory scan or network. Match the complete provenance record after canonical struct encoding, including original file hash, certificate digest, source URL, observation time and status. A matched observation is not authenticated origin or a trusted timestamp, nor a substitute for the two independent SOURCE_IDENTITY evidence slots. Other provenance including bundle/member and manual imports is reported without a matching pinned acquisition archive; no automated bundle linkage yet. Missing archive is informational, not an extra release gate.
+
+```sh
+mkdir -m 700 private-evidence
+trust-registry review plan candidate.json > dossier.json
+trust-registry review evidence-add --evidence private-evidence original-source-material.bin
+trust-registry review workspace --snapshot-sha256 SNAPSHOT_PIN \\
+  --dossier dossier.json --evidence private-evidence \\
+  --archive private-acquisitions --archive-pin uca-global-g2=ARCHIVE_PIN \\
+  --at CURRENT_RFC3339 candidate.json > private-workspace.json
+```
+
+Omit both archive flags if no acquisition records are available. Keep output outside Git/public assets, use protected shell permissions. A missing, corrupt or mismatched explicitly selected archive is an error, not silently skipped. An intact archive for different provenance is NOT_IN_SNAPSHOT. No authority, source, purpose or rights are inferred. Certificate technical context includes validity relative to explicit evaluation time, CA/basic constraints, KU/EKU/policy OIDs and unhandled critical extensions; purpose authorization stays NOT_ESTABLISHED. No revocation or path validation in this report. Tasks exactly match release review requirements, with separate required evidence slots for source identity, independent fingerprint, redistribution terms, purpose authorization and policy disclosure. Dossier statuses are asserted, not authenticated. Report missing references/files, duplicate/unexpected kinds/digests, bad file types, bad hashes, approval metadata/order and reviewer separation issues. Each distinct referenced digest is checked at most once (including failed reads); existing 1024-artifact / 64 MiB total read budget includes bad hash reads, and 4 MiB per artifact limit. File contents never included. Workspace returns success for a generated diagnostic even when incomplete; always HUMAN_REVIEW_REQUIRED. It is not review check and must never be used as a release gate.
+
+Evidence-add copies one explicit local file into the existing private directory as <sha256>.evidence, with no-replace hard link from synced temp file; same content reuses existing valid file, corrupted paths refused. No reference is auto-created, no dossier edited, no approval signed. Human reviewer must choose the required kind and explain the evidence reference in dossier, assess actual source/rights/purpose, then use existing review check, prepare-approval/sign-task/approve-release and public credential workflow. Do not use synthetic placeholder material to satisfy production review. Protect local directories and clock; no hostile filesystem protection or directory fsync.
+
+All work offline, no Cloudflare service calls or bindings, no background scan. New synthetic tests cover pending/invalid evidence, deduplicated artifact reads, no-overwrite and exact provenance association using a test inspector (real archive verifier has its own tests). Go tests not executed. No real CA acquisition or review approval. TUF module lock and full manual validation remain pending.
