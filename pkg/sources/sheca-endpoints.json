@@ -1,0 +1,83 @@
+[
+  {
+    "listingId": "uca-root-g2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/uca-root-g2.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "uca-global-g2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/uca-global-g2-root.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27",
+    "publishedSHA256": {
+      "fingerprint": "9bea11c976fe014764c1be56a6f914b5a560317abd9988393382e5161aa0493c",
+      "sourceURL": "https://bugzilla.mozilla.org/show_bug.cgi?id=2088275",
+      "scope": "TLS_ONLY_TRANSITION"
+    }
+  },
+  {
+    "listingId": "uca-sm2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/uca-root-sm2.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27",
+    "publishedSHA256": {
+      "fingerprint": "d066fbe23ac1e58ae5b829cc3656df11eb39a409f5206115a7f9618999381e38",
+      "sourceURL": "https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-sm-root-certificate-20261030",
+      "scope": "SM_ROOT_STORE"
+    }
+  },
+  {
+    "listingId": "uca-rapid-sm2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/UCA%20Rapid%20SM2%20Root.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "unitrust-global-r1",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/rcar1.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "unitrust-global-r2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/rcar2.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "unitrust-global-r3",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/rcar3.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27",
+    "publishedSHA256": {
+      "fingerprint": "d8dafd3daa4a3ac9eb8d09733bae918cd11f95e179b0cc7e1d13dbf6c9609c7b",
+      "sourceURL": "https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-sm-root-certificate-20261030",
+      "scope": "SM_ROOT_STORE"
+    }
+  },
+  {
+    "listingId": "event-root-r1",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/ecrcar1.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "timestamp-rsa-r1",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/UniTrust%20Global%20Time%20Stamping%20RSA%20Root%20CA%20R1.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "timestamp-ecc-r2",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/UniTrust%20Global%20Time%20Stamping%20ECC%20Root%20CA%20R2.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  },
+  {
+    "listingId": "uca-root-historical",
+    "downloadURL": "https://alvin-oss-test.oss-cn-hangzhou.aliyuncs.com/uca-root.cer",
+    "listingURL": "https://www.imtrust.cn/jishuwendang/dmqmwd/96.html",
+    "observedOn": "2026-11-27"
+  }
+]
