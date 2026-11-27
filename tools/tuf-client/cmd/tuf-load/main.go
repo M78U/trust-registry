@@ -17,6 +17,8 @@ func run()error{
 	authority:=flag.String("authority","","independently provisioned review authority file")
 	authorityPin:=flag.String("authority-sha256","","independent authority pin")
 	recoverPending:=flag.Bool("recover-pending",false,"finish a strict pending installation offline")
+	recoverRoot:=flag.Bool("recover-root-cache",false,"advance cached root to verified archived head offline")
+	rootHead:=flag.String("root-head-sha256","","explicit expected archived head digest for root recovery")
 	checkpointSequence:=flag.Uint64("checkpoint-sequence",0,"independent strict release sequence")
 	checkpointHash:=flag.String("checkpoint-snapshot-sha256","","independent snapshot SHA-256")
 	checkpointRoot:=flag.Int64("checkpoint-root-version",0,"independent TUF root version")
@@ -25,6 +27,13 @@ func run()error{
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
 	checkpointRequested:=false
 	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	if *recoverRoot{
+		if *recoverPending||checkpointRequested||*authority==""||*fp!=""||*rootHead==""{return errors.New("recover-root-cache requires strict authority and root-head-sha256; no other recovery, checkpoint or fingerprint flags")}
+		a,err:=tuf.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err}
+		r,err:=tuf.RecoverRootCache(tuf.RootRecoveryOptions{StateDir:*state,InitialRootSHA256:*pin,Authority:a,ExpectedHeadSHA256:*rootHead});if err!=nil{return err}
+		return json.NewEncoder(os.Stdout).Encode(r)
+	}
+	if *rootHead!=""{return errors.New("root-head-sha256 requires recover-root-cache")}
 	if checkpointRequested&&!*recoverPending{return errors.New("checkpoint flags require recover-pending")}
 	if *recoverPending{
 		if *authority==""||*fp!=""{return errors.New("recover-pending requires strict authority and no fingerprint")}
