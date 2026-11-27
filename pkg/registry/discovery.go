@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"errors"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 
@@ -38,9 +39,9 @@ func (s *Store) DiscoverIssuers(input []byte) (DiscoveryReport,error) {
 	if err!=nil { return DiscoveryReport{},err }
 	child,err:=smx509.ParseCertificate(der)
 	if err!=nil { return DiscoveryReport{},err }
-	if _,err:=s.Validate(); err!=nil { return DiscoveryReport{},err }
-	records,err:=s.List()
+	index,err:=s.BuildIndex()
 	if err!=nil { return DiscoveryReport{},err }
+	records:=index.issuerCandidates(child.Issuer.String(),hex.EncodeToString(child.AuthorityKeyId))
 	report:=DiscoveryReport{record.FingerprintSHA256,"NOT_ESTABLISHED",make([]IssuerCandidate,0)}
 	for _,r:=range records {
 		// Never treat the exact input certificate as its own issuer candidate.

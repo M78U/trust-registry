@@ -14,3 +14,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Inventory, provenance storage, SM2 parsing and direct issuer discovery: merged in #8 and #9.
 - Local scoped policy, provenance reviews, decision evaluation: current PR. Production trust material, signed snapshots, independent evidence verification, general schema engine and complete path validation remain separate gates.
+
+- Derived index, combined search/pagination and unified local inventory + supplied policy validation: PR #11; no persistent database or trust authority.

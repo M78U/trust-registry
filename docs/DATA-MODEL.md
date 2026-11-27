@@ -20,3 +20,9 @@ Initial code and two schemas cover candidate metadata and local inventory only; 
 - Validate recomputes DER and metadata, provenance content addresses, field constraints and reference integrity. It cannot prove source authenticity, original input bytes, certificate path validity or release authenticity. General JSON Schema validation is still pending.
 
 Policy review documents contain a versioned policy, independent review events referencing immutable provenance observation IDs, and scoped decision events. The experimental format is not an authenticated snapshot. See TRUST-POLICY.md for time and supersession semantics.
+
+## Derived index and registry validation
+
+The in-memory index is rebuilt only from a fully validated local inventory. It contains fingerprint, display subject/issuer DN, serial, SKI/AKI, public key/signature algorithm and asserted source hostname postings, plus provenance IDs and certificate-to-observation links. Multiple observations from one host do not duplicate a certificate. Query results are exact intersections ordered by fingerprint; cursor pagination requires the same unchanged view and filters. Display DN matching is never used alone to prove an issuer: discovery still checks exact DER names and signatures. Index is not persisted or a source of authority. SDK indexes are snapshots and must be rebuilt after changes.
+
+Unified validation checks explicitly supplied policy documents against one inventory index, including references, role/scope, time and evidence constraints, duplicate policy ID/version and stable jurisdiction/purpose across versions. It cannot establish completeness of omitted documents or historical continuity without authenticated manifests. The typed strict loader and semantic checks are not a general JSON Schema runtime.

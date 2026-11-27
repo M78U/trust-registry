@@ -143,6 +143,24 @@ func Defaults() []TrustPolicy {
 // inventory returns checked references. An empty policy with no records
 // requires no inventory. Referenced certificates must be in a validated store.
 func (d Document) validate(s *registry.Store) (map[string]Review,error) {
+	if err:=d.Policy.Validate();err!=nil { return nil,err }
+	var index *registry.Index
+	if len(d.Policy.TrustAnchors)>0 || len(d.Policy.IntermediateCandidates)>0 || len(d.Reviews)>0 || len(d.Decisions)>0 {
+		var err error
+		index,err=s.BuildIndex()
+		if err!=nil { return nil,fmt.Errorf("inventory: %w",err) }
+	}
+	return d.validateIndex(index)
+}
+
+// ValidateAgainst checks document semantics and references against a shared
+// validated inventory. It makes no trust or authenticity determination.
+func (d Document) ValidateAgainst(index *registry.Index) error {
+	_,err:=d.validateIndex(index)
+	return err
+}
+
+func (d Document) validateIndex(index *registry.Index) (map[string]Review,error) {
 	p:=d.Policy
 	if err:=p.Validate(); err!=nil { return nil,err }
 	if d.Reviews==nil || d.Decisions==nil || len(d.Reviews)>MaxRecords || len(d.Decisions)>MaxRecords { return nil,errors.New("invalid review or decision collection") }
@@ -151,20 +169,16 @@ func (d Document) validate(s *registry.Store) (map[string]Review,error) {
 	for _,fp:=range p.TrustAnchors { anchors[fp]=true; refs[fp]=true }
 	for _,fp:=range p.IntermediateCandidates { refs[fp]=true }
 	if len(refs)>0 || len(d.Reviews)>0 || len(d.Decisions)>0 {
-		if s==nil { return nil,errors.New("inventory required for nonempty policy") }
-		if _,err:=s.Validate(); err!=nil { return nil,fmt.Errorf("inventory: %w",err) }
+		if _,err:=index.Report();err!=nil { return nil,fmt.Errorf("inventory: %w",err) }
 	}
-	for fp:=range refs { if _,err:=s.Find(fp);err!=nil { return nil,fmt.Errorf("policy certificate %s: %w",fp,err) } }
+	for fp:=range refs { if _,err:=index.Find(fp);err!=nil { return nil,fmt.Errorf("policy certificate %s: %w",fp,err) } }
 	reviews:=map[string]Review{}
 	reviewTimes:=map[string]map[time.Time]bool{}
 	for _,r:=range d.Reviews {
 		if !idPattern.MatchString(r.ID) || reviews[r.ID].ID!="" || !fingerprintPattern.MatchString(r.ProvenanceID) || !fingerprintPattern.MatchString(r.CertificateSHA256) ||
 			(r.Status!="PROVENANCE_VERIFIED" && r.Status!="REVIEW_REJECTED") || !validTime(r.RecordedAt) || !validStrings(r.Evidence) || !validStrings(r.ReviewReferences) { return nil,errors.New("invalid or duplicate provenance review") }
-		entries,err:=s.Provenance(r.CertificateSHA256)
-		if err!=nil { return nil,err }
-		found:=false
-		for _,entry:=range entries { if entry.ID==r.ProvenanceID && !r.RecordedAt.Before(entry.Record.RecordedAt) { found=true;break } }
-		if !found { return nil,errors.New("review references missing, mismatched or future provenance observation") }
+		entry,err:=index.ProvenanceByID(r.ProvenanceID)
+		if err!=nil || entry.Record.CertificateSHA256!=r.CertificateSHA256 || r.RecordedAt.Before(entry.Record.RecordedAt) { return nil,errors.New("review references missing, mismatched or future provenance observation") }
 		if reviewTimes[r.ProvenanceID]==nil { reviewTimes[r.ProvenanceID]=map[time.Time]bool{} }
 		if reviewTimes[r.ProvenanceID][r.RecordedAt] { return nil,errors.New("ambiguous provenance review history") }
 		reviewTimes[r.ProvenanceID][r.RecordedAt]=true
