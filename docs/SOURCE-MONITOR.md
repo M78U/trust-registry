@@ -221,3 +221,57 @@ python3 -B scripts/sheca_source_review_index.py list \
 List reads only the index, no network, writes, directory enumeration or event replay. Default open includes pending and investigation; all and individual statuses are available, with deterministic batch/task ID ordering and offset pagination (max 200 per page). Counts cover explicitly refreshed batches only. An absent index means zero indexed batches, not zero pending work. Each task includes its cached head, status and batch refresh timestamp. Refresh again after any disposition or new batch; stage 8/9 commands do not update this advisory cache automatically. Refresh can race a disposition writer; it is not an atomic snapshot across tasks or batches. Do not authorize a disposition or publication from cached data: use the selected-task history tool and independently retained head. No reviewer notes or original page contents in the index. Local cache is not authenticated, not rollback resistant, and cannot detect a deleted index, omitted batches or concurrent changes after replay; retain independent pins and backups. Stale index locks require operator inspection. No directory fsync.
 
 Added four synthetic test methods for explicit refresh, filters/pagination, multiple batches, repeat, missing prior history, wrong pins, lock and corrupt cache. Test execution and real SHECA profile acceptance remain pending. No Go dependency changes, cloud services, scheduling, inventory modification, or trust authorization. Next: operator-oriented workflow validation and practical maintenance entrypoint before expanding adapters.
+
+
+## Stage 11: unified maintainer command
+
+Use scripts/trust_maintainer.py as the local operator entrypoint. The underlying tools remain separately callable. The command does not automatically convert network observations into trusted data or even into review batches. Real SHECA DOM acceptance is still open. Python 3.11+ and the current source-built Go CLI are required for online check. No new Python packages or Go modules.
+
+From current main after merge, build and test:
+
+```sh
+git switch main
+git pull --ff-only
+export PATH="$(brew --prefix go@1.26)/bin:$PATH"
+python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
+go test -mod=readonly ./pkg/sources ./cmd/trust-registry
+go build -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
+python3 -B scripts/trust_maintainer.py --help
+```
+
+Use existing private directories outside the repo, or create fresh ones:
+
+```sh
+umask 077
+mkdir -m 700 "$HOME/trust-monitor-store" "$HOME/trust-maintainer-queue"
+python3 -B scripts/trust_maintainer.py check \
+  --binary /tmp/trust-registry-monitor --store "$HOME/trust-monitor-store" \
+  --interval 168h --max-fetches 1 --id sheca-repository
+```
+
+Check delegates to the explicitly selected trusted absolute executable without shell or arbitrary extra arguments, preserves stdout/stderr and exit code, and sets a 360s outer subprocess timeout. Go retains its allowlist, budget, cooldown and per-stream locking; no automatic retry. Only use a binary you trust. An outer timeout may leave local reservations or stale locks; inspect before retry. No automatic reading of output or promotion of locally captured pins.
+
+After two successful comparable observations, independently retain and inspect both exact observation digests. Select their original JSON files in the store (or externally saved originals). Use acceptance on a single real capture to obtain the stage 7 baseline cross-check. Then preview tasks with no writes:
+
+```sh
+python3 -B scripts/trust_maintainer.py acceptance --sha256 NEXT_PIN /path/to/private-next.json
+
+python3 -B scripts/trust_maintainer.py plan \
+  --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  /path/to/private-first.json /path/to/private-next.json
+```
+
+Review the preview and retain its batchSHA256 separately. Enqueue requires that exact reviewed batch pin, reprojects both observations, persists the immutable batch and refreshes only that batch's index:
+
+```sh
+python3 -B scripts/trust_maintainer.py enqueue \
+  --queue "$HOME/trust-maintainer-queue" --batch-sha256 BATCH_PIN \
+  --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  --at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  /path/to/private-first.json /path/to/private-next.json
+
+python3 -B scripts/trust_maintainer.py status \
+  --queue "$HOME/trust-maintainer-queue" --status open
+```
+
+Use history and record with the same pair/pins/task fields as stage 9. Record automatically attempts a single-batch index refresh after the event commit; it requires the explicit independently retained expected head. No unattended actions or review identity authentication. Enqueue and record have separate durable write and advisory-index commit boundaries: WRITE_COMMITTED_INDEX_REFRESH_FAILED with exit 1 means the batch or event already committed (receipt included), and the index may be stale. Do not repeat a disposition to fix the cache; inspect the committed state and run refresh with the same pair/pins and a valid newer --at. Other failures do not guarantee no writes (I/O failure or interrupted process); inspect exact history and receipts. The status query is still advisory, bounded and may omit unindexed batches; no directory scan or automatic trust. Private output and human notes must remain local. No cloud resource or release change. Added four synthetic integration test methods; not executed in the implementation container (GitHub DNS unavailable and Go 1.23.2 only). Run the above local tests and complete stage 7 before unattended maintenance or a new preview release.
