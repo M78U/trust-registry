@@ -96,27 +96,32 @@ func installEvidence(root,pin string,raw []byte,report Report,at time.Time)error
 	if report.RootVersion!=int64(len(chain)){return errors.New("root version differs from verified archive")}
 	v.RootHistory=append([][]byte(nil),chain[:len(chain)-1]...)
 	if _,err:=verifyEvidence(v,pin,at);err!=nil{return err}
+	dir,already,err:=checkInstallBaseline(root,pin,v,at);if err!=nil{return err}
+	// Idempotent refresh with no interrupted journal needs no disk write.
+	if already{if _,err:=os.Lstat(filepath.Join(root,pendingInstallName));os.IsNotExist(err){return nil}else if err!=nil{return err}}
+	if err:=stagePendingEvidence(root,v);err!=nil{return err}
+	return commitPendingEvidence(root,dir,v,already)
+}
+
+// checkInstallBaseline is shared by online install and explicit recovery.
+// Caller holds the state lock; no history is removed or rewritten.
+func checkInstallBaseline(root,pin string,v evidence,at time.Time)(string,bool,error){
 	dir:=filepath.Join(root,"installed")
-	if err:=os.Mkdir(dir,0700);err!=nil&&!os.IsExist(err){return err}
-	old,count,err:=latestEvidence(dir);if err!=nil{return err}
+	if err:=os.Mkdir(dir,0700);err!=nil&&!os.IsExist(err){return "",false,err}
+	old,count,err:=latestEvidence(dir);if err!=nil{return "",false,err}
 	if old!=nil{
-		if at.Before(old.AcceptedAt){return errors.New("clock earlier than previous acceptance")}
-		if _,err:=verifyEvidence(*old,pin,old.AcceptedAt);err!=nil{return err}
-		if !rootPrefix(evidenceChain(*old),chain){return errors.New("installed root history rollback or replacement")}
-		if v.Sequence<old.Sequence{return errors.New("registry sequence rollback")}
+		if v.AcceptedAt.Before(old.AcceptedAt)||at.Before(old.AcceptedAt){return "",false,errors.New("clock earlier than previous acceptance")}
+		if _,err:=verifyEvidence(*old,pin,old.AcceptedAt);err!=nil{return "",false,err}
+		if !rootPrefix(evidenceChain(*old),evidenceChain(v)){return "",false,errors.New("installed root history rollback or replacement")}
+		if v.Sequence<old.Sequence{return "",false,errors.New("registry sequence rollback")}
 		if v.Sequence==old.Sequence{
-			if len(evidenceChain(*old))!=len(chain)||!bytes.Equal(v.Root,old.Root)||v.SnapshotSHA256!=old.SnapshotSHA256||!bytes.Equal(v.Timestamp,old.Timestamp)||!bytes.Equal(v.SnapshotMetadata,old.SnapshotMetadata)||!bytes.Equal(v.Targets,old.Targets){return errors.New("same sequence publication conflict")}
-			_,err:=verifyEvidence(*old,pin,at);return err
+			if len(evidenceChain(*old))!=len(evidenceChain(v))||!bytes.Equal(v.Root,old.Root)||v.SnapshotSHA256!=old.SnapshotSHA256||!bytes.Equal(v.Timestamp,old.Timestamp)||!bytes.Equal(v.SnapshotMetadata,old.SnapshotMetadata)||!bytes.Equal(v.Targets,old.Targets){return "",false,errors.New("same sequence publication conflict")}
+			if _,err:=verifyEvidence(*old,pin,at);err!=nil{return "",false,err}
+			return dir,true,nil
 		}
 	}
-	if count>=maxInstalled{return errors.New("installation history full")}
-	data,err:=encodeEvidence(v);if err!=nil{return err}
-	if len(data)>maxEvidenceBytes{return errors.New("installation evidence too large")}
-	f,err:=os.CreateTemp(dir,".pending-");if err!=nil{return err}
-	defer os.Remove(f.Name())
-	if _,err=f.Write(data);err==nil{err=f.Sync()}
-	e:=f.Close();if err==nil{err=e};if err!=nil{return err}
-	return os.Link(f.Name(),filepath.Join(dir,evidenceName(v.Sequence)))
+	if count>=maxInstalled{return "",false,errors.New("installation history full")}
+	return dir,false,nil
 }
 
 // LoadInstalled opens the latest accepted TUF evidence without networking,
