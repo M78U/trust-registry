@@ -39,4 +39,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Append-only local research installation and persistent checkpoint, reauthenticated SDK loader: PR #20. Cooperative local locking, bounded history; no authenticated production update, root rotation or hostile local rollback resistance.
 
-- Experimental isolated go-tuf/v2 client adapter: PR #21. Top-level metadata refresh, target verification, explicit root pin and persistent protected cache. Dependency lock/execution, signed fixture, publisher and application checkpoint integration pending.
+- Experimental isolated go-tuf/v2 client adapter: merged in #21. Top-level metadata refresh, target verification, explicit root pin and persistent protected cache. Dependency lock/execution, signed fixture, publisher and application checkpoint integration pending.
+
+- Offline initial TUF root and static repository candidate generation: PR #22. Four disjoint role key sets, thresholds, linked metadata hashes, consistent-snapshot naming. No rotation, publisher version ledger, deployment or authenticated installation. Dependency lock and executable tests remain pending.
