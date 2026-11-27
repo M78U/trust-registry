@@ -82,3 +82,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Static publication preparation and preflight: PR #39. Full authorized ledger history, pinned manifest delta, bounded static assets, timestamp freshness, separate no-worker release config. No cloud API or deployment. Production validation remains open.
 
 - Manual two-module release validation, dependency-lock candidate artifacts, CLI negative smoke cases, rotated static-directory strict client integration and scriptless config guard: PR #40. No PR/push triggers or deployment. Actual Go execution and locked module acceptance still required.
+
+- Offline pinned SHECA batch candidate intake with preflight, source catalog binding and idempotent provenance: PR #41. Real certificate acquisition, actual Go build/lock and human review remain pending.
