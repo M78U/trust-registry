@@ -131,3 +131,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ### Reviewed TUF staging
 
 The experimental isolated `tuf-publish build-reviewed` mode requires a complete threshold-signed review approval, independent authority/root pins, cross-role key separation and explicit bootstrap or previous snapshot pin with append-only history and sequence advancement. Produces only local staging files; no production release. See [publication gate](docs/PUBLICATION-GATE.md).
+
+### Persistent local publication ledger
+
+`build-ledger` commits reviewed, exact TUF staging bytes under a protected local monotonic ledger; `ledger-export` exports the current valid head without re-signing. See [ledger](docs/PUBLICATION-LEDGER.md). Local build records are not evidence of online publication.

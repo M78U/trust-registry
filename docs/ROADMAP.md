@@ -69,4 +69,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Pinned role-key review signatures and threshold local release approval: merged in #33. Exact snapshot/dossier/signature-set binding, short validity window. Publisher enforcement, independent key ceremony, rotation and durable release baseline remain pending.
 
-- Reviewed TUF publication staging gate, cross-config role separation and pinned snapshot transition validation: PR #34. Caller-owned baseline, no persistent publication ledger, root rotation or deployment yet.
+- Reviewed TUF publication staging gate, cross-config role separation and pinned snapshot transition validation: merged in #34. Caller-owned baseline, no persistent publication ledger, root rotation or deployment yet.
+
+- Persistent private reviewed-build ledger, sequential immutable records, hash links, exact byte export and optional independent head pin: PR #35. No live publication, external tamper-proof checkpoint or rotation.
