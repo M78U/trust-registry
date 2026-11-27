@@ -202,7 +202,7 @@ def describe(root, config, status="WORKSPACE_CONFIG_READ"):
             "observationStore": str(root / "observations"),
             "reviewQueue": str(root / "review-queue"),
             "binaryVerification": "NOT_RECHECKED_AT_INFO_TIME",
-            "schedulerEnabled": False, "liveProfileAccepted": False,
+            "schedulerInstallation": "NOT_CHECKED", "liveProfileAccepted": False,
             "trustStatus": "NOT_ESTABLISHED"}
 
 

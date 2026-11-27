@@ -33,7 +33,7 @@ class WorkspaceTest(unittest.TestCase):
         self.assertEqual((self.root / CONFIG).read_bytes(), before)
         info, code = execute(parser().parse_args(["--workspace", str(self.root), "workspace-info"]))
         self.assertEqual(code, 0)
-        self.assertFalse(info["schedulerEnabled"])
+        self.assertEqual(info["schedulerInstallation"], "NOT_CHECKED")
 
     def test_check_binding_and_overrides(self):
         self.init()

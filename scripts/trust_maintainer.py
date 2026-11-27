@@ -14,6 +14,7 @@ from sheca_source_review_queue import prepare, canonical, persist, private_root
 from sheca_source_review_disposition import append, inspect, ACTIONS, utc
 from sheca_source_review_index import refresh, listing, STATES
 import trust_maintainer_workspace as workspace
+import trust_maintainer_schedule as schedule
 
 ERRORS = (ValueError, TypeError, KeyError, OSError, RecursionError)
 HEX = re.compile(r"[0-9a-f]{64}")
@@ -61,7 +62,7 @@ def record(root, batch, pin, task_id, expected_head, action, at, reviewer, note)
     return refresh_after_write(root, batch, pin, at, summary)
 
 
-def check(args):
+def check_command(args):
     # The operator explicitly supplies a trusted locally built Go executable.
     # Do not search PATH, run a shell, accept arbitrary extra flags or interpret
     # any discovered URL as a command. Preserve the Go report and exit status.
@@ -78,7 +79,11 @@ def check(args):
                "--interval", args.interval, "--max-fetches", str(args.max_fetches)]
     for source in args.id:
         command.extend(("--id", source))
-    return subprocess.run(command, check=False, timeout=360).returncode
+    return command
+
+
+def check(args):
+    return subprocess.run(check_command(args), check=False, timeout=360).returncode
 
 
 def pair_args(p, queue=False, pin=False, at=False):
@@ -105,6 +110,11 @@ def parser():
     w.add_argument("--max-fetches", required=True, type=int)
     w.add_argument("--id", action="append", required=True)
     commands.add_parser("workspace-info", help="read private workspace configuration")
+    job = commands.add_parser("schedule-plist", help="render daily macOS LaunchAgent XML; never install")
+    job.add_argument("--hour", required=True, type=int)
+    job.add_argument("--minute", required=True, type=int)
+    commands.add_parser("scheduled-check", help="one bounded check with latest private receipt")
+    commands.add_parser("last-check", help="read latest scheduled check receipt")
     u = commands.add_parser("workspace-update", help="replace configuration with explicit prior and binary pins")
     u.add_argument("--expected-config-sha256", required=True)
     u.add_argument("--binary", required=True, type=Path)
@@ -147,6 +157,14 @@ def parser():
 def execute(args):
     op = args.operation
     root = args.workspace
+    if op in ("schedule-plist", "scheduled-check", "last-check"):
+        if root is None:
+            raise ValueError("explicit --workspace path required before subcommand")
+        if op == "schedule-plist":
+            return schedule.plist(root, args.hour, args.minute, Path(__file__).resolve(), Path(sys.executable).resolve()), 0
+        if op == "scheduled-check":
+            return schedule.scheduled_check(root, check_command)
+        return schedule.last(root), 0
     if op in ("workspace-init", "workspace-info", "workspace-update", "workspace-archive"):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")
@@ -195,7 +213,9 @@ def main():
     args = parser().parse_args()
     try:
         result, code = execute(args)
-        if result is not None:
+        if isinstance(result, bytes):
+            sys.stdout.buffer.write(result)
+        elif result is not None:
             print(json.dumps(result, ensure_ascii=True, indent=2))
         return code
     except subprocess.TimeoutExpired:
