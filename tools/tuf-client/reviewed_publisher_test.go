@@ -218,12 +218,27 @@ func TestReviewedPublication(t *testing.T){
  state:=filepath.Join(t.TempDir(),"static-client")
  so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a,Checkpoint:&checkpoint}
  if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ diagnostic:=DiagnosticOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,Checkpoint:&checkpoint}
+ expectDiagnostic:=func(status string) StateDiagnostic{
+  t.Helper()
+  d,err:=DiagnoseState(diagnostic);if err!=nil||d.Status!=status||d.TrustStatus!="NOT_ESTABLISHED"{t.Fatal(d,err)}
+  return d
+ }
+ firstDiag:=expectDiagnostic("INSTALLED_EVIDENCE_MATCHES")
+ if firstDiag.Installed==nil||firstDiag.Installed.Sequence!=1||!firstDiag.Installed.CacheMatches{t.Fatal(firstDiag)}
+ expiredDiag,err:=diagnoseStateAt(diagnostic,binding.TimestampExpires)
+ if err!=nil||expiredDiag.Status!="INSTALLED_EXPIRED"||!expiredDiag.Installed.Expired{t.Fatal(expiredDiag,err)}
+ if err:=os.Mkdir(filepath.Join(state,".lock"),0700);err!=nil{t.Fatal(err)}
+ expectDiagnostic("STATE_LOCKED")
+ if err:=os.Remove(filepath.Join(state,".lock"));err!=nil{t.Fatal(err)}
  // Simulate interruption after the next numbered root is archived, before
  // the upstream updater replaces the cached root.
  if err:=commitRoot(filepath.Join(state,"roots"),2,root2);err!=nil{t.Fatal(err)}
  cachedRootPath:=filepath.Join(state,"metadata","root.json")
  oldTimestamp,err:=readRegular(filepath.Join(state,"metadata","timestamp.json"),16384);if err!=nil{t.Fatal(err)}
  if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("archive ahead of cache was loadable")}
+ behindDiag:=expectDiagnostic("ROOT_CACHE_BEHIND_ARCHIVE")
+ if behindDiag.CachedRootVersion!=1||behindDiag.ArchivedRootVersion!=2||behindDiag.ArchivedHeadSHA256!=digest(root2){t.Fatal(behindDiag)}
  repair:=RootRecoveryOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,ExpectedHeadSHA256:digest(root2)}
  wrongRepair:=repair;wrongRepair.ExpectedHeadSHA256=digest(root)
  if _,err:=RecoverRootCache(wrongRepair);err==nil{t.Fatal("stale head selection accepted")}
@@ -258,6 +273,10 @@ func TestReviewedPublication(t *testing.T){
  if err:=os.WriteFile(journal,record2,0600);err!=nil{t.Fatal(err)}
  if err:=os.Remove(installed2);err!=nil{t.Fatal(err)}
  if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("partial installation fell back to old record")}
+ pendingDiag:=expectDiagnostic("PENDING_RECOVERY_CANDIDATE")
+ if pendingDiag.Pending==nil||pendingDiag.Pending.Sequence!=2||!pendingDiag.Pending.CacheMatches{t.Fatal(pendingDiag)}
+ pendingUnchanged,err:=readRegular(journal,maxEvidenceBytes);if err!=nil||!bytes.Equal(pendingUnchanged,record2){t.Fatal("diagnostic rewrote journal",err)}
+ if _,err:=os.Stat(installed2);!os.IsNotExist(err){t.Fatal("diagnostic committed pending record",err)}
  recovery:=RecoveryOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,Checkpoint:&checkpoint}
  badRecovery:=recovery;badRecovery.Authority=nil
  if _,err:=RecoverPendingInstall(badRecovery);err==nil{t.Fatal("recovery without authority")}
@@ -268,6 +287,7 @@ func TestReviewedPublication(t *testing.T){
  if err:=os.Remove(filepath.Join(state,".lock"));err!=nil{t.Fatal(err)}
  if err:=os.WriteFile(journal,append(bytes.Clone(record2),' '),0600);err!=nil{t.Fatal(err)}
  if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("noncanonical journal recovered")}
+ expectDiagnostic("PENDING_INVALID")
  if err:=os.WriteFile(journal,record2,0600);err!=nil{t.Fatal(err)}
  timestampPath:=filepath.Join(state,"metadata","timestamp.json")
  timestampBytes,err:=readRegular(timestampPath,16384);if err!=nil{t.Fatal(err)}
@@ -281,6 +301,7 @@ func TestReviewedPublication(t *testing.T){
  if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil{t.Fatal(err)}
  // Crash after link but before unlink: cleanup is idempotent, no history rewrite.
  if err:=os.Link(installed2,journal);err!=nil{t.Fatal(err)}
+ expectDiagnostic("PENDING_COMMITTED_CLEANUP")
  if _,err:=RecoverPendingInstall(recovery);err!=nil{t.Fatal(err)}
  restored,err=readRegular(installed2,maxEvidenceBytes);if err!=nil||!bytes.Equal(restored,record2){t.Fatal("cleanup changed installed record",err)}
  if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("no journal unexpectedly recovered")}
