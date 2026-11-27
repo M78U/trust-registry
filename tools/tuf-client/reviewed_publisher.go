@@ -1,9 +1,10 @@
 package tufclient
 
 import (
- "fmt"
+ "bytes"
  "crypto/ed25519"
  "errors"
+ "fmt"
 
  "github.com/M78U/trust-registry/pkg/review"
  "github.com/M78U/trust-registry/pkg/snapshot"
