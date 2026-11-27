@@ -120,3 +120,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Public Explorer Research Preview reported deployed at trust.m78u.com on 2026-11-27. Public-source preparation: MIT/NOTICE, security and contribution policy, private workspace ignores and explicit visibility gate. Full Git/GitHub history audit, third-party rights/license review, dependency locks and tests, and owner visibility approval remain pending.
 
 - Pre-public audit preflight: bounded offline reachable-tree/blob inspection with redacted object identifiers, private-path and selected credential-marker review, synthetic deleted-history/branch-only/partial-clone test fixtures. Independent full clone scan, rights review, GitHub metadata review and locked validation remain required; no visibility change.
+
+- Dependency acceptance tooling: independent lock-only resolution and selected Go module graph/license evidence, two Node fixture tests passed. Actual Go 1.26 resolution, lock commit, dependency rights review and locked tests remain open. Private manual artifacts only; no automatic checks or deployment.
