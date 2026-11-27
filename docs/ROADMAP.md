@@ -76,3 +76,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Dual-threshold TUF root rotation and offline chain/repository verification: PR #36. Isolated research builder; reviewed ledger and online/offline installed-state migration pending.
 
 - Persistent root chains in reviewed publication ledger and network/offline client installation: PR #37. V1 compatibility, exact history prefix, numbered archive and fail-closed mismatch. Independent client-side release approval and rotation-specific reviewer authorization remain pending.
+
+- Public threshold release credential embedded in TUF targets custom metadata; independent pinned strict online/offline client mode: PR #38. No private evidence publication or extra network request. Production release validation pending.

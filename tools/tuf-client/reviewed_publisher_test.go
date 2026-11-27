@@ -68,6 +68,23 @@ func TestReviewedPublication(t *testing.T){
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("missing baseline")}
  bad=o;bad.Publish.Now=now.Add(time.Hour)
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("expired approval")}
+ // Public receipt adds no target file and uses separate approval signatures.
+ binding:=review.ReleaseBinding{InitialRootSHA256:digest(root),CurrentRootSHA256:digest(root),SnapshotSHA256:digest(raw),Sequence:1,TargetsExpires:o.Publish.TargetsExpires,SnapshotMetadataExpires:o.Publish.SnapshotExpires,TimestampExpires:o.Publish.TimestampExpires}
+ credential,err:=review.PrepareCredential(raw,d,dir,a,approval,binding,now);if err!=nil{t.Fatal(err)}
+ if _,err:=review.VerifyCredential(a,credential,binding,now);err==nil{t.Fatal("unsigned credential")}
+ if _,err:=review.SignCredential(raw,d,dir,a,approval,credential,"rights",reviewers["rights"],now);err==nil{t.Fatal("review key signed public credential")}
+ for _,id:=range []string{"release-a","release-b"}{credential,err=review.SignCredential(raw,d,dir,a,approval,credential,id,reviewers[id],now);if err!=nil{t.Fatal(err)}}
+ publicBytes,err:=review.CredentialBytes(credential);if err!=nil{t.Fatal(err)}
+ strict:=o;strict.PublicCredential=publicBytes
+ publicRepo,_,err:=BuildReviewedRepository(root,raw,strict);if err!=nil||len(publicRepo.Files)!=5{t.Fatal(err)}
+ targets,err:=metadata.Targets().FromBytes(publicRepo.Files["metadata/1.targets.json"]);if err!=nil{t.Fatal(err)}
+ info:=targets.Signed.Targets[TargetName]
+ check,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,1,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires,now)
+ if err!=nil||!check.ReleaseApprovalVerified||check.PrivateEvidenceVerified{t.Fatal(check,err)}
+ if _,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,2,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires,now);err==nil{t.Fatal("sequence substitution")}
+ if _,err:=checkPublicCredential(a,[][]byte{root},digest(root),info,1,o.Publish.TargetsExpires,o.Publish.SnapshotExpires,o.Publish.TimestampExpires.Add(time.Minute),now);err==nil{t.Fatal("expiry substitution")}
+ strict.PublicCredential=[]byte("{}")
+ if _,_,err:=BuildReviewedRepository(root,raw,strict);err==nil{t.Fatal("invalid public credential")}
  // Ledger commits exact signed metadata, with an independently retainable head.
  ledger:=filepath.Join(t.TempDir(),"publication")
  lo:=LedgerOptions{Directory:ledger,AuthoritySHA256:digest(ab),Reviewed:o}

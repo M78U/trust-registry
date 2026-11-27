@@ -143,3 +143,7 @@ The experimental isolated `tuf-publish build-reviewed` mode requires a complete 
 ### Persistent root history
 
 Rotated `build-ledger` accepts the full ordered `--root-chain` and `--initial-root-sha256` plus the existing current root pin; exports retain every numbered root. Network client archives independently verified roots and rechecks the full chain on offline load. See [persistent root chain](docs/TUF-PERSISTENT-ROOT-CHAIN.md).
+
+### Independent public release approval
+
+`review prepare-public` / `sign-public` produce a compact threshold-signed receipt. Reviewed TUF builds accept `--public-credential`; strict `tuf-fetch` and `tuf-load` use independent `--authority` and `--authority-sha256` pins. Receipt is embedded in existing Targets metadata, no extra HTTP request or private dossier. See [client release authorization](docs/CLIENT-RELEASE-AUTHORIZATION.md).

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/M78U/trust-registry/pkg/snapshot"
+	"github.com/M78U/trust-registry/pkg/review"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 	"github.com/theupdateframework/go-tuf/v2/metadata/config"
 	"github.com/theupdateframework/go-tuf/v2/metadata/updater"
@@ -41,6 +42,7 @@ type Options struct {
 	TargetsURL string
 	InitialRootSHA256 string
 	BootstrapRoot []byte // only supplied on explicit first initialization
+	ReviewAuthority *review.Authority // independent pin, strict mode when nonnil
 }
 
 type stateConfig struct {
@@ -48,6 +50,7 @@ type stateConfig struct {
 	MetadataURL string `json:"metadataURL"`
 	TargetsURL string `json:"targetsURL"`
 	InitialRootSHA256 string `json:"initialRootSHA256"`
+	ReviewAuthoritySHA256 string `json:"reviewAuthoritySHA256,omitempty"`
 }
 
 type Report struct {
@@ -60,6 +63,7 @@ type Report struct {
 	Registry snapshot.Report `json:"registry"`
 	ApplicationRollbackStatus string `json:"applicationRollbackStatus"`
 	ReleaseAuthenticated bool `json:"releaseAuthenticated"`
+	ReleaseApproval *review.CredentialReport `json:"releaseApproval,omitempty"`
 	TrustStatus string `json:"trustStatus"`
 }
 
@@ -141,7 +145,8 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	if o.StateDir==""||!hashPattern.MatchString(o.InitialRootSHA256){return nil,Report{},errors.New("state directory and independent initial root SHA-256 required")}
 	dir,err:=filepath.Abs(o.StateDir);if err!=nil{return nil,Report{},err}
 	bootstrap:=o.BootstrapRoot!=nil
-	expected:=stateConfig{"1",metaURL,targetURL,o.InitialRootSHA256}
+	expected:=stateConfig{SchemaVersion:"1",MetadataURL:metaURL,TargetsURL:targetURL,InitialRootSHA256:o.InitialRootSHA256,ReviewAuthoritySHA256:o.ReviewAuthority.SHA256()}
+	if o.ReviewAuthority!=nil&&!hashPattern.MatchString(expected.ReviewAuthoritySHA256){return nil,Report{},errors.New("invalid independent review authority")}
 	configBytes,err:=json.Marshal(expected);if err!=nil{return nil,Report{},err}
 	metadataDir:=filepath.Join(dir,"metadata")
 	targetDir:=filepath.Join(dir,"targets")
@@ -195,6 +200,14 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	if !bytes.Equal(updatedRoot,capture.chain[len(capture.chain)-1])||u.GetTrustedMetadataSet().Root.Signed.Version!=rr.RootVersion{return nil,Report{},errors.New("updater root differs from verified archive")}
 	info:=u.GetTopLevelTargets()[TargetName]
 	if info==nil||info.Path!=TargetName||info.Length<=0||info.Length>snapshot.MaxEnvelopeBytes||len(info.Hashes)!=1||len(info.Hashes["sha256"])!=sha256.Size{return nil,Report{},errors.New("required top-level snapshot target with SHA-256 absent or invalid")}
+	var releaseApproval *review.CredentialReport
+	if o.ReviewAuthority!=nil{
+		trusted:=u.GetTrustedMetadataSet()
+		tg:=trusted.Targets[metadata.TARGETS]
+		if tg.Signed.Version!=trusted.Timestamp.Signed.Version||tg.Signed.Version!=trusted.Snapshot.Signed.Version{return nil,Report{},errors.New("strict metadata sequence mismatch")}
+		v,err:=checkPublicCredential(o.ReviewAuthority,capture.chain,o.InitialRootSHA256,info,tg.Signed.Version,tg.Signed.Expires,trusted.Snapshot.Signed.Expires,trusted.Timestamp.Signed.Expires,time.Now().UTC());if err!=nil{return nil,Report{},err}
+		releaseApproval=&v
+	}
 	// Temporary file is only transport staging; do not leave a mutable
 	// target in the trusted metadata directory.
 	staging,err:=os.MkdirTemp("","m78u-tuf-target-");if err!=nil{return nil,Report{},err}
@@ -204,7 +217,11 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	now:=time.Now().UTC()
 	if now.Before(reg.Manifest.CreatedAt)||!now.Before(reg.Manifest.ExpiresAt){return nil,Report{},errors.New("registry envelope outside declared validity window")}
 	trusted:=u.GetTrustedMetadataSet()
-	report:=Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
+	if releaseApproval!=nil{
+		if trusted.Targets[metadata.TARGETS].Signed.Version<1||uint64(trusted.Targets[metadata.TARGETS].Signed.Version)!=reg.Manifest.Sequence{return nil,Report{},errors.New("credential snapshot sequence mismatch")}
+		v,err:=checkPublicCredential(o.ReviewAuthority,capture.chain,o.InitialRootSHA256,info,trusted.Targets[metadata.TARGETS].Signed.Version,trusted.Targets[metadata.TARGETS].Signed.Expires,trusted.Snapshot.Signed.Expires,trusted.Timestamp.Signed.Expires,now);if err!=nil{return nil,Report{},err};releaseApproval=&v
+	}
+	report:=Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
 	if install{
 		if err:=installEvidence(dir,o.InitialRootSHA256,raw,report,now);err!=nil{return nil,Report{},err}
 		report.ApplicationRollbackStatus="CHECKED_LOCAL_INSTALLATION"

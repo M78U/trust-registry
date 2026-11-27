@@ -89,6 +89,7 @@ func run(args []string)error{
 		tse:=f.String("timestamp-expires","","timestamp expiration")
 		var dossierPath,evidenceDir,authorityPath,authorityPin,approvalPath,previousPath,previousPin string
 		var bootstrap bool
+		var credentialPath string
 		var chainPaths rootPaths
 		var initialPin string
 		if args[0]=="build-rotated"||args[0]=="build-ledger"{f.Var(&chainPaths,"root-chain","numbered root files in order (repeatable)");f.StringVar(&initialPin,"initial-root-sha256","","independent v1 root pin")}
@@ -98,6 +99,7 @@ func run(args []string)error{
 			f.StringVar(&expectedHead,"expected-head","","optional independently retained record pin")
 		}
 		if args[0]=="build-reviewed"||args[0]=="build-ledger"{
+			f.StringVar(&credentialPath,"public-credential","","threshold signed public credential for strict clients")
 			f.StringVar(&dossierPath,"dossier","","complete local review dossier")
 			f.StringVar(&evidenceDir,"evidence","","private evidence directory")
 			f.StringVar(&authorityPath,"authority","","independent role key configuration")
@@ -132,7 +134,9 @@ func run(args []string)error{
 			v,err:=review.DecodeApproval(vb);if err!=nil{return err}
 			var previous []byte
 			if args[0]=="build-reviewed"&&!bootstrap{previous,err=read(previousPath,snapshot.MaxEnvelopeBytes);if err!=nil{return err}}
-			options:=tuf.ReviewedPublishOptions{Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap}
+			var publicCredential []byte
+			if credentialPath!=""{publicCredential,err=read(credentialPath,review.MaxCredentialBytes);if err!=nil{return err}}
+			options:=tuf.ReviewedPublishOptions{PublicCredential:publicCredential,Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap}
 			if args[0]=="build-ledger"{
 				var chain [][]byte
 				if len(chainPaths)>0{chain,err=loadRootChain(chainPaths);if err!=nil{return err}}

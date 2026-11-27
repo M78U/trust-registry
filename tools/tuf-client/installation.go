@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/M78U/trust-registry/pkg/snapshot"
+	"github.com/M78U/trust-registry/pkg/review"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
@@ -122,11 +123,24 @@ func installEvidence(root,pin string,raw []byte,report Report,at time.Time)error
 // independently rechecks all signatures/links/expiry, then builds a detached
 // read-only Registry view. Caller must protect directory and pinned root hash.
 func LoadInstalled(stateDir,initialRootSHA256 string)(*snapshot.Loaded,Report,error){
+	return loadInstalled(stateDir,initialRootSHA256,nil)
+}
+
+// LoadAuthorizedInstalled requires the same independent authority as strict bootstrap.
+func LoadAuthorizedInstalled(stateDir,initialRootSHA256 string,a *review.Authority)(*snapshot.Loaded,Report,error){
+	if a==nil{return nil,Report{},errors.New("independent review authority required")}
+	return loadInstalled(stateDir,initialRootSHA256,a)
+}
+func loadInstalled(stateDir,initialRootSHA256 string,a *review.Authority)(*snapshot.Loaded,Report,error){
 	if stateDir==""||!hashPattern.MatchString(initialRootSHA256){return nil,Report{},errors.New("state and independent initial root pin required")}
 	root,err:=filepath.Abs(stateDir);if err!=nil{return nil,Report{},err}
 	if err:=regularDir(root);err!=nil{return nil,Report{},err}
 	lock:=filepath.Join(root,".lock")
 	if err:=os.Mkdir(lock,0700);err!=nil{return nil,Report{},err};defer os.Remove(lock)
+	configBytes,err:=readRegular(filepath.Join(root,"configuration.json"),16384);if err!=nil{return nil,Report{},err}
+	var cfg stateConfig
+	if err:=json.Unmarshal(configBytes,&cfg);err!=nil{return nil,Report{},err}
+	canonical,err:=json.Marshal(cfg);if err!=nil||!bytes.Equal(canonical,configBytes)||cfg.SchemaVersion!="1"||cfg.InitialRootSHA256!=initialRootSHA256||cfg.ReviewAuthoritySHA256!=a.SHA256(){return nil,Report{},errors.New("installed state identity or review authority mismatch")}
 	v,_,err:=latestEvidence(filepath.Join(root,"installed"));if err!=nil{return nil,Report{},err}
 	if v==nil{return nil,Report{},errors.New("no installed evidence")}
 	// A refresh can advance cache metadata before installation commits. Do
@@ -143,6 +157,13 @@ func LoadInstalled(stateDir,initialRootSHA256 string)(*snapshot.Loaded,Report,er
 	chain,err:=readRootArchive(root,initialRootSHA256,v.Root,at,false);if err!=nil{return nil,Report{},err}
 	if len(chain)!=len(evidenceChain(*v))||!rootPrefix(evidenceChain(*v),chain){return nil,Report{},errors.New("installed root chain differs from archive")}
 	report,err:=verifyEvidence(*v,initialRootSHA256,at);if err!=nil{return nil,Report{},err}
+	if a!=nil{
+		tg,err:=metadata.Targets().FromBytes(v.Targets);if err!=nil{return nil,Report{},err}
+		sm,err:=metadata.Snapshot().FromBytes(v.SnapshotMetadata);if err!=nil{return nil,Report{},err}
+		ts,err:=metadata.Timestamp().FromBytes(v.Timestamp);if err!=nil{return nil,Report{},err}
+		approval,err:=checkPublicCredential(a,chain,initialRootSHA256,tg.Signed.Targets[TargetName],tg.Signed.Version,tg.Signed.Expires,sm.Signed.Expires,ts.Signed.Expires,at);if err!=nil{return nil,Report{},err}
+		report.ReleaseApproval=&approval
+	}
 	view,_,err:=snapshot.LoadPinnedResearch(v.Snapshot,v.SnapshotSHA256,at);if err!=nil{return nil,Report{},err}
 	return view,report,nil
 }

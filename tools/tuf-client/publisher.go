@@ -118,6 +118,10 @@ func BuildRepository(rootBytes,raw []byte,o PublishOptions)(Repository,error){
 }
 
 func buildRepository(rootBytes,raw []byte,o PublishOptions,rootVersion int64)(Repository,error){
+ return buildRepositoryCustom(rootBytes,raw,o,rootVersion,nil)
+}
+
+func buildRepositoryCustom(rootBytes,raw []byte,o PublishOptions,rootVersion int64,credential []byte)(Repository,error){
 	if len(rootBytes)==0||len(rootBytes)>maxRoot||!hashPattern.MatchString(o.RootSHA256)||digest(rootBytes)!=o.RootSHA256{return Repository{},errors.New("root pin mismatch")}
 	if o.Version<1||!validTime(o.Now)||!validTime(o.TargetsExpires)||!validTime(o.SnapshotExpires)||!validTime(o.TimestampExpires)||!o.TimestampExpires.After(o.Now)||o.SnapshotExpires.Before(o.TimestampExpires)||o.TargetsExpires.Before(o.SnapshotExpires){return Repository{},errors.New("invalid metadata version or expiration ordering")}
 	root,err:=metadata.Root().FromBytes(rootBytes);if err!=nil{return Repository{},err}
@@ -129,6 +133,7 @@ func buildRepository(rootBytes,raw []byte,o PublishOptions,rootVersion int64)(Re
 	targets:=metadata.Targets(o.TargetsExpires)
 	targets.Signed.Version=o.Version
 	target,err:=metadata.TargetFile().FromBytes(TargetName,raw,"sha256");if err!=nil{return Repository{},err}
+	if len(credential)>0{target.Custom,err=encodeCredentialCustom(credential);if err!=nil{return Repository{},err}}
 	targets.Signed.Targets[TargetName]=target
 	if err:=signRole(targets,root,metadata.TARGETS,o.TargetsSigners);err!=nil{return Repository{},err}
 	targetBytes,err:=targets.ToBytes(false);if err!=nil{return Repository{},err}
