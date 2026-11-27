@@ -354,10 +354,24 @@ func TestReviewedPublication(t *testing.T){
  expectDiagnostic("INSTALLED_EVIDENCE_MATCHES")
  currentDir.Store(assets)
  if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
+ // Verify the actual signed timestamp deadline of the current head,
+ // rather than deriving the deadline from a fixture creation time.
+ deadline:=b2.TimestampExpires
+ if !delta.Manifest.TimestampExpires.Equal(deadline){t.Fatal("static timestamp deadline mismatch")}
+ beforeExpiry:=deadline.Add(-time.Nanosecond)
+ if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,beforeExpiry);err!=nil{t.Fatal("valid head refused before expiry",err)}
+ boundary:=staticOpts;boundary.At=beforeExpiry
+ if _,_,err:=PrepareStaticPublication(boundary);err!=nil{t.Fatal("valid static head refused before expiry",err)}
+ if err:=VerifyStaticDirectory(assets2,delta.Manifest,beforeExpiry);err!=nil{t.Fatal("valid static directory refused before expiry",err)}
+ for _,at:=range []time.Time{deadline,deadline.Add(time.Second)}{
+  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,at);err==nil{t.Fatal("expired timestamp exported",at)}
+  boundary.At=at
+  if _,_,err:=PrepareStaticPublication(boundary);err==nil{t.Fatal("expired static head prepared",at)}
+  if err:=VerifyStaticDirectory(assets2,delta.Manifest,at);err==nil{t.Fatal("expired static directory accepted",at)}
+ }
  staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)
  if _,_,err:=PrepareStaticPublication(staticOpts);err==nil{t.Fatal("bad prior manifest pin")}
  if _,err:=BuildInLedger(root2,raw2,lo);err==nil{t.Fatal("stale head replay")}
- if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,now.Add(time.Hour));err==nil{t.Fatal("expired timestamp exported")}
  if err:=os.Remove(filepath.Join(ledger,evidenceName(1)));err!=nil{t.Fatal(err)}
  if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,later);err==nil{t.Fatal("gap ignored")}
  // A review key listed in ANY TUF role is rejected, even if not used to sign.

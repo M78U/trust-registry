@@ -47,14 +47,19 @@ func verifyEvidenceWithChain(v evidence,pin string,at time.Time,chain [][]byte)(
 	if v.SchemaVersion!="1"||v.Sequence==0||!validTime(v.AcceptedAt)||!validTime(at)||at.Before(v.AcceptedAt)||!hashPattern.MatchString(pin)||len(v.Root)==0||len(v.Root)>maxRoot||len(chain)==0||!bytes.Equal(v.Root,chain[len(chain)-1])||len(v.Timestamp)==0||len(v.Timestamp)>16384||len(v.SnapshotMetadata)==0||len(v.SnapshotMetadata)>2_000_000||len(v.Targets)==0||len(v.Targets)>5_000_000||len(v.Snapshot)==0||len(v.Snapshot)>snapshot.MaxEnvelopeBytes||digest(v.Snapshot)!=v.SnapshotSHA256{return Report{},errors.New("invalid installation evidence or root pin")}
 	tr,rr,err:=rootChain(chain,pin,at);if err!=nil{return Report{},err}
 	ts,err:=metadata.Timestamp().FromBytes(v.Timestamp);if err!=nil{return Report{},err}
+	// Use the Registry half-open validity window consistently even if an
+	// upstream metadata check permits the exact expiry instant.
+	if !at.Before(ts.Signed.Expires){return Report{},errors.New("timestamp metadata expired")}
 	link:=ts.Signed.Meta["snapshot.json"]
 	if link==nil||link.Length<=0||len(link.Hashes["sha256"])!=32{return Report{},errors.New("missing timestamp snapshot hash link")}
 	if _,err:=tr.UpdateTimestamp(v.Timestamp);err!=nil{return Report{},err}
 	sm,err:=metadata.Snapshot().FromBytes(v.SnapshotMetadata);if err!=nil{return Report{},err}
+	if !at.Before(sm.Signed.Expires){return Report{},errors.New("snapshot metadata expired")}
 	link=sm.Signed.Meta["targets.json"]
 	if link==nil||link.Length<=0||len(link.Hashes["sha256"])!=32{return Report{},errors.New("missing snapshot targets hash link")}
 	if _,err:=tr.UpdateSnapshot(v.SnapshotMetadata,false);err!=nil{return Report{},err}
 	tg,err:=tr.UpdateTargets(v.Targets);if err!=nil{return Report{},err}
+	if !at.Before(tg.Signed.Expires){return Report{},errors.New("targets metadata expired")}
 	info:=tg.Signed.Targets[TargetName]
 	if info==nil||info.Path!=TargetName||info.Length<=0||len(info.Hashes)!=1||len(info.Hashes["sha256"])!=32{return Report{},errors.New("missing fixed SHA-256 target")}
 	if err:=info.VerifyLengthHashes(v.Snapshot);err!=nil{return Report{},err}
