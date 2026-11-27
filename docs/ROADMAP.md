@@ -150,3 +150,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 8: explicit private deterministic SHECA review batches from independently pinned original pairs, raw-body and ambiguity tasks, exact no-replace persistence and replay verification. No approvals, global index, automated parsing or live profile acceptance. See [source monitoring](SOURCE-MONITOR.md#stage-8-private-maintenance-review-batches).
 
 - Maintainer stage 9: private append-only source-review disposition records with exact batch/task binding, bounded hash-chain replay, expected-head concurrency guard, human notes, investigation/completion/reopen. No authenticated reviewer, trust authorization or global pending index. See [source monitoring](SOURCE-MONITOR.md#stage-9-append-only-source-review-dispositions).
+
+- Maintainer stage 10: bounded private advisory pending-review index, explicit single-batch verified refresh, cached status/head summaries, filtered paginated queries without archive scans. No automatic refresh, live completeness or trust authorization. See [source monitoring](SOURCE-MONITOR.md#stage-10-bounded-advisory-pending-review-index).
