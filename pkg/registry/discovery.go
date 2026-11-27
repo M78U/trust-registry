@@ -51,38 +51,45 @@ func (s *Store) DiscoverIssuers(input []byte) (DiscoveryReport,error) {
 		if digest(raw)!=r.FingerprintSHA256 { return DiscoveryReport{},errors.New("inventory changed during discovery") }
 		parent,err:=smx509.ParseCertificate(raw)
 		if err!=nil { return DiscoveryReport{},err }
-		dn:=bytes.Equal(child.RawIssuer,parent.RawSubject)
-		bothIDs:=len(child.AuthorityKeyId)>0 && len(parent.SubjectKeyId)>0
-		keyMatch:=bothIDs && bytes.Equal(child.AuthorityKeyId,parent.SubjectKeyId)
-		if !dn && !keyMatch { continue }
+		candidate,ok:=checkDirectIssuer(child,parent,r)
+		if !ok { continue }
 		if len(report.Candidates)>=MaxIssuerCandidates { return DiscoveryReport{},fmt.Errorf("issuer candidate limit exceeded (%d)",MaxIssuerCandidates) }
-		candidate:=IssuerCandidate{Certificate:r,IssuerDNMatch:dn,AKISKIMatch:keyMatch,KeyIdentifierConflict:bothIDs&&!keyMatch,SignatureStatus:"NOT_VERIFIED",DirectIssuerStatus:"NOT_ESTABLISHED"}
-		// Report raw signature evidence separately from name/CA constraints.
-		if err:=parent.CheckSignature(child.SignatureAlgorithm,child.RawTBSCertificate,child.Signature); err!=nil {
-			candidate.Reason="signature invalid, unsupported or rejected by algorithm policy"
-		} else {
-			candidate.SignatureStatus="VERIFIED"
-			switch {
-			case !dn:
-				candidate.Reason="issuer DN does not exactly match subject DN"
-			case candidate.KeyIdentifierConflict:
-				candidate.Reason="AKI/SKI conflict"
-			case !parent.BasicConstraintsValid || !parent.IsCA:
-				candidate.Reason="issuer lacks CA basic constraints"
-			case parent.KeyUsage!=0 && parent.KeyUsage&smx509.KeyUsageCertSign==0:
-				candidate.Reason="issuer key usage does not allow certificate signing"
-			case len(parent.UnhandledCriticalExtensions)>0 || len(child.UnhandledCriticalExtensions)>0:
-				candidate.Reason="unhandled critical extensions"
-			default:
-				if err:=child.CheckSignatureFrom(parent); err!=nil {
-					candidate.Reason="direct issuer constraints or signature policy rejected"
-				} else {
-					candidate.DirectIssuerStatus="MATCHED"
-					candidate.Reason="direct issuer evidence only; path and trust not evaluated"
-				}
-			}
-		}
 		report.Candidates=append(report.Candidates,candidate)
 	}
 	return report,nil
+}
+
+// checkDirectIssuer is shared by single-certificate discovery and graph building.
+func checkDirectIssuer(child,parent *smx509.Certificate,r CertificateRecord)(IssuerCandidate,bool) {
+	dn:=bytes.Equal(child.RawIssuer,parent.RawSubject)
+	bothIDs:=len(child.AuthorityKeyId)>0 && len(parent.SubjectKeyId)>0
+	keyMatch:=bothIDs && bytes.Equal(child.AuthorityKeyId,parent.SubjectKeyId)
+	if !dn && !keyMatch { return IssuerCandidate{},false }
+	candidate:=IssuerCandidate{Certificate:r,IssuerDNMatch:dn,AKISKIMatch:keyMatch,KeyIdentifierConflict:bothIDs&&!keyMatch,SignatureStatus:"NOT_VERIFIED",DirectIssuerStatus:"NOT_ESTABLISHED"}
+	// Report raw signature evidence separately from name/CA constraints.
+	if err:=parent.CheckSignature(child.SignatureAlgorithm,child.RawTBSCertificate,child.Signature); err!=nil {
+		candidate.Reason="signature invalid, unsupported or rejected by algorithm policy"
+	} else {
+		candidate.SignatureStatus="VERIFIED"
+		switch {
+		case !dn:
+			candidate.Reason="issuer DN does not exactly match subject DN"
+		case candidate.KeyIdentifierConflict:
+			candidate.Reason="AKI/SKI conflict"
+		case !parent.BasicConstraintsValid || !parent.IsCA:
+			candidate.Reason="issuer lacks CA basic constraints"
+		case parent.KeyUsage!=0 && parent.KeyUsage&smx509.KeyUsageCertSign==0:
+			candidate.Reason="issuer key usage does not allow certificate signing"
+		case len(parent.UnhandledCriticalExtensions)>0 || len(child.UnhandledCriticalExtensions)>0:
+			candidate.Reason="unhandled critical extensions"
+		default:
+			if err:=child.CheckSignatureFrom(parent); err!=nil {
+				candidate.Reason="direct issuer constraints or signature policy rejected"
+			} else {
+				candidate.DirectIssuerStatus="MATCHED"
+				candidate.Reason="direct issuer evidence only; path and trust not evaluated"
+			}
+		}
+	}
+	return candidate,true
 }

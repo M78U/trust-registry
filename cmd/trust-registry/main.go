@@ -33,7 +33,7 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | search | policy | sources") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | search | policy | sources") }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
 	if args[0]=="sources" { return runSources(args[1:],out) }
 	if args[0]=="inspect" {
@@ -74,6 +74,25 @@ func run(args []string,out io.Writer) error {
 		if err!=nil { return err }
 		report,err:=s.DiscoverIssuers(input)
 		if err!=nil { return err }
+		return encode.Encode(report)
+	case "graph","paths":
+		certificate:=flags.String("certificate","","optional ephemeral DER/PEM certificate")
+		fp:=flags.String("fingerprint","","start fingerprint for paths")
+		depth:=flags.Int("max-depth",registry.MaxPathDepth,"maximum path depth (nodes)")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if flags.NArg()!=0{return errors.New("unexpected positional arguments")}
+		var input []byte
+		if *certificate!=""{var err error;input,err=readInput(*certificate);if err!=nil{return err};if len(input)==0{return errors.New("empty certificate")}}
+		if args[0]=="graph"&&(*fp!=""||*depth!=registry.MaxPathDepth){return errors.New("fingerprint and max-depth are paths options")}
+		if args[0]=="paths"&&*fp==""{
+			if input==nil{return errors.New("paths requires --fingerprint or --certificate")}
+			record,_,err:=registry.ParseCertificate(input);if err!=nil{return err}
+			*fp=record.FingerprintSHA256
+		}
+		s,err:=registry.OpenStore(*root);if err!=nil{return err}
+		g,err:=s.BuildGraph(input);if err!=nil{return err}
+		if args[0]=="graph"{report,err:=g.Export();if err!=nil{return err};return encode.Encode(report)}
+		report,err:=g.Paths(*fp,*depth);if err!=nil{return err}
 		return encode.Encode(report)
 	case "search":
 		var q registry.Query
