@@ -118,3 +118,15 @@ func loadView(raw []byte,at time.Time)(*Loaded,error){
 	});err!=nil{return nil,err}
 	return v,nil
 }
+
+// Provenance returns detached validated inventory observations.
+func(v *Loaded)Provenance(fp string)([]registry.ProvenanceEntry,error){
+ if v==nil||v.index==nil{return nil,errors.New("loaded snapshot required")}
+ return v.index.Provenance(fp)
+}
+// EvaluatePolicy evaluates the exact local policy using the shared index.
+func(v *Loaded)EvaluatePolicy(id string,version int,at,knownAt time.Time)(policy.Evaluation,error){
+ d,err:=v.Policy(id,version);if err!=nil{return policy.Evaluation{},err}
+ if knownAt.After(v.loadedAt){return policy.Evaluation{},errors.New("knowledge time exceeds snapshot load time")}
+ return d.EvaluateAgainst(v.index,at,knownAt)
+}

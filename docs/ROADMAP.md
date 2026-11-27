@@ -102,3 +102,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Effective local authorization impact (PR #49): same-cutoff snapshot comparison, optional earlier cutoff on previous snapshot, shared inventory index and separate certificate validity; no actual path or production trust claim.
 
 - Certificate path impact (PR #50): explicit same-scope local path comparison, shared detached revocation evidence and optional replacement comparison; no production trust claim.
+
+- Strict authenticated consumer SDK (PR #51): offline verified installed sessions, expiry bound, independent checkpoint options, candidate/query/policy/path and live-session comparison APIs. SigLens integration and locked build pending.
