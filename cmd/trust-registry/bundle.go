@@ -17,7 +17,7 @@ func runBundle(args []string,out io.Writer)error{
  f:=flag.NewFlagSet("sources "+args[0],flag.ContinueOnError)
  switch args[0]{
  case "bundle-plan":
-  id:=f.String("id","","observed chain listing ID")
+  id:=f.String("id","","observed chain listing or exact-fingerprint certificate lead ID")
   at:=f.String("recorded-at","","asserted observation time RFC3339")
   if err:=f.Parse(args[1:]);err!=nil{return err}
   if f.NArg()!=1||*id==""||*at==""{return errors.New("id, recorded-at and bundle file required")}

@@ -59,9 +59,25 @@ func prepareBundle(c MultiCACatalog,id string,raw []byte,at time.Time)(BundlePla
  if !intakeTime(at){return BundlePlan{},nil,errors.New("explicit UTC observation time required")}
  if err:=c.Validate();err!=nil{return BundlePlan{},nil,err}
  listing,err:=c.Find(id);if err!=nil{return BundlePlan{},nil,err}
- if listing.Kind!="CHAIN_LISTING"||listing.SourceStatus!="OFFICIAL_PAGE_OBSERVED"{return BundlePlan{},nil,errors.New("observed chain listing required")}
+ // A direct name lead must be observed on the official page and have an
+ // exact published digest. Indexed-only or related-policy leads are not
+ // sufficient for this direct intake profile.
+ direct:=listing.Kind=="CERTIFICATE_NAME_LEAD"
+ if listing.SourceStatus!="OFFICIAL_PAGE_OBSERVED"||
+  (listing.Kind!="CHAIN_LISTING"&&(!direct||listing.PublishedSHA256==nil)){
+  return BundlePlan{},nil,errors.New("observed chain listing or observed exact-fingerprint certificate lead required")
+ }
+ if direct&&len(raw)>registry.MaxCertificateInput{return BundlePlan{},nil,errors.New("single certificate input size limit")}
  cb,err:=json.Marshal(c);if err!=nil{return BundlePlan{},nil,err}
  format,members,err:=registry.ParseCertificateBundle(raw);if err!=nil{return BundlePlan{},nil,err}
+ if direct{
+  // A direct lead is not a chain listing: no extra CA, PKCS#7 wrapper,
+  // or other member can be attributed to the selected name.
+  if len(members)!=1||(format!="SINGLE_DER"&&format!="PEM_CERTIFICATES"){
+   return BundlePlan{},nil,errors.New("direct certificate lead requires one DER or CERTIFICATE PEM")
+  }
+  if _,err:=auditMultiCA(c,id,raw);err!=nil{return BundlePlan{},nil,err}
+ }
  p:=BundlePlan{SchemaVersion:"1",Listing:listing,CatalogSHA256:intakeHash(cb),OriginalSHA256:intakeHash(raw),Format:format,RecordedAt:at,Members:[]BundleMember{},TrustStatus:"NOT_ESTABLISHED"}
  for i,m:=range members{
   row:=BundleMember{Position:i+1,Certificate:m.Certificate,MatchStatus:"UNMATCHED_RESEARCH_CANDIDATE"}
@@ -76,6 +92,7 @@ func prepareBundle(c MultiCACatalog,id string,raw []byte,at time.Time)(BundlePla
    f:=*e.PublishedSHA256;row.FingerprintEvidence=&f
    break
   }
+  if direct&&(row.MatchStatus!="MATCHED_PUBLISHED_LEAD"||row.MatchedListingID!=listing.ID){return BundlePlan{},nil,errors.New("direct certificate does not match selected listing")}
   p.Members=append(p.Members,row)
  }
  if _,err:=BundlePlanBytes(p);err!=nil{return BundlePlan{},nil,err}
