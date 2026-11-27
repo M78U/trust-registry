@@ -23,7 +23,8 @@ func rootPrefix(old,next [][]byte)bool{
 func rootArchiveName(version int)string{return fmt.Sprintf("%d.root.json",version)}
 func commitRoot(dir string,version int,raw []byte)error{
  if len(raw)==0||len(raw)>maxRoot||version<1||version>MaxRootChain{return errors.New("invalid root archive record")}
- f,err:=os.CreateTemp(dir,".pending-");if err!=nil{return err}
+ // Keep incomplete staging files outside the numbered archive.
+ f,err:=os.CreateTemp(filepath.Dir(dir),".root-stage-");if err!=nil{return err}
  defer os.Remove(f.Name())
  if _,err=f.Write(raw);err==nil{err=f.Sync()}
  closeErr:=f.Close();if err==nil{err=closeErr};if err!=nil{return err}
@@ -43,6 +44,15 @@ func readRootArchive(state,pin string,cached []byte,at time.Time,initialize bool
   }
   return chain,nil
  }
+ chain,err:=readNumberedRootArchive(dir,pin,at);if err!=nil{return nil,err}
+ if !bytes.Equal(chain[len(chain)-1],cached){return nil,errors.New("cached root differs from verified archive; inspect interrupted update")}
+ return chain,nil
+}
+
+// readNumberedRootArchive does not consult the mutable cached root. Only the
+// explicit forward recovery operation may use it without cache equality.
+func readNumberedRootArchive(dir,pin string,at time.Time)([][]byte,error){
+ if err:=regularDir(dir);err!=nil{return nil,err}
  f,err:=os.Open(dir);if err!=nil{return nil,err};defer f.Close()
  entries,err:=f.ReadDir(MaxRootChain+1);if err!=nil&&err!=io.EOF{return nil,err}
  if len(entries)<1||len(entries)>MaxRootChain{return nil,errors.New("root archive count limit")}
@@ -59,7 +69,6 @@ func readRootArchive(state,pin string,cached []byte,at time.Time,initialize bool
   chain=append(chain,raw)
  }
  if _,_,err:=validateRootChain(chain,pin,at,false);err!=nil{return nil,err}
- if !bytes.Equal(chain[len(chain)-1],cached){return nil,errors.New("cached root differs from verified archive; inspect interrupted update")}
  return chain,nil
 }
 // rootArchiveCapture independently verifies each downloaded numbered root

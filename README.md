@@ -193,3 +193,5 @@ Strict offline Go consumer SDK: `tufclient.OpenConsumer` requires installed TUF 
 Strict online refresh can optionally enforce an independently retained `ReleaseCheckpoint` (sequence, snapshot SHA-256, root version) before target download, with SDK export and `tuf-fetch --checkpoint-*` flags. See [consumer SDK](docs/CONSUMER-SDK.md). External checkpoint persistence remains caller-owned.
 
 Interrupted final strict installation commits can be recovered offline with `tuf-load --recover-pending` or `tufclient.RecoverPendingInstall`, using independent pins and the complete local journal. No rollback or metadata repair; see [installation recovery](docs/TUF-INSTALLATION.md).
+
+Strict clients can explicitly repair a root cache that lags an intact verified numbered archive via `tuf-load --recover-root-cache --root-head-sha256` or `tufclient.RecoverRootCache`. This is offline root-only recovery, followed by normal strict refresh/install; see [root history](docs/TUF-PERSISTENT-ROOT-CHAIN.md).
