@@ -92,11 +92,18 @@ func(c *rootArchiveCapture)accept(name string,raw []byte)error{
 // checkInstalledRootBaseline prevents a rotated installation from being
 // silently replaced by a shorter or forked archive, even before refreshing.
 func checkInstalledRootBaseline(state,pin string,chain [][]byte)error{
+ _,err:=installedRootBaseline(state,pin,chain)
+ return err
+}
+
+// Return the already verified latest record to avoid an additional history
+// scan when a strict online install can reuse the exact target bytes.
+func installedRootBaseline(state,pin string,chain [][]byte)(*evidence,error){
  dir:=filepath.Join(state,"installed")
- if _,err:=os.Lstat(dir);os.IsNotExist(err){return nil}else if err!=nil{return err}
- old,_,err:=latestEvidence(dir);if err!=nil{return err}
- if old==nil{return nil}
- if _,err:=verifyEvidence(*old,pin,old.AcceptedAt);err!=nil{return err}
- if !rootPrefix(evidenceChain(*old),chain){return errors.New("root archive precedes or forks installed history")}
- return nil
+ if _,err:=os.Lstat(dir);os.IsNotExist(err){return nil,nil}else if err!=nil{return nil,err}
+ old,_,err:=latestEvidence(dir);if err!=nil{return nil,err}
+ if old==nil{return nil,nil}
+ if _,err:=verifyEvidence(*old,pin,old.AcceptedAt);err!=nil{return nil,err}
+ if !rootPrefix(evidenceChain(*old),chain){return nil,errors.New("root archive precedes or forks installed history")}
+ return old,nil
 }

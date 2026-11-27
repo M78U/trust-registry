@@ -213,13 +213,30 @@ func TestReviewedPublication(t *testing.T){
  if err:=VerifyStaticDirectory(assets2,delta.Manifest,later);err!=nil{t.Fatal(err)}
  var currentDir atomic.Value;currentDir.Store(assets)
  var coordinateHTTPHits atomic.Int32
+ var targetHTTPHits atomic.Int32
  staticServer:=httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter,req *http.Request){
   coordinateHTTPHits.Add(1)
+  if strings.Contains(req.URL.Path,"/targets/"){targetHTTPHits.Add(1)}
   http.FileServer(http.Dir(currentDir.Load().(string))).ServeHTTP(w,req)
  }));defer staticServer.Close()
  state:=filepath.Join(t.TempDir(),"static-client")
  so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a,Checkpoint:&checkpoint}
- if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified||r.Transfer==nil||r.Transfer.TargetSource!="NETWORK"||r.Transfer.TargetRequests!=1||r.Transfer.TargetBytes!=int64(len(raw))||r.Transfer.MetadataRequests<1||r.Transfer.MetadataBytes<1{t.Fatal(r,err)}
+ if targetHTTPHits.Load()!=1{t.Fatal("unexpected initial target count")}
+ initialRecordPath:=filepath.Join(state,"installed",evidenceName(1))
+ initialRecord,err:=readRegular(initialRecordPath,maxEvidenceBytes);if err!=nil{t.Fatal(err)}
+ sameOpt:=so;sameOpt.BootstrapRoot=nil
+ metadataBeforeReuse:=coordinateHTTPHits.Load()
+ sameBytes,sameReport,err:=refresh(context.Background(),sameOpt,true,staticServer.Client())
+ if err!=nil||!bytes.Equal(sameBytes,raw)||sameReport.Transfer==nil||sameReport.Transfer.TargetSource!="INSTALLED_EVIDENCE"||sameReport.Transfer.TargetRequests!=0||sameReport.Transfer.TargetBytes!=0||sameReport.Transfer.ReusedTargetBytes!=int64(len(raw))||sameReport.Transfer.MetadataRequests<1||sameReport.Transfer.MetadataBytes<1||!sameReport.IndependentCheckpointChecked||sameReport.ReleaseApproval==nil||!sameReport.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(sameReport,err)}
+ if targetHTTPHits.Load()!=1||coordinateHTTPHits.Load()<=metadataBeforeReuse{t.Fatal("reuse skipped metadata or downloaded target")}
+ unchangedRecord,err:=readRegular(initialRecordPath,maxEvidenceBytes);if err!=nil||!bytes.Equal(initialRecord,unchangedRecord){t.Fatal("same release changed immutable evidence",err)}
+ // A corrupt latest record remains a hard failure, never a cache miss.
+ corruptRecord:=bytes.Clone(initialRecord);corruptRecord[0]='!'
+ if err:=os.WriteFile(initialRecordPath,corruptRecord,0600);err!=nil{t.Fatal(err)}
+ hitsBeforeCorruption:=coordinateHTTPHits.Load()
+ if _,_,err:=refresh(context.Background(),sameOpt,true,staticServer.Client());err==nil||coordinateHTTPHits.Load()!=hitsBeforeCorruption{t.Fatal("corrupt installed baseline accepted or used network",err)}
+ if err:=os.WriteFile(initialRecordPath,initialRecord,0600);err!=nil{t.Fatal(err)}
  diagnostic:=DiagnosticOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,Checkpoint:&checkpoint}
  expectDiagnostic:=func(status string) StateDiagnostic{
   t.Helper()
@@ -280,7 +297,7 @@ func TestReviewedPublication(t *testing.T){
  currentDir.Store(assets2);so.BootstrapRoot=nil
  refreshResult,refreshedSession,err:=coordinateUpdate(context.Background(),refreshCoord,staticServer.Client())
  if err!=nil||refreshedSession==nil||refreshResult.Status!="CONSUMER_READY"||refreshResult.Install==nil||!refreshResult.Install.IndependentCheckpointChecked||refreshResult.Install.RootVersion!=2||refreshResult.Checkpoint==nil||refreshResult.Checkpoint.Sequence!=2{t.Fatal(refreshResult,err)}
- if coordinateHTTPHits.Load()<=beforeCoordHTTP{t.Fatal("explicit refresh did not use local TLS repository")}
+ if coordinateHTTPHits.Load()<=beforeCoordHTTP||targetHTTPHits.Load()!=2||refreshResult.Install.Transfer==nil||refreshResult.Install.Transfer.TargetSource!="NETWORK"||refreshResult.Install.Transfer.TargetRequests!=1||refreshResult.Install.Transfer.TargetBytes!=int64(len(raw2))||refreshResult.Install.Transfer.ReusedTargetBytes!=0{t.Fatal("new release did not download exact target")}
  beforeCoordHTTP=coordinateHTTPHits.Load()
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})

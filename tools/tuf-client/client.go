@@ -60,7 +60,19 @@ type OfflineVerification struct {
  VerifiedAt time.Time `json:"verifiedAt"`
  ValidUntil time.Time `json:"validUntil"`
 }
+// TransferStats counts adapter-issued HTTP attempts and response body bytes
+// read on successful refresh. It excludes headers, TLS and transport retries.
+type TransferStats struct {
+ MetadataRequests int `json:"metadataRequests"`
+ TargetRequests int `json:"targetRequests"`
+ MetadataBytes int64 `json:"metadataBytes"`
+ TargetBytes int64 `json:"targetBytes"`
+ ReusedTargetBytes int64 `json:"reusedTargetBytes"`
+ TargetSource string `json:"targetSource"`
+}
+
 type Report struct {
+ Transfer *TransferStats `json:"transfer,omitempty"`
 	Target string `json:"target"`
 	TUFTargetAuthenticated bool `json:"tufTargetAuthenticated"`
 	RootVersion int64 `json:"rootVersion"`
@@ -95,6 +107,7 @@ type boundedFetcher struct {
 	requests int
 	remaining int64
 	rootCapture *rootArchiveCapture
+ stats TransferStats
 }
 
 func (f *boundedFetcher) DownloadFile(raw string,maxLength int64,_ time.Duration)([]byte,error){
@@ -102,16 +115,19 @@ func (f *boundedFetcher) DownloadFile(raw string,maxLength int64,_ time.Duration
 	// and one fixed target, not delegated role names or arbitrary URLs.
 	allowed:=false
 	if strings.HasPrefix(raw,f.metadataBase){allowed=metadataName.MatchString(strings.TrimPrefix(raw,f.metadataBase))}
-	if strings.HasPrefix(raw,f.targetsBase)&&targetName.MatchString(strings.TrimPrefix(raw,f.targetsBase)){allowed=true}
+	isTarget:=strings.HasPrefix(raw,f.targetsBase)&&targetName.MatchString(strings.TrimPrefix(raw,f.targetsBase))
+	if isTarget{allowed=true}
 	if !allowed{return nil,errors.New("download outside configured repository paths")}
 	if maxLength<=0||maxLength>snapshot.MaxEnvelopeBytes||f.requests>=maxRequests||maxLength>f.remaining{return nil,errors.New("download budget exceeded")}
 	f.requests++
+	if isTarget{f.stats.TargetRequests++}else{f.stats.MetadataRequests++}
 	req,err:=http.NewRequestWithContext(f.ctx,http.MethodGet,raw,nil);if err!=nil{return nil,err}
 	resp,err:=f.client.Do(req);if err!=nil{return nil,err};defer resp.Body.Close()
 	if resp.StatusCode!=http.StatusOK{return nil,&metadata.ErrDownloadHTTP{StatusCode:resp.StatusCode,URL:raw}}
 	if resp.ContentLength>maxLength||resp.Uncompressed||(resp.Header.Get("Content-Encoding")!=""&&resp.Header.Get("Content-Encoding")!="identity"){return nil,errors.New("invalid download size or encoding")}
 	data,err:=io.ReadAll(io.LimitReader(resp.Body,maxLength+1))
 	f.remaining-=int64(len(data))
+	if isTarget{f.stats.TargetBytes+=int64(len(data))}else{f.stats.MetadataBytes+=int64(len(data))}
 	if err!=nil{return nil,err}
 	if int64(len(data))>maxLength{return nil,errors.New("download exceeds bound")}
 	if f.rootCapture!=nil&&strings.HasPrefix(raw,f.metadataBase){if err:=f.rootCapture.accept(strings.TrimPrefix(raw,f.metadataBase),data);err!=nil{return nil,err}}
@@ -197,7 +213,7 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	}
 	root,err:=readRegular(rootPath,maxRoot);if err!=nil{return nil,Report{},err}
 	chain,err:=readRootArchive(dir,o.InitialRootSHA256,root,time.Now().UTC(),true);if err!=nil{return nil,Report{},err}
-	if err:=checkInstalledRootBaseline(dir,o.InitialRootSHA256,chain);err!=nil{return nil,Report{},err}
+	old,err:=installedRootBaseline(dir,o.InitialRootSHA256,chain);if err!=nil{return nil,Report{},err}
 	capture:=&rootArchiveCapture{state:dir,pin:o.InitialRootSHA256,chain:chain,at:time.Now().UTC()}
 	cfg,err:=config.New(metaURL,root);if err!=nil{return nil,Report{},err}
 	cfg.LocalMetadataDir=metadataDir
@@ -210,7 +226,8 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirect disabled")}}
 	if testClient!=nil{client=testClient} // private integration test seam only
 	ctx,cancel:=context.WithTimeout(ctx,5*time.Minute);defer cancel()
-	cfg.Fetcher=&boundedFetcher{ctx:ctx,client:client,metadataBase:metaURL,targetsBase:targetURL,remaining:maxDownloadBytes,rootCapture:capture}
+	fetcher:=&boundedFetcher{ctx:ctx,client:client,metadataBase:metaURL,targetsBase:targetURL,remaining:maxDownloadBytes,rootCapture:capture}
+	cfg.Fetcher=fetcher
 	u,err:=updater.New(cfg);if err!=nil{return nil,Report{},err}
 	if err:=u.Refresh();err!=nil{return nil,Report{},err}
 	updatedRoot,err:=readRegular(rootPath,maxRoot);if err!=nil{return nil,Report{},err}
@@ -230,11 +247,24 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 			if err:=checkpoint.check(uint64(tg.Signed.Version),hex.EncodeToString(info.Hashes["sha256"]),rr.RootVersion);err!=nil{return nil,Report{},err}
 		}
 	}
-	// Temporary file is only transport staging; do not leave a mutable
-	// target in the trusted metadata directory.
-	staging,err:=os.MkdirTemp("","m78u-tuf-target-");if err!=nil{return nil,Report{},err}
-	defer os.RemoveAll(staging)
-	_,raw,err:=u.DownloadTarget(info,filepath.Join(staging,TargetName),"");if err!=nil{return nil,Report{},err}
+	// Reuse only the latest verified installed record, in strict install
+	// mode and only after current online metadata and credential validation.
+	// This cannot skip timestamp refresh, target hash/length or later checks.
+	var raw []byte
+	if install&&releaseApproval!=nil&&old!=nil&&old.Sequence==uint64(u.GetTrustedMetadataSet().Targets[metadata.TARGETS].Signed.Version)&&len(evidenceChain(*old))==len(capture.chain)&&rootPrefix(evidenceChain(*old),capture.chain)&&old.SnapshotSHA256==hex.EncodeToString(info.Hashes["sha256"]){
+		if err:=info.VerifyLengthHashes(old.Snapshot);err!=nil{return nil,Report{},err}
+		raw=old.Snapshot
+		fetcher.stats.TargetSource="INSTALLED_EVIDENCE"
+		fetcher.stats.ReusedTargetBytes=int64(len(raw))
+	}else{
+		// Temporary file is only transport staging; do not leave a mutable
+		// target in the trusted metadata directory.
+		staging,err:=os.MkdirTemp("","m78u-tuf-target-");if err!=nil{return nil,Report{},err}
+		defer os.RemoveAll(staging)
+		_,raw,err=u.DownloadTarget(info,filepath.Join(staging,TargetName),"");if err!=nil{return nil,Report{},err}
+		fetcher.stats.TargetSource="NETWORK"
+	}
+	if err:=ctx.Err();err!=nil{return nil,Report{},err}
 	reg,err:=snapshot.Verify(raw,"");if err!=nil{return nil,Report{},err}
 	now:=time.Now().UTC()
 	if now.Before(reg.Manifest.CreatedAt)||!now.Before(reg.Manifest.ExpiresAt){return nil,Report{},errors.New("registry envelope outside declared validity window")}
@@ -248,7 +278,7 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	if checkpoint!=nil{
 		if err:=checkpoint.check(reg.Manifest.Sequence,reg.SnapshotSHA256,trusted.Root.Signed.Version);err!=nil{return nil,Report{},err}
 	}
-	report:=Report{IndependentCheckpointChecked:checkpoint!=nil,Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
+	report:=Report{Transfer:&fetcher.stats,IndependentCheckpointChecked:checkpoint!=nil,Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
 	if install{
 		if err:=installEvidence(dir,o.InitialRootSHA256,raw,report,now);err!=nil{return nil,Report{},err}
 		report.ApplicationRollbackStatus="CHECKED_LOCAL_INSTALLATION"

@@ -199,3 +199,5 @@ Strict clients can explicitly repair a root cache that lags an intact verified n
 Strict local state diagnostics: `tuf-load --diagnose` or `tufclient.DiagnoseState` gives advisory recovery codes without persistent writes. See [state diagnostics](docs/TUF-STATE-DIAGNOSTICS.md).
 
 Strict update coordination: `tuf-load --coordinate plan|open|recover-root|recover-pending|refresh` or `tufclient.CoordinateUpdate` combines explicit diagnosis, recovery and strict installation/session reopening. See [update coordinator](docs/TUF-UPDATE-ORCHESTRATOR.md).
+
+Strict online installation reuses the latest identical authenticated target after metadata and approval checks, with per-refresh transfer statistics. See [transfer optimization](docs/TUF-TRANSFER-OPTIMIZATION.md).

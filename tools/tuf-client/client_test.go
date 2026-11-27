@@ -33,4 +33,5 @@ func TestFetcherBoundary(t *testing.T){
 	if data,err:=f.DownloadFile("https://example.org/metadata/2.root.json",3,0);err!=nil||string(data)!="abc"{t.Fatalf("%s %v",data,err)}
 	if _,err:=f.DownloadFile("https://example.org/targets/registry-snapshot.json",2,0);err==nil{t.Fatal("length limit ignored")}
 	if _,err:=f.DownloadFile("https://example.org/targets/registry-snapshot.json",100,0);err==nil{t.Fatal("budget ignored")}
+	if f.stats.MetadataRequests!=1||f.stats.MetadataBytes!=3||f.stats.TargetRequests!=1||f.stats.TargetBytes!=0{t.Fatal(f.stats)}
 }
