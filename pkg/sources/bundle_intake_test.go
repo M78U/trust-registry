@@ -39,6 +39,9 @@ func TestBundlePlanArchiveAndSelection(t *testing.T){
  if err:=os.WriteFile(filepath.Join(dir,intakeHash(b)+".der"),a,0600);err!=nil{t.Fatal(err)}
  if _,err:=applyBundleArchive(s,c,dir,pin,[]string{intakeHash(a)});err==nil{t.Fatal("changed archive accepted")}
  if err:=os.WriteFile(filepath.Join(dir,intakeHash(b)+".der"),b,0600);err!=nil{t.Fatal(err)}
+ inspected,records,err:=inspectBundleArchive(c,dir,pin)
+ if err!=nil||inspected.OriginalSHA256!=intakeHash(raw)||len(records)!=1||records[0].CertificateSHA256!=intakeHash(a){t.Fatal(inspected,records,err)}
  v,err:=applyBundleArchive(s,c,dir,pin,[]string{intakeHash(a)})
  if err!=nil||len(v.Imports)!=1||v.Imports[0].Provenance.SourceFileSHA256!=intakeHash(raw)||v.TrustStatus!="NOT_ESTABLISHED"||v.ReleaseAuthenticated{t.Fatal(v,err)}
+ if records[0].SourceFileSHA256!=v.Imports[0].Provenance.SourceFileSHA256||records[0].SourceURL!=v.Imports[0].Provenance.SourceURL||!records[0].RecordedAt.Equal(v.Imports[0].Provenance.RecordedAt){t.Fatal("inspection and import provenance differ")}
 }

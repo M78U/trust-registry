@@ -26,6 +26,10 @@ func runReviewWorkspace(args []string,out io.Writer)error{
  at:=f.String("at","","explicit evaluation time RFC3339")
  dir:=f.String("archive","","private acquisition archive directory")
  var refs []review.ArchiveReference
+ var bundles []review.BundleReference
+ f.Func("bundle-pin","sha256=private-directory (repeatable)",func(v string)error{
+  h,path,ok:=strings.Cut(v,"=");if !ok||h==""||path==""||len(bundles)>=review.MaxWorkspaceBundles{return errors.New("invalid bundle selection")};bundles=append(bundles,review.BundleReference{Directory:path,SHA256:h});return nil
+ })
  f.Func("archive-pin","listing-id=sha256 (repeatable)",func(v string)error{
   id,h,ok:=strings.Cut(v,"=")
   if !ok||id==""||h==""||len(refs)>=review.MaxWorkspaceArchives{return errors.New("invalid archive selection")}
@@ -37,7 +41,7 @@ func runReviewWorkspace(args []string,out io.Writer)error{
  raw,err:=readSnapshot(f.Arg(0));if err!=nil{return err}
  db,err:=readSmall(*dossier,review.MaxDossierBytes);if err!=nil{return err}
  d,err:=review.DecodeDossier(db);if err!=nil{return err}
- report,err:=review.Workspace(raw,d,review.WorkspaceOptions{SnapshotSHA256:*pin,EvidenceDir:*evidence,ArchiveDir:*dir,Archives:refs,At:when.UTC()})
+ report,err:=review.Workspace(raw,d,review.WorkspaceOptions{SnapshotSHA256:*pin,EvidenceDir:*evidence,ArchiveDir:*dir,Archives:refs,Bundles:bundles,At:when.UTC()})
  if err!=nil{return err}
  return enc.Encode(report)
 }

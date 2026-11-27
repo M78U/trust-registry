@@ -94,3 +94,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Local immutable acquisition archive, per-listing reuse/lock, exact original bytes and source catalog binding, pinned offline inspection/export/import: PR #45. Real acquisitions and Go locked validation still pending.
 
 - Private CA evidence review workspace and immutable evidence staging: PR #46. Snapshot/dossier task identity, exact acquisition provenance links, CA technical context, bounded cached artifact diagnostics, no automatic approval. Actual CA evidence and locked Go validation pending.
+
+- Bundle archive linkage, diagnostic review queue and cross-snapshot evidence reference reuse: PR #47. New dossier entirely pending; no automatic approval, cloud dependency or publish. Real data and locked validation pending.
