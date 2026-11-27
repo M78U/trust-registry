@@ -140,3 +140,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 3: explicit bounded online check coordinator, lock-scoped due check and capture/append, partial failure and request accounting; no scheduler, automatic retry or trust changes. See [source monitoring](SOURCE-MONITOR.md#stage-3-bounded-explicit-incremental-run).
 
 - Maintainer stage 4: persisted pre-request reservations, bounded per-source cooldown, failure status and successful observation supersession shared by plan/run. No scheduler, network retry loop, new cloud resource or trust change. See [source monitoring](SOURCE-MONITOR.md#stage-4-persisted-attempt-cooldown).
+
+- Maintainer stage 5: experimental SHECA table projection from exact pinned private HTML observation using a separate Python standard-library adapter; strict three-section/column shape, deterministic row normalization and duplicate-claim handling. Synthetic tests passed; raw live HTML acceptance pending, no trust or endpoint changes. See [source monitoring](SOURCE-MONITOR.md#stage-5-sheca-structured-table-adapter-experimental).

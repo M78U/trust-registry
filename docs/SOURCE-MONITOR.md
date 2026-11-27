@@ -73,3 +73,22 @@ ATTEMPT_UNCONFIRMED is written before a request, so a crash or cancellation can 
 monitor-plan and monitor-run both return RETRY_COOLDOWN_ACTIVE with the attempt and next eligible time; the run reports COMPLETED_WITH_COOLDOWN when skips are the only additional condition, and does not consume request budget for them. A corrupt or future attempt or missing known baseline blocks the source with LOCAL_STATE_REVIEW_REQUIRED. No directory scans. Reading a plan adds at most one 4 KiB attempt file per HTTPS stream. No extra network requests, dependencies or cloud operations. Operator must still choose a reasonable scheduling cadence; the direct monitor-fetch research command is not governed by the coordinator cooldown. No Retry-After parsing or global per-host rate limit in this stage. No automatic trust changes.
 
 Synthetic regressions cover persisted failures, no repeat GET, exact boundary, capped backoff, crash reservation, corrupt state and successful supersession. Full native Go 1.26 tests not run in implementation environment.
+
+
+## Stage 5: SHECA structured table adapter (experimental)
+
+Public indexed and rendered research of https://www.sheca.com/repository on 2026-11-27 shows separate root, intermediate and disuse tables with bilingual name, SHA-1, validity and link headings. Repeated published SHA-1 claims and same-name rows occur. Raw HTML could not be fetched in the implementation environment (DNS failure); the real DOM/layout and live response are NOT validated. Do not interpret this as a verified complete listing. The adapter is a separate local Python 3 standard-library tool (no change to Go locks, CLI build, or Homebrew dependencies). Its synthetic fixtures are original invented rows, not copied CA site HTML. Python 3.11+ recommended.
+
+From the current repository root, obtain a private pinned observation using the existing monitor-fetch or monitor-local command, or select the exact original JSON from the private monitor-store. Retain its receipt digest separately. Then:
+
+```sh
+python3 -B -m unittest discover -s scripts -p test_sheca_source_adapter.py -v
+umask 077
+python3 -B scripts/sheca_source_adapter.py \
+  --sha256 INDEPENDENT_OBSERVATION_PIN /path/to/private-observation.json \
+  > /path/to/private-sheca-projection.json
+```
+
+Use a new private output path. The script independently checks supplied whole-file SHA-256, unique JSON keys, exact source metadata, mode, UTC time, body length/hash and base64. It is not Go canonical replay, signature verification or independent authentication; use the existing Go verifier for canonical archive replay. UTF-8 only, max 3 MiB observation, 2 MiB original body, 2048 total rows, bounded cell text/link sizes. HTMLParser is a limited tokenizer, not a browser DOM or JS execution environment. The strict profile requires all three nonempty sections with matching four-column headers and explicit row/cell closures. Unknown, partial or unsupported formats stop with nonzero exit and no projection; do not treat a failed parse as an empty catalog. No JavaScript execution, external requests, or link following. Observed href strings are **untrusted literal claims**, not validated URLs or authorized endpoints; never execute them or render them as active HTML. Normalizes English dates, compact/colon SHA-1 spelling, whitespace and edge directional marks on fingerprint; sorts deterministic row projections, collapses exact duplicates only, flags repeated distinct SHA-1 claims. Section DISUSE is a page label only, not cryptographically established revocation or CA role. SHA-1 is not certificate identity or authority; new certs require exact DER SHA-256 and reviewed independent provenance. All output remains private and EXTRACTED_REVIEW_REQUIRED. No trust, membership, completeness or redistribution conclusion.
+
+The current synthetic tests passed using Python standard library in the implementation environment (4 test methods). No native Go locked run or real HTML acceptance. Before building semantic comparison or unattended parsing, capture the real page and check all extracted rows, headings and hrefs against a human-readable view. If actual markup differs, adapt a reviewed fixture with permission, not a permissive fallback. Later adapters may be separately staged. No new network, cloud or Go dependency. Existing observation/cooldown history remains unchanged.
