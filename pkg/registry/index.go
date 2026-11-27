@@ -189,3 +189,17 @@ func (i *Index) issuerCandidates(issuer,aki string) []CertificateRecord {
 	for _,fp:=range fps { out=append(out,i.records[fp]) }
 	return out
 }
+
+// MatchProvenance finds an exact canonical candidate observation in this
+// validated index by its content address. No filesystem read or scan.
+// It does not authenticate the asserted source or receipt time.
+func(i *Index) MatchProvenance(record ProvenanceRecord)(string,bool,error){
+ if _,err:=i.Report();err!=nil{return "",false,err}
+ raw,err:=canonicalJSON(record);if err!=nil{return "",false,err}
+ if len(raw)>maxRecordBytes{return "",false,errors.New("provenance too large")}
+ id:=digest(raw)
+ p,ok:=i.sources[id];if !ok{return "",false,nil}
+ actual,err:=canonicalJSON(p.Record);if err!=nil{return "",false,err}
+ if string(actual)!=string(raw){return "",false,errors.New("provenance content address conflict")}
+ return id,true,nil
+}

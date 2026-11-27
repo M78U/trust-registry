@@ -48,6 +48,7 @@ type AcquisitionCoverage struct {
 	Counts AcquisitionCoverageCounts `json:"counts"`
 	RouteCounts map[string]int `json:"routeCounts"`
 	Tasks []AcquisitionTask `json:"tasks"`
+	ArchiveCoverage *PinnedArchiveCoverage `json:"archiveCoverage,omitempty"`
 	SourceAuthentication string `json:"sourceAuthentication"`
 	TrustStatus string `json:"trustStatus"`
 	ReleaseAuthenticated bool `json:"releaseAuthenticated"`
@@ -62,12 +63,20 @@ func catalogDigest(v any)(string,error){
 // PlanAcquisitionCoverage builds one validated read-only local inventory index.
 // No downloads, private archive reads, imports, or trust evaluation occur.
 func PlanAcquisitionCoverage(s *registry.Store)(AcquisitionCoverage,error){
+	return PlanPinnedAcquisitionCoverage(s, AcquisitionArchiveOptions{})
+}
+
+// PlanPinnedAcquisitionCoverage optionally checks explicitly selected private
+// archives. It reuses the same validated inventory index for all matches.
+func PlanPinnedAcquisitionCoverage(s *registry.Store,o AcquisitionArchiveOptions)(AcquisitionCoverage,error){
 	if s==nil{return AcquisitionCoverage{},errors.New("initialized local registry required")}
 	c,err:=SHECA();if err!=nil{return AcquisitionCoverage{},err}
 	endpoints,err:=Endpoints();if err!=nil{return AcquisitionCoverage{},err}
 	m,err:=MultiCA();if err!=nil{return AcquisitionCoverage{},err}
 	i,err:=s.BuildIndex();if err!=nil{return AcquisitionCoverage{},err}
-	return acquisitionCoverage(c,endpoints,m,i)
+	r,err:=acquisitionCoverage(c,endpoints,m,i);if err!=nil{return AcquisitionCoverage{},err}
+	if err:=attachArchiveCoverage(&r,c,endpoints,m,i,o);err!=nil{return AcquisitionCoverage{},err}
+	return r,nil
 }
 
 func acquisitionCoverage(c Catalog,endpoints []Endpoint,m MultiCACatalog,i *registry.Index)(AcquisitionCoverage,error){

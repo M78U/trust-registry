@@ -43,6 +43,17 @@ func TestBundlePlanArchiveAndSelection(t *testing.T){
  if err!=nil||inspected.OriginalSHA256!=intakeHash(raw)||len(records)!=1||records[0].CertificateSHA256!=intakeHash(a){t.Fatal(inspected,records,err)}
  v,err:=applyBundleArchive(s,c,dir,pin,[]string{intakeHash(a)})
  if err!=nil||len(v.Imports)!=1||v.Imports[0].Provenance.SourceFileSHA256!=intakeHash(raw)||v.TrustStatus!="NOT_ESTABLISHED"||v.ReleaseAuthenticated{t.Fatal(v,err)}
+ sheca,err:=SHECA();if err!=nil{t.Fatal(err)}
+ endpoints,err:=Endpoints();if err!=nil{t.Fatal(err)}
+ idx,err:=s.BuildIndex();if err!=nil{t.Fatal(err)}
+ coverage,err:=acquisitionCoverage(sheca,endpoints,c,idx);if err!=nil{t.Fatal(err)}
+ opts:=AcquisitionArchiveOptions{Bundles:[]AcquisitionBundleReference{{Directory:dir,SHA256:pin}}}
+ if err:=attachArchiveCoverage(&coverage,sheca,endpoints,c,idx,opts);err!=nil{t.Fatal(err)}
+ links:=coverage.ArchiveCoverage
+ if links==nil||links.CheckedArchives!=1||links.MatchedProvenanceRecords!=1||len(links.Archives)!=1||links.Archives[0].MemberCount!=2||len(links.Archives[0].Members)!=1||links.Archives[0].Members[0].ProvenanceID!=v.Imports[0].ProvenanceID{t.Fatal(links)}
+ for _,row:=range coverage.Tasks{if row.ListingID=="cfca-document-chain"||row.ListingID=="cfca-identity-ca"{if row.ArchiveStatus!="PINNED_ARCHIVE_MATCHED_PROVENANCE"{t.Fatal(row)}}}
+ bad:=opts;bad.Bundles=append(append([]AcquisitionBundleReference{},opts.Bundles...),opts.Bundles[0])
+ if err:=attachArchiveCoverage(&coverage,sheca,endpoints,c,idx,bad);err==nil{t.Fatal("duplicate plan accepted")}
  if records[0].SourceFileSHA256!=v.Imports[0].Provenance.SourceFileSHA256||records[0].SourceURL!=v.Imports[0].Provenance.SourceURL||!records[0].RecordedAt.Equal(v.Imports[0].Provenance.RecordedAt){t.Fatal("inspection and import provenance differ")}
 }
 

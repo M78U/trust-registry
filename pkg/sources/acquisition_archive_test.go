@@ -55,11 +55,33 @@ func TestAcquisitionArchiveReuseAndImport(t *testing.T){
  if err:=os.Remove(lock);err!=nil{t.Fatal(err)}
  s,err:=registry.OpenStore(t.TempDir());if err!=nil{t.Fatal(err)}
  if _,err:=s.Init();err!=nil{t.Fatal(err)}
+ m,err:=MultiCA();if err!=nil{t.Fatal(err)}
+ options:=AcquisitionArchiveOptions{ArchiveDir:dir,Archives:[]AcquisitionArchiveReference{{ListingID:e.ListingID,SHA256:first.ArchiveSHA256}}}
+ checkCoverage:=func(want int){
+  t.Helper()
+  idx,err:=s.BuildIndex();if err!=nil{t.Fatal(err)}
+  coverage,err:=acquisitionCoverage(c,endpoints,m,idx);if err!=nil{t.Fatal(err)}
+  if err:=attachArchiveCoverage(&coverage,c,endpoints,m,idx,options);err!=nil{t.Fatal(err)}
+  v:=coverage.ArchiveCoverage
+  if v==nil||v.CheckedArchives!=1||v.MatchedArchives!=want||v.MatchedProvenanceRecords!=want||coverage.ReleaseAuthenticated{t.Fatal(v)}
+  for _,row:=range coverage.Tasks{if row.ListingID==e.ListingID{
+   expected:="PINNED_ARCHIVE_CHECKED";if want==1{expected="PINNED_ARCHIVE_MATCHED_PROVENANCE"}
+   if row.ArchiveStatus!=expected{t.Fatal(row)}
+   return
+  }}
+  t.Fatal("missing row")
+ }
+ checkCoverage(0)
+ // Same fingerprint and source URL, but a different observation time,
+ // must not satisfy exact canonical provenance matching.
+ if _,err:=s.Import(der,e.DownloadURL,first.RecordedAt.Add(time.Second));err!=nil{t.Fatal(err)}
+ checkCoverage(0)
  imported,err:=importArchived(s,c,endpoints,dir,e.ListingID,first.ArchiveSHA256)
  if err!=nil||imported.Status!="UNREVIEWED_ARCHIVED_CANDIDATE_IMPORTED"||!imported.Receipt.PinMatched||!imported.Import.Provenance.RecordedAt.Equal(first.RecordedAt)||imported.Import.Provenance.ReviewStatus!="CANDIDATE"{t.Fatal(imported,err)}
  retry,err:=importArchived(s,c,endpoints,dir,e.ListingID,first.ArchiveSHA256)
  if err!=nil||retry.Import.ProvenanceID!=imported.Import.ProvenanceID{t.Fatal(retry,err)}
- counts,err:=s.Validate();if err!=nil||counts.Certificates!=1||counts.ProvenanceRecords!=1{t.Fatal(counts,err)}
+ checkCoverage(1)
+ counts,err:=s.Validate();if err!=nil||counts.Certificates!=1||counts.ProvenanceRecords!=2{t.Fatal(counts,err)}
  altered:=append([]Endpoint{},endpoints...);altered[0].ObservedOn="2026-11-26"
  if altered[0].ObservedOn==endpoints[0].ObservedOn{altered[0].ObservedOn="2026-11-25"}
  if _,err:=acquireArchived(ctx,client,c,altered,dir,e.ListingID,false);err==nil||hits!=1{t.Fatal("changed catalog caused silent reuse or fetch")}
@@ -67,6 +89,9 @@ func TestAcquisitionArchiveReuseAndImport(t *testing.T){
  if err:=os.WriteFile(path,append(bytes.Clone(raw),'\n'),0600);err!=nil{t.Fatal(err)}
  if _,err:=acquire();err==nil||hits!=1{t.Fatal("corrupt archive silently fetched")}
  if _,err:=importArchived(s,c,endpoints,dir,e.ListingID,first.ArchiveSHA256);err==nil{t.Fatal("tampered archive imported")}
+ idx,err:=s.BuildIndex();if err!=nil{t.Fatal(err)}
+ coverage,err:=acquisitionCoverage(c,endpoints,m,idx);if err!=nil{t.Fatal(err)}
+ if err:=attachArchiveCoverage(&coverage,c,endpoints,m,idx,options);err==nil{t.Fatal("tampered archive counted")}
  if _,err:=acquireArchived(ctx,client,c,endpoints,dir,"../escape",false);err==nil||hits!=1{t.Fatal("unknown endpoint accepted")}
 }
 func TestAcquisitionArchiveFailureLeavesNoRecord(t *testing.T){
