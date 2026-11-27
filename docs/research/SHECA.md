@@ -14,8 +14,8 @@ Primary listing: https://www.sheca.com/repository (CA Certificates section; root
 
 ## Manual intake
 
-1. Open primary listing directly, locate the named row and use its displayed PEM download action. No stable direct binary URLs were exposed in the retrieved page text. Do not guess links or use unverified mirrors. Save original bytes outside Git.
-2. Record exact download URL, retrieval timestamp, original file SHA-256, publisher listing evidence and any independent SHA-256 evidence in a review note. No automated fetching or archive extraction. Do not use actual user signing certificates.
+1. Open primary listing directly, locate the named row and use its displayed PEM download action. The primary page did not expose stable direct URLs in the retrieved text; the secondary official UniTrust catalog now provides observed links for 11 selected roots. Do not guess links or use unverified mirrors. Save original bytes outside Git.
+2. Record exact download URL, retrieval timestamp, original file SHA-256, publisher listing evidence and any independent SHA-256 evidence in a review note. Explicit sources fetch is available only for embedded observed URLs; no automated bulk fetching or archive extraction. Do not use actual user signing certificates.
 3. Run sources preview with the row ID and downloaded DER/PEM. It computes DER SHA-256 and compares the legacy published SHA-1. An optional independently obtained SHA-256 can be supplied for comparison; the command cannot verify the independence or authenticity of the supplied value. Mismatch rejects the preview. Preview does not persist.
 4. Verify CA classification, subject/issuer, validity, exact DER fingerprint, cryptographic relationships and relevant CP/CPS/OIDs. A same-name or cross-signed certificate must be individually identified. SHA-1 matching is a weak historical cross-check only; it cannot authorize trust.
 5. If local research storage is required, use the existing import command with exact public source URL in a local inventory outside Git. Keep status CANDIDATE, redistribution NOT_REVIEWED. Commit only permitted reviewed data through PR after independent evidence review. No anchors are added by this catalog.
@@ -27,3 +27,18 @@ Primary listing: https://www.sheca.com/repository (CA Certificates section; root
 - Determine electronic-signature and seal-maker certificate-policy OIDs and scope from official CPS and relevant program evidence.
 - Confirm redistribution permission; no publication of certificate bytes before approval.
 - Add SATL and other CA catalogs after this intake pattern is reviewed.
+
+## Acquisition endpoints and independent fingerprint leads
+
+On 2026-11-27 the UniTrust auxiliary catalog exposed 11 download links for existing root listings; these are recorded in pkg/sources/sheca-endpoints.json. All point to the same OSS hostname. The page was the source of the links; the object bytes could not be retrieved in the research environment (binary content unsupported and local DNS unavailable). No actual certificate bytes or verified DER findings are committed.
+
+Third-party SHA-256 claims are recorded for UCA Global G2 Root (Mozilla bug 2088275: https://bugzilla.mozilla.org/show_bug.cgi?id=2088275) and UCA Root SM2 / UniTrust Global Root CA R3 (Huawei SM root list dated 2026-10-30: https://www.huawei.com/en/root-certification-program/root-store/huawei-trusted-sm-root-certificate-20261030). Matching these values does not establish source authenticity or document signing authority. Mozilla's issue records a TLS-only transition and removal of the email trust bit; do not infer document or seal authorization from this hierarchy. Huawei's list scope is SM root store, not electronic seal policy. These are name-matched fingerprint leads until local bytes are checked against both hashes.
+
+```sh
+go run ./cmd/trust-registry sources endpoints
+mkdir -p "$HOME/sheca-research"
+go run ./cmd/trust-registry sources fetch --id uca-sm2 --out "$HOME/sheca-research/uca-sm2.cer" > "$HOME/sheca-research/uca-sm2.json"
+go run ./cmd/trust-registry sources audit --id uca-sm2 "$HOME/sheca-research/uca-sm2.cer"
+```
+
+Fetch is explicit and HTTPS-only, fixed embedded URLs, no redirects, no environment proxy, bounded 1 MiB response and 30-second request timeout, no compressed responses, no overwrite. It checks published SHA-1 and, if available, the pinned external SHA-256 before saving original bytes locally. For the other eight endpoints an explicit --allow-legacy-only is required. A SHA-1-only match is weak evidence and must remain unreviewed. Output is a JSON report; save it separately. Audit accepts local bytes and never claims retrieval. Download transport uses normal system TLS verification, not a registry trust fallback. Reports retain source hash, actual DER fingerprint, source reference and CA extension/self-signature diagnostics; policy identifiers are the library's legacy ASN.1 OID view, not a complete policy engine. No path validation, revocation or trust authorization. No automatic registry import, no publication or upload. Keep original bytes and report outside Git until redistribution permission and independent review are completed. Crash during local file write can leave an incomplete file; delete and retry after checking.

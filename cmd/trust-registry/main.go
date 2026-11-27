@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -169,7 +170,7 @@ func runPolicy(args []string,out io.Writer) error {
 }
 
 func runSources(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview --id ID [--sha256 HEX] FILE")}
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch")}
 	c,err:=sources.SHECA();if err!=nil{return err}
 	enc:=json.NewEncoder(out)
 	switch args[0]{
@@ -180,6 +181,27 @@ func runSources(args []string,out io.Writer)error{
 		if len(args)!=2{return errors.New("usage: sources inspect ID")}
 		e,err:=c.Find(args[1]);if err!=nil{return err}
 		return enc.Encode(e)
+	case "endpoints":
+		if len(args)!=1{return errors.New("usage: sources endpoints")}
+		e,err:=sources.Endpoints();if err!=nil{return err}
+		return enc.Encode(e)
+	case "audit":
+		flags:=flag.NewFlagSet("sources audit",flag.ContinueOnError)
+		id:=flags.String("id","","observed listing ID")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if *id==""||flags.NArg()!=1{return errors.New("usage: sources audit --id ID FILE")}
+		input,err:=readInput(flags.Arg(0));if err!=nil{return err}
+		report,err:=sources.InspectEndpoint(*id,input,time.Now());if err!=nil{return err}
+		return enc.Encode(report)
+	case "fetch":
+		flags:=flag.NewFlagSet("sources fetch",flag.ContinueOnError)
+		id:=flags.String("id","","observed listing ID")
+		path:=flags.String("out","","new local output file outside Git")
+		legacy:=flags.Bool("allow-legacy-only",false,"explicitly allow unreviewed SHA-1-only research acquisition")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if *id==""||*path==""||flags.NArg()!=0{return errors.New("usage: sources fetch --id ID --out FILE [--allow-legacy-only]")}
+		report,err:=sources.Fetch(context.Background(),*id,*path,*legacy);if err!=nil{return err}
+		return enc.Encode(report)
 	case "preview":
 		flags:=flag.NewFlagSet("sources preview",flag.ContinueOnError)
 		id:=flags.String("id","","research listing ID")

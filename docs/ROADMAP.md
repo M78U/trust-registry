@@ -21,4 +21,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 ## v0.2 research
 
-- SHECA selected official listing metadata and offline candidate intake preview: PR #13. Binary acquisition, independent fingerprint/evidence review, redistribution and scoped decisions remain open.
+- SHECA selected official listing metadata and offline candidate intake preview: merged in #13. Binary acquisition, independent fingerprint/evidence review, redistribution and scoped decisions remain open.
+
+- Observed SHECA auxiliary download endpoints, third-party fingerprint leads and explicit bounded acquisition/audit: PR #14. Actual download/byte verification and redistribution review remain pending.

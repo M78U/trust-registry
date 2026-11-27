@@ -55,3 +55,5 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 ## CA source research (v0.2)
 
 `trust-registry sources list`, `sources inspect uca-root-g2` and `sources preview --id uca-root-g2 FILE` expose a selected SHECA research catalog and offline byte comparison. Publisher SHA-1 is a legacy listing cross-check only; SHA-256 remains certificate identity. No certificate bytes are bundled or written by preview; no source authenticity, redistribution permission or trust is inferred. See [SHECA research](docs/research/SHECA.md).
+
+`trust-registry sources endpoints` lists observed acquisition URLs; `sources fetch --id uca-sm2 --out FILE` explicitly downloads a bounded original certificate to a new local file, checks listing hashes and outputs an unreviewed report. `sources audit --id uca-sm2 FILE` runs offline. Other endpoints without external SHA-256 require `--allow-legacy-only`. Fetch is research-only; ordinary validation and discovery remain offline. No trust promotion or automatic registry import.
