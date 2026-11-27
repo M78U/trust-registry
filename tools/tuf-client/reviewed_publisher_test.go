@@ -210,8 +210,8 @@ func TestReviewedPublication(t *testing.T){
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})
  if err!=nil{t.Fatal(err)}
- delta,err:=session.Diff(nextSession,true)
- if err!=nil||delta.Next.Sequence!=2||delta.Previous.Sequence!=1||len(delta.CertificateChanges)!=0||delta.Transition==nil||delta.ReleaseAuthenticated{t.Fatal(delta,err)}
+ sessionDelta,err:=session.Diff(nextSession,true)
+ if err!=nil||sessionDelta.Next.Sequence!=2||sessionDelta.Previous.Sequence!=1||len(sessionDelta.CertificateChanges)!=0||sessionDelta.Transition==nil||sessionDelta.ReleaseAuthenticated{t.Fatal(sessionDelta,err)}
 
  currentDir.Store(assets)
  if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
