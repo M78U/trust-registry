@@ -237,7 +237,8 @@ func runPolicy(args []string,out io.Writer) error {
 }
 
 func runSources(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl | intake-plan | intake-apply | multi-ca | multi-ca-audit | bundle-plan | bundle-export | bundle-apply | archive-fetch | archive-inspect | archive-original | archive-import | acquisition-coverage")}
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl | intake-plan | intake-apply | multi-ca | multi-ca-audit | bundle-plan | bundle-export | bundle-apply | archive-fetch | archive-inspect | archive-original | archive-import | acquisition-coverage | archive-fetch-batch | archive-import-batch")}
+	if args[0]=="archive-fetch-batch"||args[0]=="archive-import-batch"{return runArchiveBatch(args,out)}
 	if args[0]=="acquisition-coverage"{return runAcquisitionCoverage(args[1:],out)}
 	if args[0]=="intake-plan"||args[0]=="intake-apply"{return runSourceIntake(args,out)}
 	if args[0]=="multi-ca"||args[0]=="multi-ca-audit"{return runMultiCA(args,out)}
