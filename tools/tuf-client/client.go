@@ -219,7 +219,9 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 	trusted:=u.GetTrustedMetadataSet()
 	if releaseApproval!=nil{
 		if trusted.Targets[metadata.TARGETS].Signed.Version<1||uint64(trusted.Targets[metadata.TARGETS].Signed.Version)!=reg.Manifest.Sequence{return nil,Report{},errors.New("credential snapshot sequence mismatch")}
-		v,err:=checkPublicCredential(o.ReviewAuthority,capture.chain,o.InitialRootSHA256,info,trusted.Targets[metadata.TARGETS].Signed.Version,trusted.Targets[metadata.TARGETS].Signed.Expires,trusted.Snapshot.Signed.Expires,trusted.Timestamp.Signed.Expires,now);if err!=nil{return nil,Report{},err};releaseApproval=&v
+		// Signed context was verified before download and cannot change in
+		// this updater instance. Recheck expiry after the transfer.
+		if !now.Before(trusted.Timestamp.Signed.Expires){return nil,Report{},errors.New("release credential expired during download")}
 	}
 	report:=Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
 	if install{
