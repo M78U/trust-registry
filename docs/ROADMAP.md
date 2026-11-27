@@ -112,3 +112,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Explicit strict forward root-cache recovery: repair only an intact signed archive ahead of an exact cached prefix, pinned destination, authority role separation, installed baseline and no rollback metadata removal. Offline repair is not release acceptance; normal strict refresh still required. Other metadata interruption repair and locked Go validation pending.
 
 - Strict offline state diagnostics: bounded archive/cache and latest evidence inspection, signed expiry, optional checkpoint, lock and pending recovery guidance. No automatic repair or network; locked Go validation pending.
+
+- Strict explicit update orchestrator: plan/open/root repair/pending recovery/one online refresh modes, action-stage reporting and exact session/checkpoint binding. No automatic bootstrap, retries, fallback or new cloud operations; locked Go acceptance pending.
