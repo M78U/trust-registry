@@ -8,7 +8,7 @@ test("open-source preview exposes repository and version links without changing 
   const hero=html.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0]??"";
   const footer=html.match(/<footer\b[\s\S]*?<\/footer>/)?.[0]??"";
   for(const region of [nav,hero,footer])assert.ok(region.includes('href="'+repo+'"'));
-  for(const region of [hero,footer])assert.ok(region.includes('href="'+repo+'/releases/tag/v0.1.0"'));
+  for(const region of [hero,footer])assert.ok(region.includes('href="'+repo+'/releases/tag/0.1.0"'));
   assert.ok(hero.includes("Developer Preview"));
   assert.ok(hero.includes("仅源码发布"));
   assert.ok(html.includes("NOT ESTABLISHED"));
