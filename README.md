@@ -115,3 +115,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ### Private revocation store and path checks
 
 `revocation-store init|import|list` manages local content-addressed CRL/OCSP observations. `verify-path --revocation-store DIR` checks every returned technical path using observations available by the explicit knowledge cutoff. SDK also supports the exact installed snapshot. No certificate trust grant, network or public evidence publication. See [private evidence storage](docs/REVOCATION-STORE.md).
+
+### Explicit AIA research discovery
+
+`aia inspect` lists eligible caIssuers HTTPS URLs offline. `aia fetch` requires exact selected URL and new output file, `aia audit` checks a local candidate, and `aia import` explicitly imports a matched CA as unreviewed. No automatic network during path verification. See [safe AIA](docs/SAFE-AIA.md).
