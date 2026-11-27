@@ -1,0 +1,15 @@
+# Registry release diff (local research)
+
+Compare two exact snapshots with independently retained SHA-256 pins. Both undergo full Verify inventory/policy checks; next sequence and creation time must increase. Previous/next may be expired: this is historical comparison, not a current freshness check. Default compares structural changes even if history is removed or replaced; optional --require-transition additionally invokes CheckPublicationTransition and refuses any invalid adjacent append-only publication transition. Neither mode authenticates release signatures, authorizes a new release or validates a document.
+
+```sh
+trust-registry snapshot diff --previous old.json \\
+  --previous-sha256 OLD_PIN --snapshot-sha256 NEW_PIN \\
+  --require-transition new.json > private-diff.json
+```
+
+Report includes added/removed certificate DER identities and changed provenance-ID sets; policy documents grouped by exact ID/version, document hashes, declaration changes, anchor and intermediate declaration deltas; review and decision events grouped by exact ID within each policy version, with old/new event hashes, certificate fingerprint, recorded status/time and effective interval where applicable. Changes to an event's reason or evidence also change its hash, without copying private review text. Recorded decision status (including TRUSTED) is not effective authorization. No current decision evaluation, revocation/path analysis or signing-purpose approval. Time alone can change validity, so consumers must not treat an empty structural diff as proof of unchanged verification results.
+
+Consumer impact uses the same structural CA filter as CandidateBundle (non-self-issued CA, valid basic constraints, cert-sign usage when present, no unhandled critical extensions). Eligible candidate additions/removals and changed provenance are listed separately. Unfiltered candidate export count, DER bytes and per-candidate provenance count budgets are checked; exact bundle encoding limit still enforced by CandidateBundle. This is not a selection or proof of actual document impact; SigLens must regenerate candidate bundles for the new snapshot and independently verify paths with explicit trust configuration. Snapshot identity changes even with no payload changes. Always refresh and re-evaluate affected paths; no automatic trust anchor import. No changes to SigLens in this PR.
+
+Maps and sorted identity sets avoid repeated inventory scans per comparison; each snapshot verified once by default (existing Verify stages a private temporary inventory). Optional strict transition revalidates via existing gate. Existing 48 MiB envelope and payload limits apply; at most 16,384 report change units and 16 MiB encoded report, fail rather than truncate. Local JSON only, no per-client network requests, Cloudflare runtime, database queries or writes. Keep reports private until independently reviewed. Synthetic tests added; Go 1.26 toolchain and locked dependency acceptance remain pending. No actual CA or production release.

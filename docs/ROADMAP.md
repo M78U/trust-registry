@@ -96,3 +96,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Private CA evidence review workspace and immutable evidence staging: PR #46. Snapshot/dossier task identity, exact acquisition provenance links, CA technical context, bounded cached artifact diagnostics, no automatic approval. Actual CA evidence and locked Go validation pending.
 
 - Bundle archive linkage, diagnostic review queue and cross-snapshot evidence reference reuse: PR #47. New dossier entirely pending; no automatic approval, cloud dependency or publish. Real data and locked validation pending.
+
+- Pinned Registry release diff and structural consumer impact report (PR #48): certificate/provenance deltas, policy declarations and recorded decision/review changes, optional strict transition. No effective trust or production release claims.

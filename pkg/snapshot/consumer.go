@@ -71,7 +71,7 @@ func(v *Loaded)CandidateBundle(input []byte)([]byte,error){
   if selected!=nil&&!selected[fp]{continue}
   if digest(f.Data)!=fp{return nil,errors.New("loaded candidate hash mismatch")}
   c,err:=smx509.ParseCertificate(f.Data);if err!=nil{return nil,err}
-  if !bytes.Equal(c.RawSubject,c.RawIssuer)&&c.IsCA&&c.BasicConstraintsValid&&(c.KeyUsage==0||c.KeyUsage&smx509.KeyUsageCertSign!=0)&&len(c.UnhandledCriticalExtensions)==0{
+  if consumerEligible(c){
    if len(bundle.Certificates)>=MaxConsumerCandidates||len(f.Data)>MaxConsumerDERBytes-total{return nil,errors.New("consumer candidate budget exceeded; select a certificate")}
    entries,err:=v.index.Provenance(fp);if err!=nil{return nil,err}
    ids:=make([]string,0,len(entries))
@@ -87,3 +87,6 @@ func(v *Loaded)CandidateBundle(input []byte)([]byte,error){
  if len(raw)>MaxConsumerBundleBytes{return nil,errors.New("consumer bundle too large")}
  return raw,nil
 }
+
+// Shared structural candidate profile; not a path, validity or trust check.
+func consumerEligible(c *smx509.Certificate)bool{return !bytes.Equal(c.RawSubject,c.RawIssuer)&&c.IsCA&&c.BasicConstraintsValid&&(c.KeyUsage==0||c.KeyUsage&smx509.KeyUsageCertSign!=0)&&len(c.UnhandledCriticalExtensions)==0}
