@@ -67,4 +67,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Local CA release-candidate review dossier, exact snapshot binding, required source/redistribution/scope/disclosure review and evidence artifact verification: merged in #32. No reviewer authentication, actual CA review or production publication.
 
-- Pinned role-key review signatures and threshold local release approval: PR #33. Exact snapshot/dossier/signature-set binding, short validity window. Publisher enforcement, independent key ceremony, rotation and durable release baseline remain pending.
+- Pinned role-key review signatures and threshold local release approval: merged in #33. Exact snapshot/dossier/signature-set binding, short validity window. Publisher enforcement, independent key ceremony, rotation and durable release baseline remain pending.
+
+- Reviewed TUF publication staging gate, cross-config role separation and pinned snapshot transition validation: PR #34. Caller-owned baseline, no persistent publication ledger, root rotation or deployment yet.

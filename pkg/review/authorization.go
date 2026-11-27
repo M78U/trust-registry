@@ -211,3 +211,12 @@ func Authenticate(raw []byte,d Dossier,dir string,a *Authority,v Approval,at tim
  r.ReviewerAuthentication="VERIFIED_UNDER_PINNED_ROLE_KEYS"
  return AuthorizationReport{Review:r,AuthoritySHA256:a.hash,ApprovalSHA256:digest(data),VerifiedReviewCount:len(v.Reviews),ReleaseApprovers:ids,ReleaseThreshold:a.threshold,Status:"LOCAL_THRESHOLD_APPROVAL_VERIFIED",LocalReleaseApprovalVerified:true,TrustStatus:"NOT_ESTABLISHED"},nil
 }
+
+// RequireDisjointKey rejects a raw public key used by any configured review
+// or release approver. It exposes no mutable configuration.
+func (a *Authority)RequireDisjointKey(pub ed25519.PublicKey)error{
+ if err:=a.check();err!=nil{return err}
+ if len(pub)!=ed25519.PublicKeySize{return errors.New("invalid Ed25519 public key")}
+ for _,k:=range a.keys{if bytes.Equal(k.PublicKey,pub){return errors.New("TUF role key reused by review authority")}}
+ return nil
+}

@@ -18,6 +18,7 @@ import (
 
 	tuf "github.com/M78U/trust-registry/tools/tuf-client"
 	"github.com/M78U/trust-registry/pkg/snapshot"
+	"github.com/M78U/trust-registry/pkg/review"
 )
 type paths []string
 func (p *paths) String()string{return strings.Join(*p,",")}
@@ -56,7 +57,7 @@ func writeNew(path string,b []byte)error{
 	if _,err=f.Write(b);err==nil{err=f.Sync()};e:=f.Close();if err==nil{err=e};if err!=nil{_ = os.Remove(path)};return err
 }
 func run(args []string)error{
-	if len(args)==0{return errors.New("usage: tuf-publish root | build")}
+	if len(args)==0{return errors.New("usage: tuf-publish root | build | build-reviewed")}
 	f:=flag.NewFlagSet(args[0],flag.ContinueOnError)
 	out:=f.String("out","","new output file or directory")
 	switch args[0]{
@@ -74,7 +75,7 @@ func run(args []string)error{
 		o.Signers,err=private(signer);if err!=nil{return err};defer wipe(o.Signers)
 		raw,err:=tuf.CreateRoot(o);if err!=nil{return err}
 		return writeNew(*out,raw)
-	case "build":
+	case "build","build-reviewed":
 		root:=f.String("root","","initial root metadata file")
 		pin:=f.String("root-sha256","","independently verified root hash")
 		ver:=f.Int64("version",0,"metadata version matching snapshot sequence")
@@ -82,6 +83,18 @@ func run(args []string)error{
 		te:=f.String("targets-expires","","targets expiration")
 		se:=f.String("snapshot-expires","","snapshot expiration")
 		tse:=f.String("timestamp-expires","","timestamp expiration")
+		var dossierPath,evidenceDir,authorityPath,authorityPin,approvalPath,previousPath,previousPin string
+		var bootstrap bool
+		if args[0]=="build-reviewed"{
+			f.StringVar(&dossierPath,"dossier","","complete local review dossier")
+			f.StringVar(&evidenceDir,"evidence","","private evidence directory")
+			f.StringVar(&authorityPath,"authority","","independent role key configuration")
+			f.StringVar(&authorityPin,"authority-sha256","","independent authority pin")
+			f.StringVar(&approvalPath,"approval","","canonical threshold approval")
+			f.StringVar(&previousPath,"previous","","previous accepted snapshot")
+			f.StringVar(&previousPin,"previous-sha256","","independently verified previous snapshot pin")
+			f.BoolVar(&bootstrap,"bootstrap",false,"explicit first sequence bootstrap")
+		}
 		var tk,sk,ts paths
 		f.Var(&tk,"targets-key","repeatable targets PKCS#8 PEM");f.Var(&sk,"snapshot-key","repeatable snapshot PKCS#8 PEM");f.Var(&ts,"timestamp-key","repeatable timestamp PKCS#8 PEM")
 		if err:=f.Parse(args[1:]);err!=nil{return err}
@@ -94,7 +107,22 @@ func run(args []string)error{
 		o.TimestampSigners,err=private(ts);if err!=nil{return err};defer wipe(o.TimestampSigners)
 		rb,err:=read(*root,512000);if err!=nil{return err}
 		raw,err:=read(f.Arg(0),snapshot.MaxEnvelopeBytes);if err!=nil{return err}
-		repo,err:=tuf.BuildRepository(rb,raw,o);if err!=nil{return err}
+		var repo tuf.Repository
+		var reviewed *tuf.ReviewedPublicationReport
+		if args[0]=="build-reviewed"{
+			if dossierPath==""||evidenceDir==""||authorityPath==""||authorityPin==""||approvalPath==""{return errors.New("reviewed mode requires dossier, evidence, authority pin and approval")}
+			if bootstrap&&(previousPath!=""||previousPin!="")||!bootstrap&&(previousPath==""||previousPin==""){return errors.New("explicit bootstrap or previous snapshot and independent pin required")}
+			db,err:=read(dossierPath,review.MaxDossierBytes);if err!=nil{return err}
+			d,err:=review.DecodeDossier(db);if err!=nil{return err}
+			ab,err:=read(authorityPath,review.MaxAuthorityBytes);if err!=nil{return err}
+			a,err:=review.ParseAuthority(ab,authorityPin);if err!=nil{return err}
+			vb,err:=read(approvalPath,review.MaxApprovalBytes);if err!=nil{return err}
+			v,err:=review.DecodeApproval(vb);if err!=nil{return err}
+			var previous []byte
+			if !bootstrap{previous,err=read(previousPath,snapshot.MaxEnvelopeBytes);if err!=nil{return err}}
+			result,report,err:=tuf.BuildReviewedRepository(rb,raw,tuf.ReviewedPublishOptions{Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap});if err!=nil{return err}
+			repo=result;reviewed=&report
+		}else{repo,err=tuf.BuildRepository(rb,raw,o);if err!=nil{return err}}
 		// Output is a fresh local staging directory, not a live repository.
 		if err:=os.Mkdir(*out,0700);err!=nil{return err}
 		for _,dir:=range []string{"metadata","targets"}{if err:=os.Mkdir(filepath.Join(*out,dir),0700);err!=nil{return err}}
@@ -102,6 +130,7 @@ func run(args []string)error{
 		for name:=range repo.Files{names=append(names,name)}
 		sort.Strings(names)
 		for _,name:=range names{if err:=writeNew(filepath.Join(*out,filepath.FromSlash(name)),repo.Files[name]);err!=nil{return err}}
+		if reviewed!=nil{return json.NewEncoder(os.Stdout).Encode(reviewed)}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"status":"LOCAL_RESEARCH_PUBLICATION_CANDIDATE","rootSHA256":repo.RootSHA256,"targetSHA256":repo.TargetSHA256,"version":repo.Version,"files":names,"releaseAuthenticated":false,"trustStatus":"NOT_ESTABLISHED"})
 	default:return errors.New("unknown publisher command")
 	}

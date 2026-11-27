@@ -127,3 +127,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ### Authenticated local review approval
 
 `review prepare-approval`, `review sign-task`, `review approve-release`, and `review authenticate-approval` verify per-task signatures and distinct release approver threshold using an independently pinned Ed25519 role configuration. See [review authorization](docs/REVIEW-AUTHORIZATION.md). Local approval only; not TUF publication authority.
+
+### Reviewed TUF staging
+
+The experimental isolated `tuf-publish build-reviewed` mode requires a complete threshold-signed review approval, independent authority/root pins, cross-role key separation and explicit bootstrap or previous snapshot pin with append-only history and sequence advancement. Produces only local staging files; no production release. See [publication gate](docs/PUBLICATION-GATE.md).
