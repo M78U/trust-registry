@@ -75,3 +75,7 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 ### Local research signatures
 
 `snapshot sign-research --key KEY.pem --out signature.json SNAPSHOT` and `snapshot authenticate-research --public-key PINNED.pem --signature signature.json --threshold 1 --at RFC3339 --bootstrap SNAPSHOT` demonstrate offline research signature verification. Keys must be independently obtained; use a protected local checkpoint on subsequent checks. See [research authentication](docs/RESEARCH-AUTHENTICATION.md). Not production release trust. Automatic PR/push CI is temporarily disabled; run CI manually before release.
+
+### Installed research snapshots
+
+`snapshot install-research --state DIR --public-key KEY.pem --signature SIG.json --threshold 1 --at RFC3339 --bootstrap SNAPSHOT` installs a first authenticated research snapshot. Subsequent installs omit `--bootstrap`; `snapshot load-research --state DIR --public-key KEY.pem --threshold 1 --at RFC3339` reauthenticates the newest record. SDK `snapshot.LoadResearch` exposes detached query and exact-version policy/path evaluation. No production trust. See [local installation](docs/SNAPSHOT-INSTALLATION.md).
