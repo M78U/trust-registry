@@ -19,3 +19,5 @@ go run ./cmd/tuf-fetch --state "$HOME/registry-tuf" \
 ```
 
 Later refresh omits --bootstrap-root and uses a new output path. No automatic installation. The report distinguishes tufTargetAuthenticated from releaseAuthenticated (always false in this experimental adapter) and trustStatus NOT_ESTABLISHED. TUF metadata rollback checks do not guarantee a monotonically increasing application snapshot sequence if a newer signed targets role points at an older envelope; application checkpoint and atomic installation integration remain pending. No approval of CA evidence, policy, redistribution or business purpose. Do not use the TUF target as a production trust store. Never publish private keys to Workers or GitHub.
+
+For strict online updates with independently pinned review authority, the optional application `ReleaseCheckpoint` is checked against signed target metadata before target download and the verified envelope before return/installation. See [consumer SDK](CONSUMER-SDK.md). This does not add network requests, manage external checkpoint storage or make cache updates transactional.
