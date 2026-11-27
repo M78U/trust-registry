@@ -31,3 +31,5 @@ The current Ed25519 detached-signature feature is explicitly a local research me
 Local research installation now combines the signed snapshot and checkpoint in append-only records (see SNAPSHOT-INSTALLATION.md). It does not replace TUF metadata/state or prove durability against power loss or deletion of local state. Automatic CI remains disabled by owner request.
 
 Experimental TUF client adapter lives in tools/tuf-client; see TUF-DISTRIBUTION.md. No production root or target has been released; dependency lock, executable tests, application sequence state and publication workflow remain gates.
+
+The experimental offline publisher generates initial root and static repository candidates with separate role signers. See TUF-PUBLISHER.md. Publication is not implemented; no live deployment, production keys, root rotation or publisher version ledger. Restore validation gates before release.

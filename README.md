@@ -85,3 +85,5 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 ## Experimental TUF download client
 
 The isolated `tools/tuf-client` Go module connects to go-tuf/v2 for independently bootstrapped, top-level signed metadata and Registry target retrieval. See [TUF distribution](docs/TUF-DISTRIBUTION.md). Dependency resolution, lockfile and executable testing are pending; not production release or CA trust. Main module and automatic CI configuration unchanged.
+
+Experimental offline `tools/tuf-client/cmd/tuf-publish` builds initial root metadata and a local static TUF repository candidate with separate role keys. See [publisher](docs/TUF-PUBLISHER.md). No live publishing or release authorization.
