@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 )
 
 type UpdateMode string
@@ -24,6 +25,15 @@ type CoordinateOptions struct {
 	ExpectedRootHeadSHA256 string
 	MetadataURL string
 	TargetsURL string
+	// Optional advisory policy, only valid for the explicit plan mode.
+	RefreshPolicy *RefreshPlanningPolicy
+}
+
+// RefreshPlanningPolicy is local caller policy, not update authorization.
+type RefreshPlanningPolicy struct {
+	LastOnline *RefreshObservation
+	MaxOnlineAge time.Duration
+	ExpiryLead time.Duration
 }
 
 type UpdateResult struct {
@@ -36,6 +46,8 @@ type UpdateResult struct {
 	Install *Report `json:"install,omitempty"`
 	Consumer *ConsumerInfo `json:"consumer,omitempty"`
 	Checkpoint *ReleaseCheckpoint `json:"checkpoint,omitempty"`
+	RefreshPlan *RefreshPlan `json:"refreshPlan,omitempty"`
+	OnlineObservation *RefreshObservation `json:"onlineObservation,omitempty"`
 	TrustStatus string `json:"trustStatus"`
 }
 
@@ -65,6 +77,15 @@ func coordinateUpdate(ctx context.Context,o CoordinateOptions,client *http.Clien
 		if _,err:=baseURL(o.MetadataURL);err!=nil{return fail("INVALID_OPTIONS",err)}
 		if _,err:=baseURL(o.TargetsURL);err!=nil{return fail("INVALID_OPTIONS",err)}
 	}else if o.MetadataURL!=""||o.TargetsURL!=""{return fail("INVALID_OPTIONS",errors.New("repository URLs only valid for explicit refresh"))}
+	// Copy caller-owned advisory inputs before the diagnosis.
+	var planning *RefreshPlanOptions
+	if p:=o.RefreshPolicy;p!=nil{
+		if o.Mode!=UpdatePlan{return fail("INVALID_OPTIONS",errors.New("refresh policy only valid for plan mode"))}
+		plan:=RefreshPlanOptions{DiagnosticOptions:o.DiagnosticOptions,MaxOnlineAge:p.MaxOnlineAge,ExpiryLead:p.ExpiryLead}
+		if p.LastOnline!=nil{x:=*p.LastOnline;plan.LastOnline=&x}
+		if err:=validateRefreshPlanOptions(plan,time.Now().UTC());err!=nil{return fail("INVALID_OPTIONS",err)}
+		planning=&plan
+	}
 	// Freeze the supplied checkpoint for all steps of this synchronous call.
 	if o.Checkpoint!=nil{c:=*o.Checkpoint;if err:=c.validate();err!=nil{return fail("INVALID_OPTIONS",err)};o.Checkpoint=&c}
 	if err:=ctx.Err();err!=nil{return fail("CANCELLED",err)}
@@ -72,7 +93,17 @@ func coordinateUpdate(ctx context.Context,o CoordinateOptions,client *http.Clien
 	if err!=nil{return fail("DIAGNOSIS_FAILED",err)}
 	result.Diagnostic=&d
 	if err:=ctx.Err();err!=nil{return fail("CANCELLED",err)}
-	if o.Mode==UpdatePlan{result.Status="PLAN_ONLY";return result,nil,nil}
+	if o.Mode==UpdatePlan{
+		if planning!=nil{
+			// Reuse exactly the diagnosis already performed; never scan twice.
+			p,err:=planRefreshFromDiagnostic(*planning,d,o.Authority.SHA256())
+			if err!=nil{return fail("PLAN_FAILED",err)}
+			if err:=ctx.Err();err!=nil{return fail("CANCELLED",err)}
+			result.RefreshPlan=&p
+		}
+		result.Status="PLAN_ONLY"
+		return result,nil,nil
+	}
 
 	blocked:=func()(UpdateResult,*ConsumerSession,error){
 		return fail("ACTION_BLOCKED",errors.New("explicit action not appropriate for diagnosed state; inspect recommendation"))
@@ -128,7 +159,20 @@ func coordinateUpdate(ctx context.Context,o CoordinateOptions,client *http.Clien
 		if result.ActionCompleted{return fail("CANCELLED_AFTER_ACTION",err)}
 		return fail("CANCELLED",err)
 	}
-	if err:=s.check();err!=nil{return fail("SESSION_OPEN_FAILED",err)}
+	completed:=time.Now().UTC()
+	if err:=s.checkAt(completed);err!=nil{return fail("SESSION_OPEN_FAILED",err)}
+	if err:=ctx.Err();err!=nil{
+		if result.ActionCompleted{return fail("CANCELLED_AFTER_ACTION",err)}
+		return fail("CANCELLED",err)
+	}
+	// Only a successful explicit online action followed by exact session
+	// reopening can issue an observation. Offline opens and recovery cannot.
+	if o.Mode==UpdateRefresh{
+		result.OnlineObservation=&RefreshObservation{
+			InitialRootSHA256:info.InitialRootSHA256,AuthoritySHA256:info.AuthoritySHA256,
+			Checkpoint:actual,CompletedAt:completed,
+		}
+	}
 	result.Consumer=&info
 	result.Checkpoint=&actual
 	result.ActionCompleted=true

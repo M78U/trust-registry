@@ -37,3 +37,21 @@ After a successful explicit strict online update **and** exact consumer reopenin
 For healthy matching local evidence, the next advisory deadline is the earlier of observation time + maximum age and earliest signed expiry - lead. At or beyond that boundary the status is ONLINE_AGE_DUE or SIGNED_EXPIRY_APPROACHING. NOT_DUE_UNDER_LOCAL_POLICY never means remote freshness or trust. Diagnostic action takes precedence for every nonhealthy state (including expired evidence and recovery); RefreshSuggested=false in DIAGNOSTIC_ACTION_REQUIRED means no scheduling advice, **not** that the state is fresh or usable. Read the original diagnostic recommendation. The plan is not authorization, does not open a session, and is not a substitute for rechecking state during explicit CoordinateUpdate. TrustStatus always NOT_ESTABLISHED.
 
 Synthetic policy boundary tests cover exact age/expiry boundaries, unknown/mismatched observations, invalid timestamps/limits, busy, pending and expired diagnostics. No end-to-end Go execution claimed for this PR.
+
+### Coordinated planning and online observation
+
+Set `CoordinateOptions.RefreshPolicy` only for plan mode (including the zero SDK mode). The coordinator derives the planner's independent identity from its own diagnostic options and reuses its one existing diagnostic. The optional `refreshPlan` result is advisory; the top-level diagnostic and PLAN_ONLY status remain unchanged. Other modes reject the policy rather than implicitly using it as an action gate.
+
+Only a successful explicit coordinated refresh that reopens the exact live consumer returns an `onlineObservation` object. Its checkpoint, root and authority are derived from that live session, and completion time is checked within the session lifetime. Offline open, recovery, cancellation and failed refresh never issue one. Persist this caller-owned record independently if desired, without treating it as an authenticated rollback checkpoint. Existing callers without a policy retain their behavior; the optional JSON fields are additive.
+
+CLI, from tools/tuf-client:
+
+```sh
+go run ./cmd/tuf-load --state STATE --root-sha256 INITIAL_PIN \
+  --authority AUTHORITY.json --authority-sha256 AUTHORITY_PIN \
+  --coordinate plan --refresh-max-age 24h --refresh-expiry-lead 1h
+```
+
+Both durations are explicit (zero lead is allowed); no built-in schedule. Optionally pass `--last-online-observation "$OBSERVATION"` where OBSERVATION is the exact compact JSON object emitted as onlineObservation in a successful coordinated refresh. For example, extract with `jq -c .onlineObservation` without sorting keys. The CLI bounds input to 4096 bytes and requires exact compact SDK serialization, rejecting unknown/duplicate fields, noncanonical representations and omitted fields. Semantic validation still occurs in the planner. Do not supply observation flags to any other mode. No files are written for observations by this SDK or CLI, no implicit requests, no extra diagnosis and no automatic execution. The installed state may change after a plan; explicit action revalidates as before.
+
+Integration tests extend the existing synthetic strict TLS fixture to check observation issuance, exact match, single diagnostic timestamp, no network during planning, and no observation on offline open or recovery. CLI parser regression cases are included. Full Go 1.26 tests remain unexecuted in this environment.
