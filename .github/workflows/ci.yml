@@ -18,6 +18,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      # Bootstrap dependency checksums on this PR only; replace with readonly checks before merge.
+      - run: go mod tidy
+      - run: go mod verify
+      - name: Show resolved dependency checksums
+        shell: bash
+        run: cat go.mod go.sum
       - run: go vet ./...
       - run: go test ./...
       - run: go build ./...
