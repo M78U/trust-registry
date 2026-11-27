@@ -47,3 +47,5 @@ Root rotation research tools are available (TUF-ROOT-ROTATION.md). Do not use ro
 Reviewed ledger and client installation now support persisted TUF root chains (TUF-PERSISTENT-ROOT-CHAIN.md). Old initial root pin remains the ledger/export anchor. Rotation still requires separate operator/root-role authorization; review approvals do not bind root configuration, and clients authenticate TUF bytes only. No live publication or production trust.
 
 Strict clients can now require an independent public release credential bound to exact root pins, snapshot digest/sequence and online metadata expiries. Reviewed publishers embed it in Targets custom metadata. See CLIENT-RELEASE-AUTHORIZATION.md. Research mode remains separate; strict state must be explicitly initialized with independent authority. No production trust or live publication.
+
+Static deployment staging is available via static-prepare/static-check (STATIC-PUBLICATION.md). Public credential required for every history record; no preview-only redeploy after release. Actual deployment remains manual and gated on end-to-end testing, verified branding/CA rights and live smoke checks.
