@@ -146,6 +146,13 @@ func AddMonitorObservation(root string,raw []byte,pin string)(MonitorStoreResult
 	defer os.Remove(lock)
 	h,previous,err:=readMonitorHistory(dir,s,r.Mode)
 	if err!=nil{return MonitorStoreResult{},err}
+	return appendMonitorObservation(dir,h,previous,raw,r)
+}
+
+// Caller must hold the stream lock and supply a verified canonical record and
+// the current validated history. Shared by manual add and explicit monitor run.
+func appendMonitorObservation(dir string,h MonitorHistory,previous,raw []byte,r SourceObservationReceipt)(MonitorStoreResult,error){
+	pin:=r.ObservationSHA256
 	result:=MonitorStoreResult{Status:"OBSERVATION_INDEXED",Observation:r,Count:len(h.Observations),TrustStatus:"NOT_ESTABLISHED"}
 	for i,old:=range h.Observations{
 		if old.ObservationSHA256!=pin{continue}
