@@ -28,6 +28,7 @@ const (
 	ProvenanceReview = "provenance-review.schema.json"
 	Decision = "decision.schema.json"
 	PolicyDocument = "policy-document.schema.json"
+	ReleaseReview = "release-review.schema.json"
 )
 
 var loadOnce sync.Once
@@ -43,7 +44,7 @@ func compileAll() {
 	c:=jsonschema.NewCompiler()
 	c.AssertFormat()
 	c.UseLoader(denyLoader{})
-	names:=[]string{Certificate,Provenance,Policy,ProvenanceReview,Decision,PolicyDocument}
+	names:=[]string{Certificate,Provenance,Policy,ProvenanceReview,Decision,PolicyDocument,ReleaseReview}
 	for _,name:=range names {
 		b,err:=files.ReadFile(name)
 		if err!=nil { compileErr=err;return }

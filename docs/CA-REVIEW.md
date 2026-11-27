@@ -1,0 +1,20 @@
+# CA research and review dossier
+
+A candidate inventory and policy snapshot is not approved for redistribution. This local workflow derives a complete pending checklist from an exact validated unsigned research snapshot. No automatic approval, reviewer account authentication or production release. Use a private evidence directory outside Git and never publish private evidence, audit notes or signer data. Review legal rights with an authorized human, not a fingerprint alone.
+
+`review plan SNAPSHOT` generates editable JSON with snapshot SHA-256 and exact requirements:
+* SOURCE_IDENTITY for every provenance record: issuer source and independent fingerprint evidence, two distinct local artifacts. Review must confirm DER SHA-256, official source and identity; SHA-1 or name alone insufficient.
+* REDISTRIBUTION for every provenance record: evidence of actual terms/permission covering the exact DER and published source metadata.
+* POLICY_SCOPE for each certificate role in each exact policy document, including historical versions and declared but unapproved anchors. Review the jurisdiction/purpose/role, CP/CPS, relevant trust decision history and limitations. This does not create a positive decision.
+* POLICY_DISCLOSURE for every exact policy file: inspect audit notes, references, history, privacy and permission to publish the document.
+The identity and rights/scope reviewer IDs must be different for the same certificate (all approved source identity reviewers are checked). This is a separation-of-duties assertion, not proof of distinct humans. Each positive attestation needs a reviewer ID, explicit UTC reviewedAt between snapshot creation and check time, note and exactly the prescribed evidence kinds in the order above. Each artifact is referenced by SHA-256 and human-readable reference. Store original evidence bytes in a private directory as <sha256>.evidence (not a URL to fetch). The checker verifies actual file SHA-256 and bounded reads; does not interpret legal terms, check issuer identities independently or authenticate evidence origin. Evidence can be reused across tasks when relevant, except two identity artifacts must differ. Never invent evidence or reviewer identities.
+
+```sh
+trust-registry review plan candidate.json > review-dossier.json
+# Human reviewers edit only status/reviewer/reviewedAt/evidence/note.
+# Put privately retained evidence bytes at <sha256>.evidence in PRIVATE_EVIDENCE.
+trust-registry review check --dossier review-dossier.json --evidence PRIVATE_EVIDENCE --at CURRENT_RFC3339 candidate.json
+```
+PENDING/REJECTED or same-reviewer violations block. Changed/omitted/duplicated tasks, invalid approval, missing/tampered evidence or changed snapshot identity are errors; empty inventory cannot pass. Snapshot must be within declared time window; provenance/review/decision recording times cannot exceed snapshot creation. Existing future-effective policy decisions may be included but need exact scope review. All review attestations bind to exact complete snapshot digest; any byte change requires new dossier. The dossier digest is compact Go JSON+LF (not the edited file byte hash). Strict embedded JSON schema rejects unknown/duplicate fields. Limits: 2048 tasks, 4 MiB dossier, 1024 unique artifact files, 4 MiB each and 64 MiB combined. Checker assumes protected operator-controlled filesystem and reliable time. No external fetching or writes by check. Do not redirect plan to the snapshot path.
+
+Passing returns LOCAL_REVIEW_REQUIREMENTS_SATISFIED with releaseAuthorized=false, releaseAuthenticated=false, reviewerAuthentication=NOT_ESTABLISHED, evidenceConclusionStatus=HUMAN_REVIEW_REQUIRED and trustStatus=NOT_ESTABLISHED. This is intentionally not a publish command or enforceable authenticated release gate. Existing research signing remains unchanged. Actual CA artifacts, independent reviews, verified reviewer identity, transition/rotation and mandatory tested release workflow still required. Synthetic tests only, no Go execution or actual CA authorization. Automatic CI remains disabled.

@@ -63,4 +63,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Private content-addressed revocation observations and all-path revocation inspection: merged in #30. Independent local storage, explicit observation cutoff, no public snapshot/OCSP data publication or trust promotion.
 
-- Explicit single-hop HTTPS AIA research acquisition and local issuer matching: PR #31. DNS/IP pinning, conservative IPv4-only egress profile, offline audit/import separation. No automatic recursive fetch or trust authorization.
+- Explicit single-hop HTTPS AIA research acquisition and local issuer matching: merged in #31. DNS/IP pinning, conservative IPv4-only egress profile, offline audit/import separation. No automatic recursive fetch or trust authorization.
+
+- Local CA release-candidate review dossier, exact snapshot binding, required source/redistribution/scope/disclosure review and evidence artifact verification: PR #32. No reviewer authentication, actual CA review or production publication.
