@@ -12,6 +12,7 @@ import (
 	"github.com/M78U/trust-registry/pkg/registry"
 	"github.com/M78U/trust-registry/pkg/policy"
 	"github.com/M78U/trust-registry/pkg/validation"
+	"github.com/M78U/trust-registry/pkg/sources"
 )
 
 func readInput(path string) ([]byte, error) {
@@ -31,8 +32,9 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | search | policy") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | search | policy | sources") }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
+	if args[0]=="sources" { return runSources(args[1:],out) }
 	if args[0]=="inspect" {
 		if len(args)!=2 { return errors.New("usage: inspect FILE") }
 		input,err:=readInput(args[1])
@@ -163,5 +165,30 @@ func runPolicy(args []string,out io.Writer) error {
 		result,err:=d.Evaluate(s,e.UTC(),k.UTC());if err!=nil { return err }
 		return enc.Encode(result)
 	default:return errors.New("unknown policy command")
+	}
+}
+
+func runSources(args []string,out io.Writer)error{
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview --id ID [--sha256 HEX] FILE")}
+	c,err:=sources.SHECA();if err!=nil{return err}
+	enc:=json.NewEncoder(out)
+	switch args[0]{
+	case "list":
+		if len(args)!=1{return errors.New("usage: sources list")}
+		return enc.Encode(c)
+	case "inspect":
+		if len(args)!=2{return errors.New("usage: sources inspect ID")}
+		e,err:=c.Find(args[1]);if err!=nil{return err}
+		return enc.Encode(e)
+	case "preview":
+		flags:=flag.NewFlagSet("sources preview",flag.ContinueOnError)
+		id:=flags.String("id","","research listing ID")
+		fp:=flags.String("sha256","","optional independently obtained SHA-256 assertion")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if *id==""||flags.NArg()!=1{return errors.New("usage: sources preview --id ID [--sha256 HEX] FILE")}
+		input,err:=readInput(flags.Arg(0));if err!=nil{return err}
+		report,err:=c.Preview(*id,input,*fp,time.Now());if err!=nil{return err}
+		return enc.Encode(report)
+	default:return errors.New("unknown sources command")
 	}
 }

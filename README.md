@@ -51,3 +51,7 @@ All search filters are exact AND matches. Serial/SKI/AKI/fingerprint use canonic
 ## v0.1 release readiness
 
 This is a development-only candidate inventory and policy toolkit, not a trusted root distribution. See [release checklist](docs/RELEASE.md). No production trust dataset is included. The schema runtime compiles all six embedded schemas with format assertions, rejects duplicate keys and external schema references, and validates persisted certificate/provenance JSON and local policy documents. No network access during validation. Semantic and cryptographic checks remain independent.
+
+## CA source research (v0.2)
+
+`trust-registry sources list`, `sources inspect uca-root-g2` and `sources preview --id uca-root-g2 FILE` expose a selected SHECA research catalog and offline byte comparison. Publisher SHA-1 is a legacy listing cross-check only; SHA-256 remains certificate identity. No certificate bytes are bundled or written by preview; no source authenticity, redistribution permission or trust is inferred. See [SHECA research](docs/research/SHECA.md).
