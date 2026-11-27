@@ -26,7 +26,7 @@ import (
  "github.com/theupdateframework/go-tuf/v2/metadata"
 )
 func TestReviewedPublication(t *testing.T){
- now:=time.Now().UTC().Truncate(time.Second)
+ now:=time.Now().UTC().Truncate(time.Second).Add(-2*time.Minute)
  opts:=RootOptions{Expires:now.Add(48*time.Hour),Roles:map[string]RoleKeys{}}
  keys:=map[string]ed25519.PrivateKey{}
  for _,role:=range roles{
@@ -170,6 +170,25 @@ func TestReviewedPublication(t *testing.T){
  staticOpts.First=false;staticOpts.At=later;staticOpts.ExpectedHeadSHA256=receipt2.RecordSHA256;staticOpts.PreviousManifest=oldManifest;staticOpts.PreviousManifestSHA256=plan.ManifestSHA256
  files2,delta,err:=PrepareStaticPublication(staticOpts)
  if err!=nil||delta.NewFiles!=4||delta.ChangedFiles!=1||delta.UnchangedFiles!=len(files)-1||!bytes.Equal(files2["tuf/metadata/1.targets.json"],files["tuf/metadata/1.targets.json"]){t.Fatal(delta,err)}
+ // Exercise the actual prepared static directory over local TLS, not
+ // only repository maps. Keep v1 history while switching to v2.
+ if err:=os.WriteFile(filepath.Join(assets,"app.js"),files["app.js"],0600);err!=nil{t.Fatal(err)}
+ if err:=VerifyStaticDirectory(assets,plan.Manifest,now);err!=nil{t.Fatal(err)}
+ assets2:=t.TempDir()
+ for name,data:=range files2{path:=filepath.Join(assets2,filepath.FromSlash(name));if err:=os.MkdirAll(filepath.Dir(path),0700);err!=nil{t.Fatal(err)};if err:=os.WriteFile(path,data,0600);err!=nil{t.Fatal(err)}}
+ if err:=VerifyStaticDirectory(assets2,delta.Manifest,later);err!=nil{t.Fatal(err)}
+ var currentDir atomic.Value;currentDir.Store(assets)
+ staticServer:=httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter,req *http.Request){
+  http.FileServer(http.Dir(currentDir.Load().(string))).ServeHTTP(w,req)
+ }));defer staticServer.Close()
+ state:=filepath.Join(t.TempDir(),"static-client")
+ so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a}
+ if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ currentDir.Store(assets2);so.BootstrapRoot=nil
+ if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ currentDir.Store(assets)
+ if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
  staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)
  if _,_,err:=PrepareStaticPublication(staticOpts);err==nil{t.Fatal("bad prior manifest pin")}
  if _,err:=BuildInLedger(root2,raw2,lo);err==nil{t.Fatal("stale head replay")}

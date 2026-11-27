@@ -4,3 +4,6 @@
 
 # Local prepared release assets (never commit or publish ledger receipts)
 /web/release-dist/
+
+# Local manual release validation receipts
+/.release-validation/

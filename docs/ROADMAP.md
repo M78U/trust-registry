@@ -80,3 +80,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Public threshold release credential embedded in TUF targets custom metadata; independent pinned strict online/offline client mode: PR #38. No private evidence publication or extra network request. Production release validation pending.
 
 - Static publication preparation and preflight: PR #39. Full authorized ledger history, pinned manifest delta, bounded static assets, timestamp freshness, separate no-worker release config. No cloud API or deployment. Production validation remains open.
+
+- Manual two-module release validation, dependency-lock candidate artifacts, CLI negative smoke cases, rotated static-directory strict client integration and scriptless config guard: PR #40. No PR/push triggers or deployment. Actual Go execution and locked module acceptance still required.
