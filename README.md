@@ -107,3 +107,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ## Emergency local policy changes
 
 `policy restrict` proposes an immediate suspension or indefinite distrust for one declared anchor in an exact policy version; `policy check-transition` compares complete previous/next policy document sets. Neither edits existing files nor publishes a release. Positive authorization after a restriction requires new review and decision recorded after it. See [emergency updates](docs/EMERGENCY-UPDATES.md).
+
+## Offline revocation evidence
+
+`trust-registry revocation --issuer issuer.cer --at RFC3339 --known-at RFC3339 --crl local.crl --ocsp local.ocsp signer.cer` verifies a direct issuer pair and explicitly supplied CRL/OCSP evidence. See [revocation evidence](docs/REVOCATION-EVIDENCE.md). No final GOOD status, network or trust grant.
