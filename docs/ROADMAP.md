@@ -23,4 +23,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - SHECA selected official listing metadata and offline candidate intake preview: merged in #13. Binary acquisition, independent fingerprint/evidence review, redistribution and scoped decisions remain open.
 
-- Observed SHECA auxiliary download endpoints, third-party fingerprint leads and explicit bounded acquisition/audit: PR #14. Actual download/byte verification and redistribution review remain pending.
+- Observed SHECA auxiliary download endpoints, third-party fingerprint leads and explicit bounded acquisition/audit: merged in #14. Actual download/byte verification and redistribution review remain pending.
+
+- Manual report-only Certificate Research workflow, explicit bounded batch and selected SATL indexed name leads: PR #15. First actual runner acquisition results, fingerprint-based SATL matching, redistribution review and CA policy evidence are pending.
