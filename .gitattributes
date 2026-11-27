@@ -1,0 +1,10 @@
+# Canonical LF for text on every platform (including Windows checkout).
+# Registry metadata is byte-compared and provenance JSON is content-addressed.
+* text=auto eol=lf
+*.der binary
+*.cer binary
+*.crt -text
+*.png binary
+*.webp binary
+*.jpg binary
+*.zip binary
