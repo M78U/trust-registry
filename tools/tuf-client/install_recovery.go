@@ -107,6 +107,7 @@ func RecoverPendingInstall(o RecoveryOptions) (Report, error) {
 	if len(chain) != len(evidenceChain(v)) || !rootPrefix(evidenceChain(v), chain) { return Report{}, errors.New("pending root chain differs from archive") }
 	report, err := verifyEvidence(v, o.InitialRootSHA256, at)
 	if err != nil { return Report{}, err }
+	if v.AcceptedAt.Before(report.Registry.Manifest.CreatedAt) { return Report{}, errors.New("pending acceptance precedes snapshot creation") }
 	tg, err := metadata.Targets().FromBytes(v.Targets)
 	if err != nil { return Report{}, err }
 	sm, err := metadata.Snapshot().FromBytes(v.SnapshotMetadata)
