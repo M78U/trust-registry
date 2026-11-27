@@ -14,9 +14,21 @@ The Explorer is already deployed as a public Research Preview at https://trust.m
 - [ ] Verify the site is clearly research-only; verify current public assets contain no private or unpublished material. Keep automatic deployment from overwriting future signed TUF history.
 - [ ] Owner records the exact reviewed source commit, audit dates, validation results and explicit public-visibility approval privately.
 
-MIT license, NOTICE, SECURITY, CONTRIBUTING, README status and ignore rules are preparation artifacts, not proof of clearance. This checklist deliberately does not mark the audit or test gates complete. Do not change repository visibility automatically.
+MIT license, NOTICE, SECURITY, CONTRIBUTING, README status and ignore rules are preparation artifacts, not proof of clearance. This checklist deliberately does not mark the audit or test gates complete. Do not change repository visibility automatically. The preflight added in this phase is advisory and does not update checklist status.
 
 ## Private local history audit
+
+A dependency-free bounded preflight is now available in the reviewed source checkout (Node >=20, Git). Run the script against a separately authenticated, complete local mirror. The script does not fetch or mutate the mirror; use a trusted, ordinary full clone without grafts or alternate object stores.
+
+```sh
+node --test scripts/audit-public-source.test.mjs
+node scripts/audit-public-source.mjs --repo=/private/path/trust-registry-audit.git
+```
+
+The preflight visits distinct trees reachable from local Git refs and each distinct referenced blob, including files removed from the current tree. It checks selected private workspace and sensitive file names, symlinks, submodules, binary/oversize blobs, LFS pointers and a small set of high-signal text patterns. It reports object IDs and SHA-256 of flagged paths instead of raw paths, matched text or secret values. Inspect the flagged objects/paths privately with Git; never publish the report. For example, use `git log --all --find-object=OBJECT_ID --format='%H'` to identify commits for a blob and inspect their trees privately.
+
+Exit 0 (`PREFLIGHT_NO_MARKERS_FOUND`) is not clearance, exit 1 (`REVIEW_REQUIRED`) means review candidates, exit 2 (`INCOMPLETE`) means invalid clone, changed refs, Git error or budget exceeded. Bounds: 2,000 trees, 200,000 entries, 10,000 distinct blobs, 2 MiB per inspected blob, 128 MiB total inspected bytes and 10,000 findings. Binary and oversize blobs require separate review. The preflight rejects shallow/partial clones and does not scan object contents referenced only by non-commit refs, inaccessible or unreachable objects, commit messages, GitHub metadata, encoded secrets or arbitrary secret formats. It does not resolve LFS objects or submodules. Use the independent scanner and manual review below as separate required gates; never treat this script as a replacement for them.
+
 
 Use an authenticated, isolated local clone on trusted storage. Do not send credentials or scan output to public services. Use a reviewed and pinned secret-scanner version (for example Gitleaks v8.24 or newer with its git subcommand); inspect its help and check its exit status. Example:
 
