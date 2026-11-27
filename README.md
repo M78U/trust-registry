@@ -191,3 +191,5 @@ Review workspace now accepts explicit pinned bundle archives, reports task count
 Strict offline Go consumer SDK: `tufclient.OpenConsumer` requires installed TUF and independent public release approval; bounded detached sessions expose candidate bundles, search, policy/path diagnostics and live-session comparisons. See [consumer SDK](docs/CONSUMER-SDK.md). No automatic trust or update.
 
 Strict online refresh can optionally enforce an independently retained `ReleaseCheckpoint` (sequence, snapshot SHA-256, root version) before target download, with SDK export and `tuf-fetch --checkpoint-*` flags. See [consumer SDK](docs/CONSUMER-SDK.md). External checkpoint persistence remains caller-owned.
+
+Interrupted final strict installation commits can be recovered offline with `tuf-load --recover-pending` or `tufclient.RecoverPendingInstall`, using independent pins and the complete local journal. No rollback or metadata repair; see [installation recovery](docs/TUF-INSTALLATION.md).
