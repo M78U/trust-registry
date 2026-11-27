@@ -29,4 +29,8 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Local certificate relationship graph and bounded candidate path enumeration: merged in #16. No complete path validation or production trust; actual research run and reviewed real CA data remain pending.
 
-- Explicit local CA-set path validation and local policy binding: PR #17. No authenticated release, revocation or business-purpose authorization.
+- Explicit local CA-set path validation and local policy binding: merged in #17. No authenticated release, revocation or business-purpose authorization.
+
+## v0.3 distribution foundation
+
+- Deterministic unsigned local snapshot builder and verifier: PR #18. Signature authentication, TUF evaluation, persistent rollback/freeze protection and approved release data remain pending.

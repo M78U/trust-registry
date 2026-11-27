@@ -15,3 +15,7 @@ CI builds deterministic artifacts from reviewed inputs; do not commit generated 
 - [ ] If a preview is published, label it developer preview, no real anchors, no trusted dataset and no authenticated update protocol. Do not publish candidate sources without redistribution review.
 
 No release tag, GitHub Release, binary package or production trust bundle is created by this PR. Signed distribution is v0.3.
+
+## Local snapshot implementation
+
+See [SNAPSHOT.md](SNAPSHOT.md). The unsigned local research envelope is a deterministic payload format only, not an update protocol. Do not ship it as trusted roots. Sequence, revision and expiry fields are assertions until independently authenticated. Evaluate TUF before implementing production distribution.
