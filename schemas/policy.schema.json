@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "jurisdiction",
+    "purpose",
+    "trustAnchors",
+    "intermediateCandidates",
+    "constraints"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "jurisdiction": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "purpose": {
+      "enum": [
+        "document-signing",
+        "electronic-seal-signing",
+        "seal-maker",
+        "timestamping",
+        "code-signing",
+        "device-authentication",
+        "client-authentication",
+        "server-authentication"
+      ]
+    },
+    "trustAnchors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 0,
+      "maxItems": 4096,
+      "uniqueItems": true
+    },
+    "intermediateCandidates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 0,
+      "maxItems": 4096,
+      "uniqueItems": true
+    },
+    "constraints": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requireExplicitTrustDecision",
+        "requireValidCertificatePath",
+        "allowSystemTrustFallback"
+      ],
+      "properties": {
+        "requireExplicitTrustDecision": {
+          "const": true
+        },
+        "requireValidCertificatePath": {
+          "const": true
+        },
+        "allowSystemTrustFallback": {
+          "const": false
+        }
+      }
+    }
+  }
+}

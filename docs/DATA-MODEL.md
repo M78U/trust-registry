@@ -8,7 +8,7 @@ Policy identifies jurisdiction, purpose, version, anchors and intermediate candi
 
 Snapshot contains schema and registry versions, monotonic sequence, publication/expiry timestamps, file hashes, index, policy/decision versions and authenticated metadata. Strict schema and reference integrity checks precede use.
 
-Initial code and two schemas cover candidate metadata and local inventory only; policy, reviewed provenance, decisions, manifest and schema engine remain planned.
+Initial code and two schemas cover candidate metadata and local inventory only; policy, provenance review events and decision documents are now modeled for local evaluation; manifest and general schema engine remain planned.
 
 ## Local inventory v0.1 (experimental)
 
@@ -18,3 +18,5 @@ Initial code and two schemas cover candidate metadata and local inventory only; 
 - Only CA candidates may be persisted. Inspect can still parse leaf certificates. No network operations or trust decisions.
 - Files are installed without overwriting via same-directory temporary files and hard links; the directory is operator-controlled, single writer, no untrusted concurrent mutation. Multi-file import is not transactional and may leave partial state; validation rejects missing pairs, orphan sources, unreferenced certificates and unexpected entries. Do not consume an unvalidated directory for publication. No durability guarantees for power loss.
 - Validate recomputes DER and metadata, provenance content addresses, field constraints and reference integrity. It cannot prove source authenticity, original input bytes, certificate path validity or release authenticity. General JSON Schema validation is still pending.
+
+Policy review documents contain a versioned policy, independent review events referencing immutable provenance observation IDs, and scoped decision events. The experimental format is not an authenticated snapshot. See TRUST-POLICY.md for time and supersession semantics.

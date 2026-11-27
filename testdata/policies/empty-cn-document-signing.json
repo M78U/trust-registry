@@ -1,0 +1,18 @@
+{
+  "policy": {
+    "schemaVersion": "1",
+    "id": "cn.document-signing",
+    "version": 1,
+    "jurisdiction": "CN",
+    "purpose": "document-signing",
+    "trustAnchors": [],
+    "intermediateCandidates": [],
+    "constraints": {
+      "requireExplicitTrustDecision": true,
+      "requireValidCertificatePath": true,
+      "allowSystemTrustFallback": false
+    }
+  },
+  "reviews": [],
+  "decisions": []
+}

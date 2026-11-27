@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "certificateSHA256",
+    "policyId",
+    "policyVersion",
+    "role",
+    "status",
+    "recordedAt",
+    "effectiveFrom",
+    "effectiveUntil",
+    "reason",
+    "evidenceIds",
+    "reviewReferences"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "certificateSHA256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policyId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "policyVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "role": {
+      "const": "TRUST_ANCHOR"
+    },
+    "status": {
+      "enum": [
+        "TRUSTED",
+        "SUSPENDED",
+        "DISTRUSTED"
+      ]
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "effectiveFrom": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "effectiveUntil": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "evidenceIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+      },
+      "minItems": 0,
+      "maxItems": 4096,
+      "uniqueItems": true
+    },
+    "reviewReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 1,
+      "maxItems": 4096,
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "TRUSTED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidenceIds": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

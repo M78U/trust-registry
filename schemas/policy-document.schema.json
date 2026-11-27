@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy",
+    "reviews",
+    "decisions"
+  ],
+  "properties": {
+    "policy": {
+      "$ref": "policy.schema.json"
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "provenance-review.schema.json"
+      },
+      "minItems": 0,
+      "maxItems": 4096,
+      "uniqueItems": true
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "decision.schema.json"
+      },
+      "minItems": 0,
+      "maxItems": 4096,
+      "uniqueItems": true
+    }
+  }
+}
