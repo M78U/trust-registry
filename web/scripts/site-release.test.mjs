@@ -21,7 +21,8 @@ test("open-source preview exposes repository and version links without changing 
 test("Homebrew onboarding describes the released ARM64 source-build scope",()=>{
   const section=html.match(/<section id="install"[\s\S]*?<\/section>/)?.[0]??"";
   assert.ok(html.includes('href="#install"'));
-  assert.ok(section.includes("Homebrew Tap 当前仍提供 Trust Registry 0.1.0 Developer Preview"));
+  assert.ok(section.includes("Homebrew Tap 已更新至 0.2.0-preview.1 源码构建配方"));
   assert.ok(section.includes("最新源码预览版为 v0.2.0-preview.1"));
+  assert.ok(section.includes("Homebrew 测试运行器依赖初始化受阻"));
   for(const value of ["brew tap m78u/tap","brew install m78u/tap/trust-registry","macOS · Apple Silicon","Go 1.26.11","暂不提供 Bottle 或 Intel 版本","trust-registry init --registry ./local-registry","trust-registry validate --registry ./local-registry","未预置可信 CA、生产信任锚或 TUF 管理工具","https://github.com/M78U/homebrew-tap"])assert.ok(section.includes(value),value);
 });

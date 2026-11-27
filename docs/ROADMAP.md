@@ -132,3 +132,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Release acceptance checkpoint: [v0.2 acceptance](V02-RELEASE-ACCEPTANCE.md) separates current source validation, real CA evidence and human review from v0.3 production distribution. No new tag until the applicable gates are met. The 0.1.0 validation is historical, not inherited by main.
 
 - Owner-published source-only [v0.2.0-preview.1](https://github.com/M78U/trust-registry/releases/tag/v0.2.0-preview.1), exact tag `45cc3aad74d93ade0fbfde44996e5f44739deb6d`, reported clean locked validation passed on macOS ARM64 Go 1.26.11. v0.2 data milestone remains open. Homebrew stays on 0.1.0 pending package-specific acceptance. No production anchors or actual dataset.
+
+- Maintainer stage 1: [private source observations](SOURCE-MONITOR.md), fixed catalog URLs, explicit bounded fetch/local capture, independent pin comparison and raw-body change review signal. No semantic membership inference, scheduler, production CA changes or new release. Homebrew preview formula updated; test runner blocked in Bundler, direct installed acceptance not yet reported.
