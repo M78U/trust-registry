@@ -97,3 +97,5 @@ Experimental TUF `tuf-fetch --install` persists signed metadata and snapshot tog
 ## Registry Explorer research preview
 
 `cd web && npm test && npm run build` creates a dependency-free static research preview in `web/dist`. See [Explorer deployment](docs/EXPLORER.md). The public projection contains only selected source-directory leads and empty policy templates, never certificate bytes or local snapshots. Planned Workers custom domain trust.m78u.com; not deployed.
+
+Explorer includes an interactive evidence constellation with direct catalog/source/fingerprint/name associations, keyboard navigation, relation filters and complete neighbor list. These are research associations, not verified certificate chains.

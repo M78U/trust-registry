@@ -1,5 +1,7 @@
 import {DATA} from "./data.js";
 import {searchRows} from "./projection.js";
+import {mountEvidenceGraph} from "./graph.js";
+let graphUI;
 const $=id=>document.getElementById(id);
 const el=(tag,value,cls)=>{const e=document.createElement(tag);if(value!==undefined)e.textContent=String(value);if(cls)e.className=cls;return e};
 const link=(label,url)=>{const a=el("a",label+" ↗");a.href=url;a.rel="noreferrer";return a};
@@ -15,7 +17,7 @@ function row(r){
  if(r.sha256Lead)field(dl,"第三方证据",link(labels[r.sha256Lead.scope],r.sha256Lead.sourceURL));
  field(dl,"原始文件入口",r.endpointLocated?link("已定位 · 查看来源页面",r.endpointSourceURL):"待定位");
  field(dl,"来源",link("SHECA 公开目录",r.sourceURL));field(dl,"证书身份","尚未核对证书原件");field(dl,"分发许可","尚未审核");field(dl,"信任状态","NOT_ESTABLISHED");
- section.append(dl);d.append(section);return d;
+ section.append(dl);const btn=el("button","在星图中探索","graph-action");btn.type="button";btn.addEventListener("click",()=>graphUI?.focusCatalog(r.id));section.append(btn);d.append(section);return d;
 }
 function render(){
  const rows=searchRows(DATA,$("search").value,$("role").value,$("track").value,$("status").value);
@@ -32,6 +34,7 @@ try{
  $("count-ca").textContent=DATA.certificates.length;$("count-hash").textContent=DATA.certificates.filter(r=>r.sha256Lead).length;$("count-satl").textContent=DATA.program.length;
  for(const id of ["search","role","track","status"])$(id).addEventListener(id==="search"?"input":"change",render);
  render();
+ graphUI=mountEvidenceGraph(DATA,openCA);
  for(const r of DATA.program){
   const item=el("div",undefined,"program-row"),name=el("div",r.label);name.append(el("span"," · "+r.authority));const evidence=el("div");evidence.append(el("span","NAME_LEAD_ONLY · "+r.observedOn));
   if(r.candidateListingId){const a=el("a","查看同名 SHECA 目录线索");a.href="#ca-"+r.candidateListingId;a.addEventListener("click",e=>{e.preventDefault();openCA(r.candidateListingId)});evidence.append(a)}
