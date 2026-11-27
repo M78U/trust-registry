@@ -1,0 +1,144 @@
+"""Private explicit maintainer workspace configuration (no scheduler)."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import tempfile
+
+from sheca_source_adapter import digest, unique_object
+from sheca_source_review_queue import canonical, private_root
+
+CONFIG = "workspace.json"
+MAX_CONFIG_BYTES = 16384
+MAX_BINARY_BYTES = 128 << 20
+SOURCES = ("bjca-downloads", "bjca-root-directory", "cfca-repository",
+           "gdca-repository", "satl-list", "satl-strategy",
+           "sheca-auxiliary", "sheca-repository")
+HEX = re.compile(r"[0-9a-f]{64}")
+
+
+def binary_digest(path):
+    if not path.is_absolute():
+        raise ValueError("absolute trusted CLI path required")
+    info = path.lstat()
+    if (not stat.S_ISREG(info.st_mode) or not info.st_mode & stat.S_IXUSR
+            or info.st_mode & 0o022 or not 0 < info.st_size <= MAX_BINARY_BYTES):
+        raise ValueError("regular executable CLI (not symlink or group/world writable) required")
+    h = hashlib.sha256()
+    with path.open("rb") as handle:
+        opened = os.fstat(handle.fileno())
+        if not os.path.samestat(info, opened):
+            raise ValueError("CLI changed while opening")
+        remaining = MAX_BINARY_BYTES + 1
+        while remaining:
+            chunk = handle.read(min(1 << 20, remaining))
+            if not chunk:
+                break
+            h.update(chunk)
+            remaining -= len(chunk)
+        end = os.fstat(handle.fileno())
+    if not remaining or (info.st_size, info.st_mtime_ns, info.st_ctime_ns) != (end.st_size, end.st_mtime_ns, end.st_ctime_ns):
+        raise ValueError("CLI size limit or concurrent change")
+    return h.hexdigest()
+
+
+def validate(config):
+    if not isinstance(config, dict) or set(config) != {"schemaVersion", "binary", "binarySHA256", "intervalHours", "maxFetches", "sourceIds"} or config["schemaVersion"] != "1":
+        raise ValueError("invalid workspace configuration")
+    if (not isinstance(config["binary"], str) or not 0 < len(config["binary"]) <= 4096
+            or not all(c.isprintable() for c in config["binary"])
+            or not Path(config["binary"]).is_absolute() or not HEX.fullmatch(config["binarySHA256"])):
+        raise ValueError("invalid workspace binary binding")
+    hours = config["intervalHours"]
+    ids = config["sourceIds"]
+    budget = config["maxFetches"]
+    if type(hours) is not int or not 1 <= hours <= 720:
+        raise ValueError("interval hours must be 1 to 720")
+    if not isinstance(ids, list) or not 1 <= len(ids) <= len(SOURCES) or any(i not in SOURCES for i in ids) or len(set(ids)) != len(ids):
+        raise ValueError("explicit unique allowlisted source IDs required")
+    if type(budget) is not int or not 1 <= budget <= len(ids):
+        raise ValueError("invalid workspace request budget")
+
+
+def read_config(root):
+    private_root(root)
+    path = root / CONFIG
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or not 0 < info.st_size <= MAX_CONFIG_BYTES:
+        raise ValueError("invalid private workspace config file")
+    with path.open("rb") as f:
+        if not os.path.samestat(info, os.fstat(f.fileno())):
+            raise ValueError("workspace config changed while opening")
+        raw = f.read(MAX_CONFIG_BYTES + 1)
+    if len(raw) > MAX_CONFIG_BYTES:
+        raise ValueError("workspace config size limit")
+    config = json.loads(raw, object_pairs_hook=unique_object)
+    validate(config)
+    if canonical(config) != raw:
+        raise ValueError("noncanonical workspace config")
+    private_root(root / "observations")
+    private_root(root / "review-queue")
+    return config
+
+
+def write_config(root, config):
+    data = canonical(config)
+    if len(data) > MAX_CONFIG_BYTES:
+        raise ValueError("workspace config size limit")
+    fd, temp = tempfile.mkstemp(prefix=".workspace-pending-", dir=root)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.link(temp, root / CONFIG)
+    finally:
+        os.unlink(temp)
+
+
+def initialize(root, binary, binary_pin, hours, budget, ids):
+    config = {"schemaVersion": "1", "binary": str(binary), "binarySHA256": binary_pin,
+              "intervalHours": hours, "maxFetches": budget, "sourceIds": list(ids)}
+    validate(config)
+    if binary_digest(binary) != binary_pin:
+        raise ValueError("CLI digest mismatch; no workspace created")
+    # No adoption or overwrite of an existing directory, including symlinks.
+    # If initialization is interrupted, leave partial state for inspection.
+    root.mkdir(mode=0o700)
+    (root / "observations").mkdir(mode=0o700)
+    (root / "review-queue").mkdir(mode=0o700)
+    write_config(root, config)
+    return describe(root, config, "WORKSPACE_CREATED")
+
+
+def describe(root, config, status="WORKSPACE_CONFIG_READ"):
+    return {"status": status, "workspace": str(root), "configuration": config,
+            "configurationSHA256": digest(canonical(config)),
+            "observationStore": str(root / "observations"),
+            "reviewQueue": str(root / "review-queue"),
+            "binaryVerification": "NOT_RECHECKED_AT_INFO_TIME",
+            "schedulerEnabled": False, "liveProfileAccepted": False,
+            "trustStatus": "NOT_ESTABLISHED"}
+
+
+def apply(root, args):
+    config = read_config(root)
+    if args.operation == "check":
+        if any(getattr(args, k) is not None for k in ("binary", "store", "interval", "max_fetches", "id")):
+            raise ValueError("workspace check does not accept direct configuration overrides")
+        args.binary = Path(config["binary"])
+        if binary_digest(args.binary) != config["binarySHA256"]:
+            raise ValueError("configured CLI digest changed; review new binary before explicit rebind")
+        args.store = root / "observations"
+        args.interval = str(config["intervalHours"]) + "h"
+        args.max_fetches = config["maxFetches"]
+        args.id = config["sourceIds"]
+    elif args.operation in ("enqueue", "refresh", "history", "record", "status"):
+        if args.queue is not None:
+            raise ValueError("workspace queue does not accept a direct path override")
+        args.queue = root / "review-queue"
+    else:
+        raise ValueError("workspace not needed for this operation")
+    return args

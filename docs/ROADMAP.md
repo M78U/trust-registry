@@ -154,3 +154,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 10: bounded private advisory pending-review index, explicit single-batch verified refresh, cached status/head summaries, filtered paginated queries without archive scans. No automatic refresh, live completeness or trust authorization. See [source monitoring](SOURCE-MONITOR.md#stage-10-bounded-advisory-pending-review-index).
 
 - Maintainer stage 11: unified explicit local entrypoint for bounded Go checks, experimental baseline cross-check, read-only review preview, independently pinned enqueue, selected-task history/disposition and advisory status/refresh. Partial commit recovery documented; no unattended semantics, publication or trust changes. See [source monitoring](SOURCE-MONITOR.md#stage-11-unified-maintainer-command).
+
+- Maintainer stage 12: explicit private workspace with fixed local observation/review directories, validated source/interval/budget config and trusted executable digest binding; no automatic scheduler, rebind, live acceptance or trust changes. See [source monitoring](SOURCE-MONITOR.md#stage-12-private-maintainer-workspace).

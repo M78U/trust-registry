@@ -275,3 +275,31 @@ python3 -B scripts/trust_maintainer.py status \
 ```
 
 Use history and record with the same pair/pins/task fields as stage 9. Record automatically attempts a single-batch index refresh after the event commit; it requires the explicit independently retained expected head. No unattended actions or review identity authentication. Enqueue and record have separate durable write and advisory-index commit boundaries: WRITE_COMMITTED_INDEX_REFRESH_FAILED with exit 1 means the batch or event already committed (receipt included), and the index may be stale. Do not repeat a disposition to fix the cache; inspect the committed state and run refresh with the same pair/pins and a valid newer --at. Other failures do not guarantee no writes (I/O failure or interrupted process); inspect exact history and receipts. The status query is still advisory, bounded and may omit unindexed batches; no directory scan or automatic trust. Private output and human notes must remain local. No cloud resource or release change. Added four synthetic integration test methods; not executed in the implementation container (GitHub DNS unavailable and Go 1.23.2 only). Run the above local tests and complete stage 7 before unattended maintenance or a new preview release.
+
+
+## Stage 12: private maintainer workspace
+
+Create a new workspace outside the checkout, with fixed observations/ and review-queue/ directories and a small private canonical workspace.json. No automatic default paths, adoption of existing directories, network or scheduler during initialization. Explicit trusted Go executable (regular file, owner-executable, not group/world writable or symlink; maximum 128 MiB) and independently inspected SHA-256, ordered fixed source IDs, whole-hour check interval 1–720h, and request budget are required. Both the config and child directories are validated before use. No source URLs, shell commands, credentials, pins for source observations, or reviewer identities in config.
+
+On macOS, from the repository after merge, build a fresh binary at an explicitly chosen stable private path (create a private bin directory first if needed; do not replace an existing bound binary):
+
+```sh
+umask 077
+mkdir -m 700 "$HOME/trust-maintainer-bin"
+go build -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry" ./cmd/trust-registry
+shasum -a 256 "$HOME/trust-maintainer-bin/trust-registry"
+```
+
+Inspect and retain the expected executable digest. Use a new workspace path and replace CLI_PIN:
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-init \
+  --binary "$HOME/trust-maintainer-bin/trust-registry" --binary-sha256 CLI_PIN \
+  --interval-hours 168 --max-fetches 1 --id sheca-repository
+
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-info
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" check
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" status
+```
+
+Workspace mode supplies check parameters and queue directory for enqueue/refresh/history/record/status; direct conflicting options are refused. Offline acceptance and plan still take explicit originals and pins without workspace. Direct commands from stage 11 remain supported. Check rehashes the bounded binary before delegation. This is a local consistency check, not code signing or protection against malicious filesystem replacement between check and execution. Use trusted private parents and filesystem; config digest is informational and should be retained independently. Info does not verify binary bytes. A changed binary is blocked; no rebind/edit/migration command in this stage. Preserve old config and evidence; explicit reviewed rebind and configuration update are future work. Interrupted init can leave a partial directory; inspect it, never blindly overwrite it. No directory fsync. No automatic collection-to-semantic conversion, profile acceptance, trust decision, cloud resources or dependency changes. Four synthetic test methods added; current environment cannot clone GitHub (DNS) and has Go 1.23.2 only, so actual checkout tests and real page acceptance are pending.
