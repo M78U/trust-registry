@@ -22,12 +22,21 @@ func run()error{
 	install:=flag.Bool("install",false,"install verified snapshot and evidence into state")
 	authority:=flag.String("authority","","independently provisioned review authority file")
 	authorityPin:=flag.String("authority-sha256","","independent authority pin; enables strict mode")
+	checkpointSequence:=flag.Uint64("checkpoint-sequence",0,"independently retained strict release sequence")
+	checkpointHash:=flag.String("checkpoint-snapshot-sha256","","independently retained snapshot SHA-256")
+	checkpointRoot:=flag.Int64("checkpoint-root-version",0,"independently retained TUF root version")
 	flag.Parse()
 	if flag.NArg()!=0||*state==""||*meta==""||*targets==""||*pin==""||(*out=="")==(!*install){return errors.New("state, metadata-url, targets-url, root-sha256 and exactly one of out/install required")}
 	if *out!=""{if _,err:=os.Lstat(*out);err==nil{return errors.New("output exists")}else if !os.IsNotExist(err){return err}}
 	o:=tufclient.Options{StateDir:*state,MetadataURL:*meta,TargetsURL:*targets,InitialRootSHA256:*pin}
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
 	if *authority!=""{a,err:=tufclient.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err};o.ReviewAuthority=a}
+	checkpointRequested:=false
+	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	if checkpointRequested{
+		if o.ReviewAuthority==nil||*checkpointSequence==0||*checkpointHash==""||*checkpointRoot<1{return errors.New("strict authority and all three checkpoint flags required together")}
+		o.Checkpoint=&tufclient.ReleaseCheckpoint{Sequence:*checkpointSequence,SnapshotSHA256:*checkpointHash,RootVersion:*checkpointRoot}
+	}
 	if *root!=""{
 		i,err:=os.Lstat(*root);if err!=nil{return err}
 		if !i.Mode().IsRegular()||i.Size()>512000{return errors.New("invalid bootstrap root file")}

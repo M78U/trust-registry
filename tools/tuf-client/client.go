@@ -43,6 +43,7 @@ type Options struct {
 	InitialRootSHA256 string
 	BootstrapRoot []byte // only supplied on explicit first initialization
 	ReviewAuthority *review.Authority // independent pin, strict mode when nonnil
+	Checkpoint *ReleaseCheckpoint // optional external strict-release lower bound
 }
 
 type stateConfig struct {
@@ -68,6 +69,7 @@ type Report struct {
 	TargetsVersion int64 `json:"targetsVersion"`
 	Registry snapshot.Report `json:"registry"`
 	ApplicationRollbackStatus string `json:"applicationRollbackStatus"`
+	IndependentCheckpointChecked bool `json:"independentCheckpointChecked,omitempty"`
 	ReleaseAuthenticated bool `json:"releaseAuthenticated"`
 	ReleaseApproval *review.CredentialReport `json:"releaseApproval,omitempty"`
 	TrustStatus string `json:"trustStatus"`
@@ -147,6 +149,14 @@ func RefreshAndInstall(ctx context.Context,o Options)(Report,error){
 	return report,err
 }
 func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)([]byte,Report,error){
+	// Validate before creating or modifying any local state, or networking.
+	var checkpoint *ReleaseCheckpoint
+	if o.Checkpoint!=nil{
+		c:=*o.Checkpoint
+		if o.ReviewAuthority==nil{return nil,Report{},errors.New("independent checkpoint requires strict review authority")}
+		if err:=c.validate();err!=nil{return nil,Report{},err}
+		checkpoint=&c
+	}
 	metaURL,err:=baseURL(o.MetadataURL);if err!=nil{return nil,Report{},err}
 	targetURL,err:=baseURL(o.TargetsURL);if err!=nil{return nil,Report{},err}
 	if o.StateDir==""||!hashPattern.MatchString(o.InitialRootSHA256){return nil,Report{},errors.New("state directory and independent initial root SHA-256 required")}
@@ -214,6 +224,10 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 		if tg.Signed.Version!=trusted.Timestamp.Signed.Version||tg.Signed.Version!=trusted.Snapshot.Signed.Version{return nil,Report{},errors.New("strict metadata sequence mismatch")}
 		v,err:=checkPublicCredential(o.ReviewAuthority,capture.chain,o.InitialRootSHA256,info,tg.Signed.Version,tg.Signed.Expires,trusted.Snapshot.Signed.Expires,trusted.Timestamp.Signed.Expires,time.Now().UTC());if err!=nil{return nil,Report{},err}
 		releaseApproval=&v
+		if checkpoint!=nil{
+			if tg.Signed.Version<1{return nil,Report{},errors.New("invalid strict release sequence")}
+			if err:=checkpoint.check(uint64(tg.Signed.Version),hex.EncodeToString(info.Hashes["sha256"]),rr.RootVersion);err!=nil{return nil,Report{},err}
+		}
 	}
 	// Temporary file is only transport staging; do not leave a mutable
 	// target in the trusted metadata directory.
@@ -228,9 +242,12 @@ func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)
 		if trusted.Targets[metadata.TARGETS].Signed.Version<1||uint64(trusted.Targets[metadata.TARGETS].Signed.Version)!=reg.Manifest.Sequence{return nil,Report{},errors.New("credential snapshot sequence mismatch")}
 		// Signed context was verified before download and cannot change in
 		// this updater instance. Recheck expiry after the transfer.
-		if !now.Before(trusted.Timestamp.Signed.Expires){return nil,Report{},errors.New("release credential expired during download")}
+		if !now.Before(trusted.Timestamp.Signed.Expires)||!now.Before(trusted.Root.Signed.Expires)||!now.Before(trusted.Snapshot.Signed.Expires)||!now.Before(trusted.Targets[metadata.TARGETS].Signed.Expires){return nil,Report{},errors.New("release metadata expired during download")}
 	}
-	report:=Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
+	if checkpoint!=nil{
+		if err:=checkpoint.check(reg.Manifest.Sequence,reg.SnapshotSHA256,trusted.Root.Signed.Version);err!=nil{return nil,Report{},err}
+	}
+	report:=Report{IndependentCheckpointChecked:checkpoint!=nil,Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ReleaseApproval:releaseApproval,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
 	if install{
 		if err:=installEvidence(dir,o.InitialRootSHA256,raw,report,now);err!=nil{return nil,Report{},err}
 		report.ApplicationRollbackStatus="CHECKED_LOCAL_INSTALLATION"

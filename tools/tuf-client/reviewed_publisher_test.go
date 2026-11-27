@@ -130,6 +130,19 @@ func TestReviewedPublication(t *testing.T){
  if _,err:=OpenConsumer(badConsumer);err==nil{t.Fatal("wrong snapshot pin")}
  if _,err:=session.Diff(session,false);err==nil{t.Fatal("same sequence comparison")}
  if signedHits.Load()!=1{t.Fatal("offline SDK downloaded target")}
+ checkpoint,err:=session.Checkpoint();if err!=nil||checkpoint.Sequence!=1||checkpoint.RootVersion!=1||checkpoint.SnapshotSHA256!=digest(raw){t.Fatal(checkpoint,err)}
+ for _,badCheckpoint:=range []ReleaseCheckpoint{
+  {Sequence:2,SnapshotSHA256:digest(raw),RootVersion:1},
+  {Sequence:1,SnapshotSHA256:strings.Repeat("0",64),RootVersion:1},
+  {Sequence:1,SnapshotSHA256:digest(raw),RootVersion:2},
+ }{
+  opt:=strictOptions;opt.StateDir=filepath.Join(t.TempDir(),"bad-checkpoint");opt.Checkpoint=&badCheckpoint
+  if _,_,err:=refresh(context.Background(),opt,true,signedServer.Client());err==nil||signedHits.Load()!=1{t.Fatal("checkpoint rejection must precede target download",err)}
+ }
+ opt:=strictOptions;opt.StateDir=filepath.Join(t.TempDir(),"non-strict");opt.Checkpoint=&checkpoint;opt.ReviewAuthority=nil
+ if _,_,err:=refresh(context.Background(),opt,true,signedServer.Client());err==nil{t.Fatal("checkpoint accepted in research mode")}
+ if _,err:=os.Stat(opt.StateDir);!os.IsNotExist(err){t.Fatal("invalid option created state",err)}
+ if _,err:=(&ConsumerSession{}).Checkpoint();err==nil{t.Fatal("invalid session checkpoint")}
  if _,_,err:=LoadInstalled(strictOptions.StateDir,digest(root));err==nil{t.Fatal("strict offline downgrade")}
  strictOptions.BootstrapRoot=nil;strictOptions.ReviewAuthority=nil
  if _,_,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err==nil{t.Fatal("strict online downgrade")}
@@ -203,10 +216,10 @@ func TestReviewedPublication(t *testing.T){
   http.FileServer(http.Dir(currentDir.Load().(string))).ServeHTTP(w,req)
  }));defer staticServer.Close()
  state:=filepath.Join(t.TempDir(),"static-client")
- so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a}
- if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ so:=Options{StateDir:state,MetadataURL:staticServer.URL+"/tuf/metadata",TargetsURL:staticServer.URL+"/tuf/targets",InitialRootSHA256:digest(root),BootstrapRoot:root,ReviewAuthority:a,Checkpoint:&checkpoint}
+ if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=1||r.Registry.Manifest.Sequence!=1||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  currentDir.Store(assets2);so.BootstrapRoot=nil
- if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})
  if err!=nil{t.Fatal(err)}

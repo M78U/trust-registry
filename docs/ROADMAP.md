@@ -104,3 +104,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Certificate path impact (PR #50): explicit same-scope local path comparison, shared detached revocation evidence and optional replacement comparison; no production trust claim.
 
 - Strict authenticated consumer SDK (PR #51): offline verified installed sessions, expiry bound, independent checkpoint options, candidate/query/policy/path and live-session comparison APIs. SigLens integration and locked build pending.
+
+- Independent strict online refresh checkpoint: reject lower sequence/root and same-sequence conflicts before target download, recheck exact envelope, SDK checkpoint export and CLI flags. External storage and locked Go acceptance pending; no extra cloud operations.
