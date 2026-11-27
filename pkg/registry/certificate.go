@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
+
+	"github.com/emmansun/gmsm/sm2"
+	"github.com/emmansun/gmsm/smx509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -55,13 +58,22 @@ func ParseCertificate(input []byte) (CertificateRecord, []byte, error) {
 		}
 		der = block.Bytes
 	}
-	cert, err := x509.ParseCertificate(der)
+	cert, err := smx509.ParseCertificate(der)
 	if err != nil {
 		return CertificateRecord{}, nil, fmt.Errorf("parse X.509 certificate: %w", err)
 	}
 	if cert.SerialNumber == nil || cert.SerialNumber.Sign() <= 0 || !bytes.Equal(cert.Raw, der) {
 		return CertificateRecord{}, nil, errors.New("invalid serial or trailing DER")
 	}
+	keyAlgorithm := cert.PublicKeyAlgorithm.String()
+	sigAlgorithm := cert.SignatureAlgorithm.String()
+	// Preserve v0.1 standard-library metadata for already supported certificates.
+	if standard, err := x509.ParseCertificate(der); err == nil {
+		if standard.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm { keyAlgorithm = standard.PublicKeyAlgorithm.String() }
+		if standard.SignatureAlgorithm != x509.UnknownSignatureAlgorithm { sigAlgorithm = standard.SignatureAlgorithm.String() }
+	}
+	if sm2.IsSM2PublicKey(cert.PublicKey) { keyAlgorithm = "SM2" }
+	if cert.SignatureAlgorithm == smx509.SM2WithSM3 { sigAlgorithm = "SM2WithSM3" }
 	kind := "END_ENTITY"
 	if cert.IsCA {
 		kind = "CA_CANDIDATE"
@@ -70,8 +82,8 @@ func ParseCertificate(input []byte) (CertificateRecord, []byte, error) {
 		SchemaVersion: "1",
 		FingerprintSHA256: digest(der),
 		CertificateType: kind,
-		PublicKeyAlgorithm: cert.PublicKeyAlgorithm.String(),
-		SignatureAlgorithm: cert.SignatureAlgorithm.String(),
+		PublicKeyAlgorithm: keyAlgorithm,
+		SignatureAlgorithm: sigAlgorithm,
 		Subject: cert.Subject.String(),
 		Issuer: cert.Issuer.String(),
 		SerialNumber: cert.SerialNumber.Text(16),

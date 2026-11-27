@@ -29,7 +29,7 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry inspect FILE | import | list | find | provenance | validate") }
+	if len(args)==0 { return errors.New("usage: trust-registry inspect FILE | import | list | find | provenance | validate | discover") }
 	if args[0]=="inspect" {
 		if len(args)!=2 { return errors.New("usage: inspect FILE") }
 		input,err:=readInput(args[1])
@@ -53,6 +53,16 @@ func run(args []string,out io.Writer) error {
 		result,err:=s.Import(input,*source,time.Now())
 		if err!=nil { return err }
 		return encode.Encode(result)
+	case "discover":
+		if err:=flags.Parse(args[1:]); err!=nil { return err }
+		if flags.NArg()!=1 { return errors.New("usage: discover [--registry DIR] FILE") }
+		input,err:=readInput(flags.Arg(0))
+		if err!=nil { return err }
+		s,err:=registry.OpenStore(*root)
+		if err!=nil { return err }
+		report,err:=s.DiscoverIssuers(input)
+		if err!=nil { return err }
+		return encode.Encode(report)
 	case "list","validate":
 		if err:=flags.Parse(args[1:]); err!=nil { return err }
 		if flags.NArg()!=0 { return errors.New("unexpected positional arguments") }
