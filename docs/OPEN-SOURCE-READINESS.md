@@ -50,6 +50,6 @@ Use a protected workspace outside the checkout for acquisition originals, CA rev
 
 ## Test and license validation
 
-See RELEASE-VALIDATION.md for manual lock-candidate then locked acceptance. The isolated TUF module's go.sum is not yet committed at the time of this readiness PR. Do not hand-create checksum files. Review lockfile changes and actual dependencies, including license obligations, then record the successful tests and independent security review. No production trust release, signature ceremony, or actual CA-data approval is authorized by this gate.
+See RELEASE-VALIDATION.md for manual lock-candidate then locked acceptance. Both Go module lockfiles are committed as of #64. See [third-party notices](../THIRD-PARTY-NOTICES.md) for the scoped CLI license inventory added in #65. Re-run locked validation on the final candidate; do not hand-create checksum files. Review lockfile changes and actual dependencies, including license obligations, then record the successful tests and independent security review. No production trust release, signature ceremony, or actual CA-data approval is authorized by this gate.
 
 Only after all applicable gates are satisfied should the owner use GitHub repository Settings to change visibility. GitHub issues and historical material can become public too. This PR does not make the repository public, enable security settings, start workflows or deploy Cloudflare.
