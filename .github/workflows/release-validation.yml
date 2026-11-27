@@ -30,7 +30,7 @@ jobs:
           VALIDATION_MODE: ${{ inputs.mode }}
         run: node scripts/validate-release.mjs --mode="$VALIDATION_MODE" --report-dir=.release-validation
       - name: Preserve validation report, dependency candidates and license evidence
-        if: always()
+        if: ${{ always() && github.event.repository.private }}
         uses: actions/upload-artifact@v4
         with:
           name: release-validation-${{ github.run_id }}-${{ github.run_attempt }}
