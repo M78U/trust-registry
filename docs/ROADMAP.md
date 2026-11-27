@@ -59,4 +59,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Local emergency restrictions, append-only policy collection comparison, and fresh-evidence reauthorization guard: merged in #28. No production incident distribution, authenticated baseline ledger or global cross-policy kill switch.
 
-- Offline direct-issuer CRL and OCSP evidence inspection, explicit time cutoffs and conflict reporting: PR #29. Chain integration, evidence persistence and delegated responders remain pending.
+- Offline direct-issuer CRL and OCSP evidence inspection, explicit time cutoffs and conflict reporting: merged in #29. Chain integration, evidence persistence and delegated responders remain pending.
+
+- Private content-addressed revocation observations and all-path revocation inspection: PR #30. Independent local storage, explicit observation cutoff, no public snapshot/OCSP data publication or trust promotion.

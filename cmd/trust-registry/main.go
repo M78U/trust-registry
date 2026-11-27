@@ -14,6 +14,7 @@ import (
 	"github.com/M78U/trust-registry/pkg/policy"
 	"github.com/M78U/trust-registry/pkg/validation"
 	"github.com/M78U/trust-registry/pkg/sources"
+	"github.com/M78U/trust-registry/pkg/revocation"
 )
 
 func readInput(path string) ([]byte, error) {
@@ -33,7 +34,8 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | lifecycle | revocation | policy | sources | snapshot") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | lifecycle | revocation | revocation-store | policy | sources | snapshot") }
+	if args[0]=="revocation-store" { return runRevocationStore(args[1:],out) }
 	if args[0]=="revocation" { return runRevocation(args[1:],out) }
 	if args[0]=="snapshot" { return runSnapshot(args[1:],out) }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
@@ -111,6 +113,7 @@ func run(args []string,out io.Writer) error {
 		at:=flags.String("at","","evaluation time RFC3339")
 		known:=flags.String("known-at","","knowledge cutoff RFC3339")
 		dns:=flags.String("dns-name","","server authentication DNS name")
+		evidenceDir:=flags.String("revocation-store","","optional private offline evidence store")
 		if err:=flags.Parse(args[1:]);err!=nil{return err}
 		if flags.NArg()!=1||*file==""||*purpose==""||*at==""||*known==""{return errors.New("usage: verify-path --policy FILE --purpose PURPOSE --at RFC3339 --known-at RFC3339 CERT")}
 		e,err:=time.Parse(time.RFC3339Nano,*at);if err!=nil{return err}
@@ -118,6 +121,13 @@ func run(args []string,out io.Writer) error {
 		d,err:=policy.LoadDocument(*file);if err!=nil{return err}
 		input,err:=readInput(flags.Arg(0));if err!=nil{return err}
 		s,err:=registry.OpenStore(*root);if err!=nil{return err}
+		if *evidenceDir!=""{
+			store,err:=revocation.OpenEvidenceStore(*evidenceDir);if err!=nil{return err}
+			result,err:=validation.VerifyLocalPathWithRevocation(s,d,input,*purpose,*dns,e.UTC(),k.UTC(),store);if err!=nil{return err}
+			if err:=encode.Encode(result);err!=nil{return err}
+			if result.Path.PathStatus!="VALID_UNDER_EXPLICIT_CA_SET"||result.Revocation.Status!="NON_REVOKED_INDICATIONS_ONLY"||result.Revocation.HistoricalRevokedIndication{return errors.New("path or supplied revocation evidence incomplete or indicates risk")}
+			return nil
+		}
 		report,err:=validation.VerifyLocalPath(s,d,input,*purpose,*dns,e.UTC(),k.UTC());if err!=nil{return err}
 		if err:=encode.Encode(report);err!=nil{return err}
 		if report.Path.PathStatus!="VALID_UNDER_EXPLICIT_CA_SET"{return errors.New("no valid path under explicit local CA set")}

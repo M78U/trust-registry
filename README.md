@@ -111,3 +111,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ## Offline revocation evidence
 
 `trust-registry revocation --issuer issuer.cer --at RFC3339 --known-at RFC3339 --crl local.crl --ocsp local.ocsp signer.cer` verifies a direct issuer pair and explicitly supplied CRL/OCSP evidence. See [revocation evidence](docs/REVOCATION-EVIDENCE.md). No final GOOD status, network or trust grant.
+
+### Private revocation store and path checks
+
+`revocation-store init|import|list` manages local content-addressed CRL/OCSP observations. `verify-path --revocation-store DIR` checks every returned technical path using observations available by the explicit knowledge cutoff. SDK also supports the exact installed snapshot. No certificate trust grant, network or public evidence publication. See [private evidence storage](docs/REVOCATION-STORE.md).
