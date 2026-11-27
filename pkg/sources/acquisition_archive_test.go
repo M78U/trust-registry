@@ -105,3 +105,47 @@ func TestAcquisitionArchiveFailureLeavesNoRecord(t *testing.T){
  if _,err:=acquireArchived(context.Background(),client,c,endpoints,dir,e.ListingID,false);err==nil{t.Fatal("failed request archived")}
  entries,err:=os.ReadDir(dir);if err!=nil||len(entries)!=0{t.Fatal(entries,err)}
 }
+
+func TestLocalOriginalArchive(t *testing.T){
+ c,err:=SHECA();if err!=nil{t.Fatal(err)}
+ endpoints,err:=Endpoints();if err!=nil{t.Fatal(err)}
+ id:="uca-global-g2"
+ at:=time.Date(2026,11,27,0,0,0,0,time.UTC)
+ key,err:=ecdsa.GenerateKey(elliptic.P256(),rand.Reader);if err!=nil{t.Fatal(err)}
+ tpl:=&x509.Certificate{SerialNumber:big.NewInt(2),Subject:pkix.Name{CommonName:"Synthetic Local Original"},NotBefore:at,NotAfter:at.AddDate(1,0,0),BasicConstraintsValid:true,IsCA:true,KeyUsage:x509.KeyUsageCertSign}
+ der,err:=x509.CreateCertificate(rand.Reader,tpl,tpl,&key.PublicKey,key);if err!=nil{t.Fatal(err)}
+ h:=sha1.Sum(der)
+ for i:=range c.Entries{if c.Entries[i].ID==id{c.Entries[i].PublishedSHA1=hex.EncodeToString(h[:])}}
+ for i:=range endpoints{if endpoints[i].ListingID==id{v:=*endpoints[i].PublishedSHA256;v.Fingerprint=intakeHash(der);endpoints[i].PublishedSHA256=&v}}
+ dir:=t.TempDir()
+ if _,err:=archiveLocalOriginal(c,endpoints,dir,"uca-root-g2",der,at);err==nil{t.Fatal("legacy local archive accepted")}
+ if _,err:=archiveLocalOriginal(c,endpoints,dir,id,[]byte("bad"),at);err==nil{t.Fatal("bad original accepted")}
+ receipt,err:=archiveLocalOriginal(c,endpoints,dir,id,der,at)
+ if err!=nil||receipt.ObservationMode!=localArchiveMode||receipt.Status!="NEW_LOCAL_ORIGINAL_ARCHIVED"||receipt.FetchOperations!=0||receipt.PinMatched{t.Fatal(receipt,err)}
+ a,b,err:=readArchive(c,endpoints,dir,id,receipt.ArchiveSHA256)
+ if err!=nil||a.SchemaVersion!="2"||a.Report.AcquisitionStatus!="ARCHIVED_LOCAL_ORIGINAL_OBSERVATION"||a.Report.Preview.Provenance.SourceURL!=c.RepositoryURL||!bytes.Equal(a.Raw,der){t.Fatal(a,err)}
+ legacy,err:=buildArchive(c,endpoints,id,der,at,false);if err!=nil{t.Fatal(err)}
+ legacyBytes,err:=archiveBytes(legacy);if err!=nil{t.Fatal(err)}
+ if bytes.Contains(legacyBytes,[]byte("observationMode"))||legacy.SchemaVersion!="1"||legacy.Report.Preview.Provenance.SourceURL==c.RepositoryURL{t.Fatal("legacy encoding changed")}
+ if _,err:=decodeArchive(c,endpoints,id,bytes.Replace(b,[]byte(`"schemaVersion":"2"`),[]byte(`"schemaVersion":"1"`),1),"");err==nil{t.Fatal("mode downgrade accepted")}
+ again,err:=archiveLocalOriginal(c,endpoints,dir,id,der,at)
+ if err!=nil||again.Status!="EXISTING_LOCAL_ORIGINAL_REUSED"||again.ArchiveSHA256!=receipt.ArchiveSHA256{t.Fatal(again,err)}
+ if _,err:=archiveLocalOriginal(c,endpoints,dir,id,der,at.Add(time.Second));err==nil{t.Fatal("overwrote observation time")}
+ hits:=0
+ client:=&http.Client{Transport:roundTripFunc(func(*http.Request)(*http.Response,error){hits++;return nil,io.EOF})}
+ if _,err:=acquireArchived(context.Background(),client,c,endpoints,dir,id,false);err==nil||hits!=0{t.Fatal("local archive masqueraded as download")}
+ s,err:=registry.OpenStore(t.TempDir());if err!=nil{t.Fatal(err)}
+ if _,err:=s.Init();err!=nil{t.Fatal(err)}
+ r,err:=importArchived(s,c,endpoints,dir,id,receipt.ArchiveSHA256)
+ if err!=nil||r.Import.Provenance.SourceURL!=c.RepositoryURL||r.Import.Provenance.SourceFileSHA256!=intakeHash(der){t.Fatal(r,err)}
+ batch,err:=importArchivedBatch(s,c,endpoints,dir,[]AcquisitionArchiveReference{{ListingID:id,SHA256:receipt.ArchiveSHA256}})
+ if err!=nil||batch.After==nil||batch.After.ProvenanceRecords!=1||batch.Imports[0].Import.ProvenanceID!=r.Import.ProvenanceID{t.Fatal(batch,err)}
+ m,err:=MultiCA();if err!=nil{t.Fatal(err)}
+ idx,err:=s.BuildIndex();if err!=nil{t.Fatal(err)}
+ coverage,err:=acquisitionCoverage(c,endpoints,m,idx);if err!=nil{t.Fatal(err)}
+ if coverage.Counts.MatchingSourceAssertionRows!=0{t.Fatal("local original counted as download URL assertion")}
+ opts:=AcquisitionArchiveOptions{ArchiveDir:dir,Archives:[]AcquisitionArchiveReference{{ListingID:id,SHA256:receipt.ArchiveSHA256}},Technical:true}
+ if err:=attachArchiveCoverage(&coverage,c,endpoints,m,idx,opts);err!=nil{t.Fatal(err)}
+ v:=coverage.ArchiveCoverage
+ if v==nil||v.MatchedProvenanceRecords!=1||v.Archives[0].ObservationMode!=localArchiveMode||v.TechnicalEvidence==nil||len(v.TechnicalEvidence.Graph.Nodes)!=1{t.Fatal(v)}
+}

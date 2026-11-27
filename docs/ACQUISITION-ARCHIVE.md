@@ -58,3 +58,16 @@ Replace all pins with independently retained lowercase SHA-256 values. If acquis
 Then perform real certificate relationship/usage analysis and independent source/fingerprint and redistribution review with the existing review workspace. The v0.2 milestone remains incomplete until actual acquired data and evidence are validated; no production defaults, release tag, CA dataset or publication in this PR. No Cloudflare operations. Synthetic fake-transport test covers preflight, interrupted batch, reuse, wrong last pin with zero writes and idempotent exact import. Full Go 1.26 execution pending.
 
 For the technical part of v0.2 acceptance, repeat the existing acquisition-coverage invocation with `--technical` and retain the private report. It derives direct issuer relationships and constraints from the exact pinned original certificate set; follow up with independent source, CP/CPS, intended usage and redistribution review. See [technical evidence](CA-ACQUISITION-COVERAGE.md#v02-technical-evidence-from-original-certificates). Do not infer document-signing permission from key usage or from a matching root-list fingerprint.
+
+## Local original fallback (no automatic network receipt)
+
+If the fixed endpoint is unavailable in the CLI environment, manually obtain the original certificate through a source you independently checked. For the same SHECA SHA-256-backed listing, archive that file offline:
+
+```sh
+trust-registry sources archive-local --archive private-acquisitions \
+  --id uca-global-g2 --recorded-at CURRENT_RFC3339 original.cer
+```
+
+Use an explicit observation time, not the certificate issuance time. No URL is fetched or inferred. Exact SHA-1 catalog cross-check and independent published SHA-256 are both required; no legacy-only mode. New local original archive schema 2 explicitly records observationMode=LOCAL_ORIGINAL and acquisitionStatus=ARCHIVED_LOCAL_ORIGINAL_OBSERVATION. The provenance URL is the SHECA official catalog context, not the fixed binary download endpoint or proof of where the file was obtained. Retain the actual receipt/source evidence independently for human review. FetchOperations=0. The original bytes are retained exactly, and the receipt is not independently pinned until reviewed by the operator.
+
+The existing archive-inspect, archive-original, archive-import, archive-import-batch, acquisition-coverage --technical and review workspace accept the independently retained archive digest and replay the same local observation semantics. Exact provenance uses the catalog URL and original digest/time; the preexisting download-URL assertion counter remains separate and may be zero for a matched local archive. A local record cannot be silently reused as a successful online fetch; use a different directory for a fresh online observation. Byte-identical local archival retry reuses the prior record; changed bytes, time or mode fail rather than overwrite. Existing schema 1 downloads retain exact canonical encoding and provenance. No new network or Cloudflare calls, trust authorization or automatic rights approval. Local-input bytes must not be published without review.

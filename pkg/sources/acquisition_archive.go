@@ -26,6 +26,7 @@ type AcquisitionArchive struct {
  CatalogSHA256 string `json:"catalogSHA256"`
  EndpointsSHA256 string `json:"endpointsSHA256"`
  RecordedAt time.Time `json:"recordedAt"`
+ ObservationMode string `json:"observationMode,omitempty"`
  LegacyOnlyAllowed bool `json:"legacyOnlyAllowed"`
  Report AcquisitionReport `json:"report"`
  Raw []byte `json:"raw"`
@@ -38,6 +39,7 @@ type ArchiveReceipt struct {
  RecordedAt time.Time `json:"recordedAt"`
  Status string `json:"status"`
  FetchOperations int `json:"fetchOperations"`
+ ObservationMode string `json:"observationMode,omitempty"`
  PinMatched bool `json:"pinMatched"`
  ObservationAuthentication string `json:"observationAuthentication"`
  TrustStatus string `json:"trustStatus"`
@@ -64,21 +66,35 @@ func archiveEndpoint(endpoints []Endpoint,id string)(Endpoint,error){
  return match,nil
 }
 func buildArchive(c Catalog,endpoints []Endpoint,id string,raw []byte,at time.Time,legacy bool)(AcquisitionArchive,error){
+ return buildArchiveObservation(c,endpoints,id,raw,at,legacy,"")
+}
+const localArchiveMode="LOCAL_ORIGINAL"
+func buildArchiveObservation(c Catalog,endpoints []Endpoint,id string,raw []byte,at time.Time,legacy bool,mode string)(AcquisitionArchive,error){
  if !intakeTime(at)||len(raw)==0||len(raw)>registry.MaxCertificateInput{return AcquisitionArchive{},errors.New("invalid original certificate bytes or UTC time")}
+ if mode!=""&&mode!=localArchiveMode{return AcquisitionArchive{},errors.New("unknown archive observation mode")}
  e,err:=archiveEndpoint(endpoints,id);if err!=nil{return AcquisitionArchive{},err}
  if e.PublishedSHA256==nil&&!legacy{return AcquisitionArchive{},errors.New("legacy-only observation requires explicit opt-in")}
  report,err:=inspectEndpoint(c,e,raw,at);if err!=nil{return AcquisitionArchive{},err}
- cert,prov,_,err:=registry.ImportCandidate(raw,e.DownloadURL,at);if err!=nil{return AcquisitionArchive{},err}
+ source:=e.DownloadURL
+ if mode==localArchiveMode{
+  if legacy||e.PublishedSHA256==nil{return AcquisitionArchive{},errors.New("local archive requires exact published SHA-256")}
+  // The catalog is context for identity comparison, not an asserted
+  // download endpoint or evidence that the CA supplied these bytes.
+  source=c.RepositoryURL
+ }
+ cert,prov,_,err:=registry.ImportCandidate(raw,source,at);if err!=nil{return AcquisitionArchive{},err}
  if err:=schemas.ValidateValue(schemas.Certificate,cert);err!=nil{return AcquisitionArchive{},err}
  if err:=schemas.ValidateValue(schemas.Provenance,prov);err!=nil{return AcquisitionArchive{},err}
  report.Preview.Provenance=prov
  // Stored assertion only. Reconstructing it offline does not prove HTTP
  // retrieval or receipt time; both remain unauthenticated observations.
  report.AcquisitionStatus="ARCHIVED_DOWNLOAD_OBSERVATION"
+ if mode==localArchiveMode{report.AcquisitionStatus="ARCHIVED_LOCAL_ORIGINAL_OBSERVATION"}
  report.OriginalFileSaved=true
  cb,err:=json.Marshal(c);if err!=nil{return AcquisitionArchive{},err}
  eb,err:=json.Marshal(endpoints);if err!=nil{return AcquisitionArchive{},err}
- return AcquisitionArchive{SchemaVersion:"1",ListingID:id,CatalogSHA256:intakeHash(cb),EndpointsSHA256:intakeHash(eb),RecordedAt:at,LegacyOnlyAllowed:legacy,Report:report,Raw:bytes.Clone(raw)},nil
+ version:="1";if mode==localArchiveMode{version="2"}
+ return AcquisitionArchive{SchemaVersion:version,ListingID:id,CatalogSHA256:intakeHash(cb),EndpointsSHA256:intakeHash(eb),RecordedAt:at,ObservationMode:mode,LegacyOnlyAllowed:legacy,Report:report,Raw:bytes.Clone(raw)},nil
 }
 func archiveDir(dir string)error{
  if strings.TrimSpace(dir)==""{return errors.New("explicit existing private archive directory required")}
@@ -90,14 +106,14 @@ func decodeArchive(c Catalog,endpoints []Endpoint,id string,b []byte,pin string)
  var a AcquisitionArchive
  if len(b)==0||len(b)>MaxAcquisitionArchiveBytes||pin!=""&&(!sha256Pattern.MatchString(pin)||intakeHash(b)!=pin){return a,errors.New("acquisition archive size or pin mismatch")}
  if err:=json.Unmarshal(b,&a);err!=nil{return a,err}
- if a.ListingID!=id||a.SchemaVersion!="1"{return AcquisitionArchive{},errors.New("archive identity mismatch")}
- fresh,err:=buildArchive(c,endpoints,id,a.Raw,a.RecordedAt,a.LegacyOnlyAllowed);if err!=nil{return AcquisitionArchive{},err}
+ if a.ListingID!=id||!((a.SchemaVersion=="1"&&a.ObservationMode=="")||(a.SchemaVersion=="2"&&a.ObservationMode==localArchiveMode)){return AcquisitionArchive{},errors.New("archive identity or observation mode mismatch")}
+ fresh,err:=buildArchiveObservation(c,endpoints,id,a.Raw,a.RecordedAt,a.LegacyOnlyAllowed,a.ObservationMode);if err!=nil{return AcquisitionArchive{},err}
  canonical,err:=archiveBytes(fresh)
  if err!=nil||!bytes.Equal(canonical,b){return AcquisitionArchive{},errors.New("archive bytes, metadata or current source catalog mismatch")}
  return fresh,nil
 }
 func makeArchiveReceipt(a AcquisitionArchive,b []byte,status string,ops int,pinned bool)ArchiveReceipt{
- return ArchiveReceipt{ListingID:a.ListingID,ArchiveSHA256:intakeHash(b),SourceFileSHA256:a.Report.Preview.Provenance.SourceFileSHA256,CertificateSHA256:a.Report.Preview.Certificate.FingerprintSHA256,RecordedAt:a.RecordedAt,Status:status,FetchOperations:ops,PinMatched:pinned,ObservationAuthentication:"NOT_ESTABLISHED",TrustStatus:"NOT_ESTABLISHED"}
+ return ArchiveReceipt{ListingID:a.ListingID,ArchiveSHA256:intakeHash(b),SourceFileSHA256:a.Report.Preview.Provenance.SourceFileSHA256,CertificateSHA256:a.Report.Preview.Certificate.FingerprintSHA256,RecordedAt:a.RecordedAt,Status:status,FetchOperations:ops,ObservationMode:a.ObservationMode,PinMatched:pinned,ObservationAuthentication:"NOT_ESTABLISHED",TrustStatus:"NOT_ESTABLISHED"}
 }
 func readArchive(c Catalog,endpoints []Endpoint,dir,id,pin string)(AcquisitionArchive,[]byte,error){
  if _,err:=archiveEndpoint(endpoints,id);err!=nil{return AcquisitionArchive{},nil,err}
@@ -134,6 +150,7 @@ func acquireArchived(ctx context.Context,client *http.Client,c Catalog,endpoints
  path:=filepath.Join(dir,id+".json")
  if _,err:=os.Lstat(path);err==nil{
   a,b,err:=readArchive(c,endpoints,dir,id,"");if err!=nil{return ArchiveReceipt{},err}
+  if a.ObservationMode==localArchiveMode{return ArchiveReceipt{},errors.New("local original archive exists; use its independent pin or a new directory for an online observation")}
   return makeArchiveReceipt(a,b,"EXISTING_LOCAL_OBSERVATION_REUSED",0,false),nil
  }else if !os.IsNotExist(err){return ArchiveReceipt{},err}
  raw,report,err:=fetchBytes(ctx,client,c,e,legacy);if err!=nil{return ArchiveReceipt{},err}
@@ -168,9 +185,34 @@ func importArchived(s *registry.Store,c Catalog,endpoints []Endpoint,dir,id,pin 
  if s==nil||!sha256Pattern.MatchString(pin){return ArchiveImportReport{},errors.New("initialized inventory and independent archive pin required")}
  a,b,err:=readArchive(c,endpoints,dir,id,pin);if err!=nil{return ArchiveImportReport{},err}
  if _,err:=s.Validate();err!=nil{return ArchiveImportReport{},err}
- result,err:=s.Import(a.Raw,a.Report.Endpoint.DownloadURL,a.RecordedAt);if err!=nil{return ArchiveImportReport{},err}
+ result,err:=s.Import(a.Raw,a.Report.Preview.Provenance.SourceURL,a.RecordedAt);if err!=nil{return ArchiveImportReport{},err}
  r:=ArchiveImportReport{Receipt:makeArchiveReceipt(a,b,"PINNED_LOCAL_OBSERVATION_VERIFIED",0,true),Import:result,Status:"LOCAL_IMPORT_WRITTEN_VALIDATION_PENDING",TrustStatus:"NOT_ESTABLISHED"}
  if _,err:=s.Validate();err!=nil{return r,err}
  r.Status="UNREVIEWED_ARCHIVED_CANDIDATE_IMPORTED"
  return r,nil
+}
+
+// ArchiveLocalOriginal stores explicitly supplied local original bytes in the
+// same private archive workflow, but never claims a network observation.
+// The returned digest must be independently retained before subsequent use.
+func ArchiveLocalOriginal(dir,id string,raw []byte,at time.Time)(ArchiveReceipt,error){
+ c,err:=SHECA();if err!=nil{return ArchiveReceipt{},err}
+ endpoints,err:=Endpoints();if err!=nil{return ArchiveReceipt{},err}
+ return archiveLocalOriginal(c,endpoints,dir,id,raw,at)
+}
+func archiveLocalOriginal(c Catalog,endpoints []Endpoint,dir,id string,raw []byte,at time.Time)(ArchiveReceipt,error){
+ a,err:=buildArchiveObservation(c,endpoints,id,raw,at,false,localArchiveMode);if err!=nil{return ArchiveReceipt{},err}
+ b,err:=archiveBytes(a);if err!=nil{return ArchiveReceipt{},err}
+ if err:=archiveDir(dir);err!=nil{return ArchiveReceipt{},err}
+ lock:=filepath.Join(dir,id+".lock")
+ if err:=os.Mkdir(lock,0700);err!=nil{return ArchiveReceipt{},fmt.Errorf("acquisition locked: %w",err)}
+ defer os.Remove(lock)
+ path:=filepath.Join(dir,id+".json")
+ if _,err:=os.Lstat(path);err==nil{
+  existing,previous,err:=readArchive(c,endpoints,dir,id,"");if err!=nil{return ArchiveReceipt{},err}
+  if !bytes.Equal(previous,b){return ArchiveReceipt{},errors.New("existing archive differs; choose a new private directory")}
+  return makeArchiveReceipt(existing,previous,"EXISTING_LOCAL_ORIGINAL_REUSED",0,false),nil
+ }else if !os.IsNotExist(err){return ArchiveReceipt{},err}
+ if err:=commitArchive(dir,id,b);err!=nil{return ArchiveReceipt{},err}
+ return makeArchiveReceipt(a,b,"NEW_LOCAL_ORIGINAL_ARCHIVED",0,false),nil
 }
