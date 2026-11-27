@@ -108,3 +108,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Independent strict online refresh checkpoint: reject lower sequence/root and same-sequence conflicts before target download, recheck exact envelope, SDK checkpoint export and CLI flags. External storage and locked Go acceptance pending; no extra cloud operations.
 
 - Recoverable final strict installation commit: private complete pending evidence journal outside immutable history, no-replacement link, explicit offline recovery with exact current cache/root/credential and optional checkpoint, idempotent post-link cleanup. Earlier TUF metadata/root interruptions and locked Go acceptance remain pending.
+
+- Explicit strict forward root-cache recovery: repair only an intact signed archive ahead of an exact cached prefix, pinned destination, authority role separation, installed baseline and no rollback metadata removal. Offline repair is not release acceptance; normal strict refresh still required. Other metadata interruption repair and locked Go validation pending.
