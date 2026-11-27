@@ -2,15 +2,37 @@ package schemas
 
 import (
 	"encoding/json"
+	"io/fs"
 	"strings"
 	"testing"
 )
 
 func TestEmbeddedSchemas(t *testing.T) {
 	loadOnce.Do(compileAll)
-	if compileErr!=nil || len(compiled)!=6 { t.Fatalf("schema compilation: %v",compileErr) }
-	for name:=range compiled {
-		if err:=ValidateJSON(name,[]byte("{}"));err==nil { t.Fatalf("empty object accepted: %s",name) }
+	if compileErr != nil {
+		t.Fatalf("schema compilation: %v", compileErr)
+	}
+	names, err := fs.Glob(files, "*.schema.json")
+	if err != nil || len(names) == 0 {
+		t.Fatalf("enumerate embedded schemas: %v (count %d)", err, len(names))
+	}
+	if len(compiled) != len(names) {
+		t.Fatalf("compiled schema count %d, embedded schema count %d", len(compiled), len(names))
+	}
+	for _, name := range names {
+		if compiled[name] == nil {
+			t.Fatalf("embedded schema not compiled: %s", name)
+		}
+		if err := ValidateJSON(name, []byte("{}")); err == nil {
+			t.Fatalf("empty object accepted: %s", name)
+		}
+	}
+	// Keep both review schemas explicitly covered, even if a future change
+	// removes one from both the embedded files and compiler registration.
+	for _, name := range []string{Certificate, Provenance, Policy, ProvenanceReview, Decision, PolicyDocument, ReleaseReview, ReviewAuthority} {
+		if compiled[name] == nil {
+			t.Fatalf("required schema missing: %s", name)
+		}
 	}
 	if err:=ValidateJSON("https://example.org/external.json",[]byte("{}"));err==nil { t.Fatal("external schema accepted") }
 }
