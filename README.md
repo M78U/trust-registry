@@ -135,3 +135,7 @@ The experimental isolated `tuf-publish build-reviewed` mode requires a complete 
 ### Persistent local publication ledger
 
 `build-ledger` commits reviewed, exact TUF staging bytes under a protected local monotonic ledger; `ledger-export` exports the current valid head without re-signing. See [ledger](docs/PUBLICATION-LEDGER.md). Local build records are not evidence of online publication.
+
+### TUF root rotation (research)
+
+`tuf-publish rotate-root`, `verify-root-chain` and `build-rotated` support consecutive dual-authorized root updates and rotated research staging. The offline SDK verifies staged rotated repositories from independently pinned v1 and current roots. See [root rotation](docs/TUF-ROOT-ROTATION.md). Reviewed ledger and network installation remain v1-only pending migration.

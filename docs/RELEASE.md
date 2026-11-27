@@ -41,3 +41,5 @@ Local authenticated review approvals now support independent pinned role keys, t
 `build-reviewed` now enforces local threshold approval and exact previous snapshot transition checks before generating TUF staging metadata. Ordinary `build` remains a research-only alternative and is NOT a security boundary if the same keys are used outside the reviewed workflow. Separate review/production key custody and enforce the approved workflow externally. No persistent publisher state, live publication or root rotation; see PUBLICATION-GATE.md.
 
 The optional `build-ledger` mode uses a protected local publication ledger to select the latest committed build as baseline and commits the signed bytes before `ledger-export`. See PUBLICATION-LEDGER.md. Retain independent head receipts; no durable external anti-rollback proof or upload. Do not bypass this mode with experimental direct builders.
+
+Root rotation research tools are available (TUF-ROOT-ROTATION.md). Do not use rotated research outputs in the reviewed v1 ledger or production distribution. Historical root-chain persistence, reviewed rotation authorization, ledger integration and installed-state migration remain gates.

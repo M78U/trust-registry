@@ -57,7 +57,7 @@ func writeNew(path string,b []byte)error{
 	if _,err=f.Write(b);err==nil{err=f.Sync()};e:=f.Close();if err==nil{err=e};if err!=nil{_ = os.Remove(path)};return err
 }
 func run(args []string)error{
-	if len(args)==0{return errors.New("usage: tuf-publish root | build | build-reviewed | build-ledger | ledger-export")}
+	if len(args)==0{return errors.New("usage: tuf-publish root | rotate-root | verify-root-chain | build | build-rotated | build-reviewed | build-ledger | ledger-export")}
 	f:=flag.NewFlagSet(args[0],flag.ContinueOnError)
 	out:=f.String("out","","new output file or directory")
 	switch args[0]{
@@ -75,9 +75,11 @@ func run(args []string)error{
 		o.Signers,err=private(signer);if err!=nil{return err};defer wipe(o.Signers)
 		raw,err:=tuf.CreateRoot(o);if err!=nil{return err}
 		return writeNew(*out,raw)
+	case "rotate-root","verify-root-chain":
+		return runRotation(args[0],f,args[1:],out)
 	case "ledger-export":
 		return exportLedger(f,args[1:],out)
-	case "build","build-reviewed","build-ledger":
+	case "build","build-rotated","build-reviewed","build-ledger":
 		root:=f.String("root","","initial root metadata file")
 		pin:=f.String("root-sha256","","independently verified root hash")
 		ver:=f.Int64("version",0,"metadata version matching snapshot sequence")
@@ -87,12 +89,15 @@ func run(args []string)error{
 		tse:=f.String("timestamp-expires","","timestamp expiration")
 		var dossierPath,evidenceDir,authorityPath,authorityPin,approvalPath,previousPath,previousPin string
 		var bootstrap bool
+		var chainPaths rootPaths
+		var initialPin string
+		if args[0]=="build-rotated"{f.Var(&chainPaths,"root-chain","numbered root files in order (repeatable)");f.StringVar(&initialPin,"initial-root-sha256","","independent v1 root pin")}
 		var ledgerDir,expectedHead string
 		if args[0]=="build-ledger"{
 			f.StringVar(&ledgerDir,"ledger","","private publication ledger directory")
 			f.StringVar(&expectedHead,"expected-head","","optional independently retained record pin")
 		}
-		if args[0]!="build"{
+		if args[0]=="build-reviewed"||args[0]=="build-ledger"{
 			f.StringVar(&dossierPath,"dossier","","complete local review dossier")
 			f.StringVar(&evidenceDir,"evidence","","private evidence directory")
 			f.StringVar(&authorityPath,"authority","","independent role key configuration")
@@ -116,7 +121,7 @@ func run(args []string)error{
 		raw,err:=read(f.Arg(0),snapshot.MaxEnvelopeBytes);if err!=nil{return err}
 		var repo tuf.Repository
 		var reviewed *tuf.ReviewedPublicationReport
-		if args[0]!="build"{
+		if args[0]=="build-reviewed"||args[0]=="build-ledger"{
 			if dossierPath==""||evidenceDir==""||authorityPath==""||authorityPin==""||approvalPath==""{return errors.New("reviewed mode requires dossier, evidence, authority pin and approval")}
 			if args[0]=="build-ledger"{if previousPath!=""||previousPin!=""{return errors.New("ledger selects previous baseline automatically")}}else if bootstrap&&(previousPath!=""||previousPin!="")||!bootstrap&&(previousPath==""||previousPin==""){return errors.New("explicit bootstrap or previous snapshot and independent pin required")}
 			db,err:=read(dossierPath,review.MaxDossierBytes);if err!=nil{return err}
@@ -134,6 +139,10 @@ func run(args []string)error{
 			}
 			result,report,err:=tuf.BuildReviewedRepository(rb,raw,options);if err!=nil{return err}
 			repo=result;reviewed=&report
+		}else if args[0]=="build-rotated"{
+			chain,err:=loadRootChain(chainPaths);if err!=nil{return err}
+			if !bytes.Equal(rb,chain[len(chain)-1]){return errors.New("root does not match final chain element")}
+			repo,_,err=tuf.BuildRotatedRepository(chain,initialPin,raw,o);if err!=nil{return err}
 		}else{repo,err=tuf.BuildRepository(rb,raw,o);if err!=nil{return err}}
 		// Output is a fresh local staging directory, not a live repository.
 		if err:=os.Mkdir(*out,0700);err!=nil{return err}
