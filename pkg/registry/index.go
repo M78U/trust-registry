@@ -135,7 +135,7 @@ func (q Query) filters() (map[string]string,error) {
 	if q.Fingerprint!="" && !validFingerprint(q.Fingerprint) || q.After!="" && !validFingerprint(q.After) { return nil,errors.New("invalid fingerprint or cursor") }
 	if !hexString(q.SKI,true) || !hexString(q.AKI,true) || !hexString(q.Serial,false) || strings.HasPrefix(q.Serial,"0") { return nil,errors.New("invalid canonical hexadecimal search key") }
 	host:=strings.ToLower(q.SourceHost)
-	if strings.ContainsAny(host,"/\\?#@ \\t\\r\\n") { return nil,errors.New("source-host must be a hostname, not a URL") }
+	if strings.ContainsAny(host,"/\\?#@ \t\r\n") { return nil,errors.New("source-host must be a hostname, not a URL") }
 	f:=map[string]string{fieldFingerprint:q.Fingerprint,fieldSubject:q.Subject,fieldIssuer:q.Issuer,fieldSerial:q.Serial,fieldSKI:q.SKI,fieldAKI:q.AKI,fieldKey:q.PublicKeyAlgorithm,fieldSignature:q.SignatureAlgorithm,fieldHost:host}
 	for k,v:=range f {
 		if len(v)>maxRecordBytes { return nil,fmt.Errorf("search key too long: %s",k) }
