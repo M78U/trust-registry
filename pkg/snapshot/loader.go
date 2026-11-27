@@ -36,20 +36,7 @@ func LoadResearch(root string,o InstallationOptions)(*Loaded,InstallationReport,
 		if latest==""{return errors.New("no installed snapshot")}
 		rec,err:=readInstalled(filepath.Join(dir,latest));if err!=nil{return err}
 		auth,err:=authenticateInstalled(rec,config,o,o.At);if err!=nil{return err}
-		var env Envelope
-		if err:=json.Unmarshal(rec.Snapshot,&env);err!=nil{return err}
-		v:=&Loaded{payload:env.Payload,policies:make(map[policyKey][]byte),loadedAt:o.At}
-		for _,f:=range env.Payload{
-			if strings.HasPrefix(f.Path,"policies/"){
-				d,err:=policy.DecodeDocument(f.Data);if err!=nil{return err}
-				v.policies[policyKey{d.Policy.ID,d.Policy.Version}]=f.Data
-			}
-		}
-		if err:=v.withStore(func(s *registry.Store)error{
-			var err error
-			v.index,err=s.BuildIndex()
-			return err
-		});err!=nil{return err}
+		v,err:=loadView(rec.Snapshot,o.At);if err!=nil{return err}
 		view=v;result=reportInstalled("LOADED_RESEARCH_SNAPSHOT",rec,auth)
 		return nil
 	})
@@ -100,4 +87,32 @@ func (v *Loaded) VerifyLocalPath(input []byte,id string,version int,purpose,dnsN
 	})
 	if err!=nil{return validation.LocalPathReport{},err}
 	return report,nil
+}
+
+// LoadPinnedResearch checks exact caller-pinned envelope bytes, time and
+// semantic integrity. A digest pin alone is NOT release authentication.
+// The caller is responsible for independently authenticating the digest.
+func LoadPinnedResearch(raw []byte,expectedSHA256 string,at time.Time)(*Loaded,Report,error){
+	if !hashPattern.MatchString(expectedSHA256)||digest(raw)!=expectedSHA256||!utc(at){return nil,Report{},errors.New("explicit snapshot digest and UTC time required")}
+	r,err:=Verify(raw,"");if err!=nil{return nil,Report{},err}
+	if at.Before(r.Manifest.CreatedAt)||!at.Before(r.Manifest.ExpiresAt){return nil,Report{},errors.New("snapshot outside declared validity window")}
+	v,err:=loadView(raw,at);if err!=nil{return nil,Report{},err}
+	return v,r,nil
+}
+func loadView(raw []byte,at time.Time)(*Loaded,error){
+	var env Envelope
+	if err:=json.Unmarshal(raw,&env);err!=nil{return nil,err}
+	v:=&Loaded{payload:env.Payload,policies:make(map[policyKey][]byte),loadedAt:at}
+	for _,f:=range env.Payload{
+		if strings.HasPrefix(f.Path,"policies/"){
+			d,err:=policy.DecodeDocument(f.Data);if err!=nil{return nil,err}
+			v.policies[policyKey{d.Policy.ID,d.Policy.Version}]=f.Data
+		}
+	}
+	if err:=v.withStore(func(s *registry.Store)error{
+		var err error
+		v.index,err=s.BuildIndex()
+		return err
+	});err!=nil{return nil,err}
+	return v,nil
 }

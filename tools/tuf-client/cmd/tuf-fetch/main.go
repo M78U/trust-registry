@@ -19,9 +19,10 @@ func run()error{
 	pin:=flag.String("root-sha256","","independently obtained initial root SHA-256")
 	root:=flag.String("bootstrap-root","","independently obtained root.json for first use")
 	out:=flag.String("out","","new local snapshot output file")
+	install:=flag.Bool("install",false,"install verified snapshot and evidence into state")
 	flag.Parse()
-	if flag.NArg()!=0||*state==""||*meta==""||*targets==""||*pin==""||*out==""{return errors.New("state, metadata-url, targets-url, root-sha256 and out required")}
-	if _,err:=os.Lstat(*out);err==nil{return errors.New("output exists")}else if !os.IsNotExist(err){return err}
+	if flag.NArg()!=0||*state==""||*meta==""||*targets==""||*pin==""||(*out=="")==(!*install){return errors.New("state, metadata-url, targets-url, root-sha256 and exactly one of out/install required")}
+	if *out!=""{if _,err:=os.Lstat(*out);err==nil{return errors.New("output exists")}else if !os.IsNotExist(err){return err}}
 	o:=tufclient.Options{StateDir:*state,MetadataURL:*meta,TargetsURL:*targets,InitialRootSHA256:*pin}
 	if *root!=""{
 		i,err:=os.Lstat(*root);if err!=nil{return err}
@@ -31,6 +32,7 @@ func run()error{
 		if !os.SameFile(i,s){return errors.New("root file changed")}
 		o.BootstrapRoot,err=io.ReadAll(io.LimitReader(f,512001));if err!=nil{return err}
 	}
+	if *install{report,err:=tufclient.RefreshAndInstall(context.Background(),o);if err!=nil{return err};return json.NewEncoder(os.Stdout).Encode(report)}
 	raw,report,err:=tufclient.Refresh(context.Background(),o);if err!=nil{return err}
 	f,err:=os.OpenFile(*out,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600);if err!=nil{return err}
 	if _,err=f.Write(raw);err==nil{err=f.Sync()}

@@ -1,0 +1,14 @@
+# Experimental TUF authenticated installation
+
+The opt-in TUF module now supports RefreshAndInstall and LoadInstalled. Use tuf-fetch with --install instead of --out. The same TUF metadata lock covers online refresh, validation and installation. Each installed version is one canonical JSON record with exact signed metadata and Registry bytes, acceptance time, sequence and hash. File sync and same-directory no-replacement hard link publish complete records; no automatic pruning, 128-record limit, no directory fsync guarantee. Unexpected files or corrupt newest record fail closed. Do not delete history or restore old backups. Local filesystem and state parents must be protected against hostile changes. Failed installation may have advanced TUF metadata; no automatic reset. A separate download-only operation does not change the accepted installed snapshot.
+
+For this first implementation only, the independently pinned initial root v1 and publisher's version-aligned profile are supported. Offline validation uses upstream trustedmetadata.New, UpdateTimestamp, UpdateSnapshot(false), UpdateTargets and VerifyLengthHashes; explicit required SHA-256 links and application sequence equality are checked. Root rotation evidence is not yet retained; installation rejects rotated roots and offline loading rejects a known changed cached root. Offline loading cannot detect a newer remotely published version or revocation absent a refresh; checks all stored expiry dates at reliable system time. An expired prior installation is checked at its recorded acceptance time only for advancing the checkpoint. Same-sequence changed metadata or payload is rejected, as is a lower sequence. No trust granted by a signed research snapshot.
+
+Core SDK LoadPinnedResearch accepts an independently authenticated exact envelope digest and explicit UTC time; alone it is only an equality/integrity check, not a TUF verifier. The TUF adapter validates evidence first, then returns a detached read-only Loaded view with Find, Search, Policy and VerifyLocalPath. No network during load. Report contains TUF target authentication, versions and registry digest; releaseAuthenticated remains false and trustStatus NOT_ESTABLISHED. Reopen per verification session. No private keys or signer documents stored.
+
+```sh
+cd tools/tuf-client
+go run ./cmd/tuf-fetch --state STATE --metadata-url HTTPS_METADATA --targets-url HTTPS_TARGETS --root-sha256 INDEPENDENT_PIN --bootstrap-root root.json --install
+go run ./cmd/tuf-load --state STATE --root-sha256 INDEPENDENT_PIN
+```
+Subsequent refresh omits bootstrap-root. Use the independently obtained pin, not a downloaded assertion. Publisher-client-install-load integration test uses a local TLS fixture and synthetic keys; no production material. Tests are not executed and module go.sum remains pending (Go 1.26/proxy unavailable, automatic CI disabled). Not production ready.
