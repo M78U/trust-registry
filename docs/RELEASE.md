@@ -35,3 +35,5 @@ Experimental TUF client adapter lives in tools/tuf-client; see TUF-DISTRIBUTION.
 The experimental offline publisher generates initial root and static repository candidates with separate role signers. See TUF-PUBLISHER.md. Publication is not implemented; no live deployment, production keys, root rotation or publisher version ledger. Restore validation gates before release.
 
 The CA review dossier is a local pre-release checklist bound to exact snapshot bytes, not a release authorization protocol. See CA-REVIEW.md. Run the explicit review check before any release consideration; it is not wired into experimental TUF signing. Reviewer authentication, independent evidence conclusions, signed publication baseline, tests and release approval remain gates.
+
+Local authenticated review approvals now support independent pinned role keys, task signatures and at least two distinct release approvers (REVIEW-AUTHORIZATION.md). This is a prerequisite for a future enforced publisher mode, not production release authorization. TUF key separation across the two configurations, rollback ledger and actual publisher enforcement remain open.

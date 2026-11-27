@@ -123,3 +123,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ### CA release-candidate review dossier
 
 `review plan SNAPSHOT` generates pending exact-snapshot source identity, redistribution, policy scope and disclosure tasks. `review check --dossier FILE --evidence DIR --at RFC3339 SNAPSHOT` checks complete task membership, reviewer separation and local evidence artifact hashes. No approval default or release authorization. See [CA review](docs/CA-REVIEW.md).
+
+### Authenticated local review approval
+
+`review prepare-approval`, `review sign-task`, `review approve-release`, and `review authenticate-approval` verify per-task signatures and distinct release approver threshold using an independently pinned Ed25519 role configuration. See [review authorization](docs/REVIEW-AUTHORIZATION.md). Local approval only; not TUF publication authority.
