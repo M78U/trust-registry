@@ -19,6 +19,18 @@ The two Node fixture tests passed locally on Node 22.16.0. Actual Go 1.26 collec
 
 ## Formula gate
 
-Confirm that the release is published (not draft), that the `0.1.0` tag resolves to the reviewed source commit, and that the immutable source archive checksum or Git tag/revision pair is verified independently. The preparation tool is on a later development commit; when collecting evidence for an older tag, use an independently reviewed copy of the script in a separate review workspace and keep the actual source revision/locks associated with that tag; do not present main as the released revision. Compare the source and lock hashes; if different, repeat acceptance on the actual source.
+Confirm that the release is published (not draft), that the `0.1.0` tag resolves to the reviewed source commit, and that the immutable source archive checksum or Git tag/revision pair is verified independently. The preparation tool is on a later development commit. Use an external detached worktree and explicit revision pin; no copying scripts or modifying the released source is needed:
+
+```sh
+git worktree add --detach ../trust-registry-0.1.0 0477dd115adb86f32b6b3ac41a8018bf4b087ade
+for arch in arm64 amd64; do
+  GOOS=darwin GOARCH="$arch" node scripts/cli-license-evidence.mjs \
+    --source=../trust-registry-0.1.0 \
+    --expected-revision=0477dd115adb86f32b6b3ac41a8018bf4b087ade \
+    --out="../trust-0.1.0-license-$arch"
+done
+```
+
+Use the same Go toolchain patch version as the proposed Homebrew build. This cross-target evidence collection does not execute Intel binaries or replace native install tests. Source and expected revision are required together. The collector checks the Git root, clean status including untracked files (not ignored files), exact HEAD, tracked regular go.mod/go.sum and unchanged lock hashes. The output must be outside both the tooling and source checkout. Use trusted clean worktrees; this does not defend against concurrent malicious local filesystem changes. Review the resulting inventories and exact notice bytes privately. The new source-selection fixture has not yet been executed in the operator environment.
 
 Complete package-specific notices, platform-specific validation, and a local Homebrew formula install/test before registering the formula in M78U/homebrew-tap. The install should build the reviewed source with pinned Go dependencies, ship all applicable notices, and perform an offline synthetic init/validate smoke test. No CA download, private data, production trust anchor, network update or automatic release job. The existing source-only developer preview is unchanged.

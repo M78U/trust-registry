@@ -60,20 +60,44 @@ export function collectPackages(packages, goroot, project, out, build){
   writeFileSync(join(out,'inventory.json'),JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
   return report;
 }
+export function parseOptions(args,defaultRoot){
+  const usage='usage: node scripts/cli-license-evidence.mjs --out=NEW_PRIVATE_DIR [--source=CHECKOUT --expected-revision=FULL_COMMIT_SHA]';
+  const options=new Map();
+  for(const arg of args){
+    const i=arg.indexOf('='),key=arg.slice(0,i),value=arg.slice(i+1);
+    if(i<1||!['--out','--source','--expected-revision'].includes(key)||!value||options.has(key))throw Error(usage);
+    options.set(key,value);
+  }
+  if(!options.has('--out')||options.has('--source')!==options.has('--expected-revision'))throw Error(usage);
+  const expected=options.get('--expected-revision')??null;
+  if(expected!==null&&!/^[a-f0-9]{40}$/.test(expected))throw Error('full lowercase commit SHA required');
+  const root=realpathSync(options.get('--source')??defaultRoot);
+  const out=resolve(options.get('--out'));
+  const destination=join(realpathSync(dirname(out)),out.split(sep).at(-1));
+  if(inside(root,destination)||inside(realpathSync(defaultRoot),destination))throw Error('output must be outside both checkouts');
+  return {root,out,expected};
+}
+export function checkSource(root,expected,run){
+  if(realpathSync(run('git',['rev-parse','--show-toplevel']).trim())!==root)throw Error('source must be repository root');
+  if(run('git',['status','--porcelain','--untracked-files=all']))throw Error('clean checkout required');
+  const revision=run('git',['rev-parse','HEAD']).trim();
+  if(!/^[a-f0-9]{40}$/.test(revision)||expected!==null&&revision!==expected)throw Error('source revision mismatch');
+  run('git',['ls-files','--error-unmatch','go.mod','go.sum']);
+  for(const name of ['go.mod','go.sum']){
+    if(!lstatSync(join(root,name)).isFile())throw Error('regular tracked dependency lock required');
+  }
+  return revision;
+}
 function main(){
-  const root=realpathSync(resolve(dirname(fileURLToPath(import.meta.url)),'..'));
-  const args=process.argv.slice(2);
-  if(args.length!==1||!args[0].startsWith('--out=')||!args[0].slice(6))throw Error('usage: node scripts/cli-license-evidence.mjs --out=NEW_PRIVATE_DIR');
-  const out=resolve(args[0].slice(6));
-  if(inside(root,join(realpathSync(dirname(out)),out.split(sep).at(-1))))throw Error('output must be outside checkout');
+  const defaultRoot=realpathSync(resolve(dirname(fileURLToPath(import.meta.url)),'..'));
+  const {root,out,expected}=parseOptions(process.argv.slice(2),defaultRoot);
   const env={...process.env,GOWORK:'off',GOFLAGS:'',GOTOOLCHAIN:'local',CGO_ENABLED:'0',GOPRIVATE:'',GONOSUMDB:'',GONOPROXY:'',GOSUMDB:'sum.golang.org'};
   const run=(cmd,a)=>execFileSync(cmd,a,{cwd:root,env,encoding:'utf8',maxBuffer:32*1024*1024,timeout:180000});
-  if(run('git',['status','--porcelain']))throw Error('clean checkout required');
-  const revision=run('git',['rev-parse','HEAD']).trim(),locks=['go.mod','go.sum'].map(p=>digest(readFileSync(join(root,p))));
+  const revision=checkSource(root,expected,run),locks=['go.mod','go.sum'].map(p=>digest(readFileSync(join(root,p))));
   const info=JSON.parse(run('go',['env','-json','GOOS','GOARCH','GOROOT','GOVERSION']));
   const packages=parsePackages(run('go',['list','-mod=readonly','-deps','-json','./cmd/trust-registry']));
   run('go',['mod','verify']);
-  if(run('git',['status','--porcelain'])||run('git',['rev-parse','HEAD']).trim()!==revision||locks.some((h,i)=>h!==digest(readFileSync(join(root,['go.mod','go.sum'][i])))))throw Error('checkout changed during collection');
+  if(checkSource(root,revision,run)!==revision||locks.some((h,i)=>h!==digest(readFileSync(join(root,['go.mod','go.sum'][i])))))throw Error('checkout changed during collection');
   const {GOOS,GOARCH,GOVERSION}=info;
   const report=collectPackages(packages,info.GOROOT,root,out,{GOOS,GOARCH,GOVERSION,CGO_ENABLED:'0',revision,target:'./cmd/trust-registry',lockSHA256:{goMod:locks[0],goSum:locks[1]}});
   console.log('Collected '+report.modules.length+' package groups; review required.');
