@@ -212,7 +212,9 @@ func TestReviewedPublication(t *testing.T){
  for name,data:=range files2{path:=filepath.Join(assets2,filepath.FromSlash(name));if err:=os.MkdirAll(filepath.Dir(path),0700);err!=nil{t.Fatal(err)};if err:=os.WriteFile(path,data,0600);err!=nil{t.Fatal(err)}}
  if err:=VerifyStaticDirectory(assets2,delta.Manifest,later);err!=nil{t.Fatal(err)}
  var currentDir atomic.Value;currentDir.Store(assets)
+ var coordinateHTTPHits atomic.Int32
  staticServer:=httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter,req *http.Request){
+  coordinateHTTPHits.Add(1)
   http.FileServer(http.Dir(currentDir.Load().(string))).ServeHTTP(w,req)
  }));defer staticServer.Close()
  state:=filepath.Join(t.TempDir(),"static-client")
@@ -224,6 +226,19 @@ func TestReviewedPublication(t *testing.T){
   d,err:=DiagnoseState(diagnostic);if err!=nil||d.Status!=status||d.TrustStatus!="NOT_ESTABLISHED"{t.Fatal(d,err)}
   return d
  }
+ coord:=CoordinateOptions{DiagnosticOptions:diagnostic}
+ beforeCoordHTTP:=coordinateHTTPHits.Load()
+ planResult,planSession,err:=coordinateUpdate(context.Background(),coord,staticServer.Client())
+ if err!=nil||planSession!=nil||planResult.Mode!=UpdatePlan||planResult.Status!="PLAN_ONLY"||planResult.ActionAttempted||planResult.Diagnostic==nil{t.Fatal(planResult,err)}
+ openCoord:=coord;openCoord.Mode=UpdateOpen
+ openResult,openSession,err:=coordinateUpdate(context.Background(),openCoord,staticServer.Client())
+ if err!=nil||openSession==nil||openResult.Status!="CONSUMER_READY"||openResult.Checkpoint==nil||*openResult.Checkpoint!=checkpoint{t.Fatal(openResult,err)}
+ cancelled,cancelCoord:=context.WithCancel(context.Background());cancelCoord()
+ cancelledResult,cancelledSession,err:=coordinateUpdate(cancelled,openCoord,staticServer.Client())
+ if err==nil||cancelledSession!=nil||cancelledResult.ActionAttempted||cancelledResult.Status!="CANCELLED"{t.Fatal(cancelledResult,err)}
+ invalidCoord:=coord;invalidCoord.MetadataURL=so.MetadataURL
+ if r,s,err:=coordinateUpdate(context.Background(),invalidCoord,staticServer.Client());err==nil||s!=nil||r.ActionAttempted{t.Fatal(r,err)}
+ if coordinateHTTPHits.Load()!=beforeCoordHTTP{t.Fatal("local coordinator action made network request")}
  firstDiag:=expectDiagnostic("INSTALLED_EVIDENCE_MATCHES")
  if !firstDiag.CheckpointProvided||firstDiag.Installed==nil||firstDiag.Installed.Sequence!=1||!firstDiag.Installed.CacheMatches{t.Fatal(firstDiag)}
  expiredDiag,err:=diagnoseStateAt(diagnostic,binding.TimestampExpires)
@@ -250,14 +265,23 @@ func TestReviewedPublication(t *testing.T){
  if err:=os.WriteFile(cachedRootPath,[]byte("{}"),0600);err!=nil{t.Fatal(err)}
  if _,err:=RecoverRootCache(repair);err==nil{t.Fatal("unknown cached root accepted")}
  if err:=os.WriteFile(cachedRootPath,root,0600);err!=nil{t.Fatal(err)}
- repairReport,err:=RecoverRootCache(repair)
- if err!=nil||!repairReport.CacheAdvanced||repairReport.PreviousRootVersion!=1||repairReport.RootChain.RootVersion!=2||!repairReport.RequiresOnlineRefresh||repairReport.RootChain.ReleaseAuthenticated{t.Fatal(repairReport,err)}
+ rootCoord:=coord;rootCoord.Mode=UpdateRecoverRoot;rootCoord.ExpectedRootHeadSHA256=digest(root2)
+ refreshCoord:=coord;refreshCoord.Mode=UpdateRefresh;refreshCoord.MetadataURL=so.MetadataURL;refreshCoord.TargetsURL=so.TargetsURL
+ if r,s,err:=coordinateUpdate(context.Background(),refreshCoord,staticServer.Client());err==nil||s!=nil||r.ActionAttempted||r.Status!="ACTION_BLOCKED"{t.Fatal(r,err)}
+ rootResult,rootSession,err:=coordinateUpdate(context.Background(),rootCoord,staticServer.Client())
+ if err!=nil||rootSession!=nil||rootResult.Status!="ROOT_RECOVERED_REFRESH_REQUIRED"||rootResult.RootRecovery==nil||!rootResult.ActionCompleted{t.Fatal(rootResult,err)}
+ repairReport:=*rootResult.RootRecovery
+ if coordinateHTTPHits.Load()!=beforeCoordHTTP{t.Fatal("root recovery performed networking")}
+ if !repairReport.CacheAdvanced||repairReport.PreviousRootVersion!=1||repairReport.RootChain.RootVersion!=2||!repairReport.RequiresOnlineRefresh||repairReport.RootChain.ReleaseAuthenticated{t.Fatal(repairReport,err)}
  repairedRoot,err:=readRegular(cachedRootPath,maxRoot);if err!=nil||!bytes.Equal(repairedRoot,root2){t.Fatal("incorrect repaired root",err)}
  keptTimestamp,err:=readRegular(filepath.Join(state,"metadata","timestamp.json"),16384);if err!=nil||!bytes.Equal(keptTimestamp,oldTimestamp){t.Fatal("rollback metadata modified",err)}
  if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("repair made old installation loadable")}
  if rr,err:=RecoverRootCache(repair);err!=nil||rr.CacheAdvanced{t.Fatal("idempotent repair",rr,err)}
  currentDir.Store(assets2);so.BootstrapRoot=nil
- if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||!r.IndependentCheckpointChecked||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ refreshResult,refreshedSession,err:=coordinateUpdate(context.Background(),refreshCoord,staticServer.Client())
+ if err!=nil||refreshedSession==nil||refreshResult.Status!="CONSUMER_READY"||refreshResult.Install==nil||!refreshResult.Install.IndependentCheckpointChecked||refreshResult.Install.RootVersion!=2||refreshResult.Checkpoint==nil||refreshResult.Checkpoint.Sequence!=2{t.Fatal(refreshResult,err)}
+ if coordinateHTTPHits.Load()<=beforeCoordHTTP{t.Fatal("explicit refresh did not use local TLS repository")}
+ beforeCoordHTTP=coordinateHTTPHits.Load()
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})
  if err!=nil{t.Fatal(err)}
@@ -296,8 +320,12 @@ func TestReviewedPublication(t *testing.T){
  expectDiagnostic("PENDING_CACHE_MISMATCH")
  if err:=os.WriteFile(timestampPath,timestampBytes,0600);err!=nil{t.Fatal(err)}
  if _,err:=os.Stat(installed2);!os.IsNotExist(err){t.Fatal("invalid recovery committed evidence",err)}
- recovered,err:=RecoverPendingInstall(recovery)
- if err!=nil||!recovered.RecoveredPendingInstall||!recovered.IndependentCheckpointChecked||recovered.Registry.Manifest.Sequence!=2||recovered.RootVersion!=2||recovered.ReleaseApproval==nil||!recovered.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(recovered,err)}
+ pendingCoord:=coord;pendingCoord.Mode=UpdateRecoverPending
+ pendingResult,pendingSession,err:=coordinateUpdate(context.Background(),pendingCoord,staticServer.Client())
+ if err!=nil||pendingSession==nil||pendingResult.Status!="CONSUMER_READY"||pendingResult.Install==nil||!pendingResult.ActionCompleted{t.Fatal(pendingResult,err)}
+ recovered:=*pendingResult.Install
+ if coordinateHTTPHits.Load()!=beforeCoordHTTP{t.Fatal("pending recovery performed networking")}
+ if !recovered.RecoveredPendingInstall||!recovered.IndependentCheckpointChecked||recovered.Registry.Manifest.Sequence!=2||recovered.RootVersion!=2||recovered.ReleaseApproval==nil||!recovered.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(recovered,err)}
  restored,err:=readRegular(installed2,maxEvidenceBytes);if err!=nil||!bytes.Equal(restored,record2){t.Fatal("recovery changed exact evidence",err)}
  if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil{t.Fatal(err)}
  // Crash after link but before unlink: cleanup is idempotent, no history rewrite.
