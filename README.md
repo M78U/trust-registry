@@ -119,3 +119,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ### Explicit AIA research discovery
 
 `aia inspect` lists eligible caIssuers HTTPS URLs offline. `aia fetch` requires exact selected URL and new output file, `aia audit` checks a local candidate, and `aia import` explicitly imports a matched CA as unreviewed. No automatic network during path verification. See [safe AIA](docs/SAFE-AIA.md).
+
+### CA release-candidate review dossier
+
+`review plan SNAPSHOT` generates pending exact-snapshot source identity, redistribution, policy scope and disclosure tasks. `review check --dossier FILE --evidence DIR --at RFC3339 SNAPSHOT` checks complete task membership, reviewer separation and local evidence artifact hashes. No approval default or release authorization. See [CA review](docs/CA-REVIEW.md).

@@ -33,3 +33,5 @@ Local research installation now combines the signed snapshot and checkpoint in a
 Experimental TUF client adapter lives in tools/tuf-client; see TUF-DISTRIBUTION.md. No production root or target has been released; dependency lock, executable tests, application sequence state and publication workflow remain gates.
 
 The experimental offline publisher generates initial root and static repository candidates with separate role signers. See TUF-PUBLISHER.md. Publication is not implemented; no live deployment, production keys, root rotation or publisher version ledger. Restore validation gates before release.
+
+The CA review dossier is a local pre-release checklist bound to exact snapshot bytes, not a release authorization protocol. See CA-REVIEW.md. Run the explicit review check before any release consideration; it is not wired into experimental TUF signing. Reviewer authentication, independent evidence conclusions, signed publication baseline, tests and release approval remain gates.

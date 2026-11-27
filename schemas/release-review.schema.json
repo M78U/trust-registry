@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "snapshotSHA256",
+    "reviews"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "snapshotSHA256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviews": {
+      "type": "array",
+      "maxItems": 2048,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requirement",
+          "status",
+          "reviewer",
+          "reviewedAt",
+          "evidence",
+          "note"
+        ],
+        "properties": {
+          "requirement": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "kind",
+              "certificateSHA256",
+              "provenanceId",
+              "policySHA256",
+              "policyId",
+              "policyVersion",
+              "purpose",
+              "role"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "kind": {
+                "enum": [
+                  "SOURCE_IDENTITY",
+                  "REDISTRIBUTION",
+                  "POLICY_SCOPE",
+                  "POLICY_DISCLOSURE"
+                ]
+              },
+              "certificateSHA256": {
+                "type": "string",
+                "pattern": "^([a-f0-9]{64})?$"
+              },
+              "provenanceId": {
+                "type": "string",
+                "pattern": "^([a-f0-9]{64})?$"
+              },
+              "policySHA256": {
+                "type": "string",
+                "pattern": "^([a-f0-9]{64})?$"
+              },
+              "policyId": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "policyVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "purpose": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "role": {
+                "enum": [
+                  "",
+                  "TRUST_ANCHOR",
+                  "INTERMEDIATE_CANDIDATE"
+                ]
+              }
+            }
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "sha256",
+                "reference"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "ISSUER_SOURCE",
+                    "INDEPENDENT_FINGERPRINT",
+                    "REDISTRIBUTION_TERMS",
+                    "PURPOSE_AUTHORIZATION",
+                    "DISCLOSURE_REVIEW"
+                  ]
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "reference": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              }
+            }
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      }
+    }
+  }
+}
