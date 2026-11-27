@@ -164,7 +164,7 @@ func fetchBytes(ctx context.Context,client *http.Client,c Catalog,e Endpoint,all
 }
 
 func newResearchClient() (*http.Client,func()){
-	tr:=&http.Transport{TLSClientConfig:&tls.Config{MinVersion:tls.VersionTLS12},DisableCompression:true,ResponseHeaderTimeout:15*time.Second}
+	tr:=&http.Transport{TLSClientConfig:&tls.Config{MinVersion:tls.VersionTLS12},DisableCompression:true,ResponseHeaderTimeout:15*time.Second,MaxResponseHeaderBytes:32<<10}
 	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirects disabled")}}
 	return client,tr.CloseIdleConnections
 }
