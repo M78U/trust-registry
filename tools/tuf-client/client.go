@@ -53,6 +53,12 @@ type stateConfig struct {
 	ReviewAuthoritySHA256 string `json:"reviewAuthoritySHA256,omitempty"`
 }
 
+// OfflineVerification describes a completed local verification, not a
+// promise that the repository will remain unchanged until expiration.
+type OfflineVerification struct {
+ VerifiedAt time.Time `json:"verifiedAt"`
+ ValidUntil time.Time `json:"validUntil"`
+}
 type Report struct {
 	Target string `json:"target"`
 	TUFTargetAuthenticated bool `json:"tufTargetAuthenticated"`
@@ -65,6 +71,7 @@ type Report struct {
 	ReleaseAuthenticated bool `json:"releaseAuthenticated"`
 	ReleaseApproval *review.CredentialReport `json:"releaseApproval,omitempty"`
 	TrustStatus string `json:"trustStatus"`
+ OfflineVerification *OfflineVerification `json:"offlineVerification,omitempty"`
 }
 
 func digest(b []byte)string{h:=sha256.Sum256(b);return hex.EncodeToString(h[:])}

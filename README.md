@@ -187,3 +187,5 @@ Review workspace now accepts explicit pinned bundle archives, reports task count
 `snapshot authorization-impact` compares effective local policy authorizations at identical cutoffs across pinned snapshots, optionally isolating time effects on the previous snapshot. See [authorization impact](docs/AUTHORIZATION-IMPACT.md). No path or release trust determination.
 
 `snapshot path-impact` compares a local signer certificate under exact shared policy and time cutoffs across pinned snapshots, optionally isolating changes in private revocation evidence. See [path impact](docs/PATH-IMPACT.md). No production trust or document validation.
+
+Strict offline Go consumer SDK: `tufclient.OpenConsumer` requires installed TUF and independent public release approval; bounded detached sessions expose candidate bundles, search, policy/path diagnostics and live-session comparisons. See [consumer SDK](docs/CONSUMER-SDK.md). No automatic trust or update.

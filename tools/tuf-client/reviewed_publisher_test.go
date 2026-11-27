@@ -109,6 +109,27 @@ func TestReviewedPublication(t *testing.T){
  strictOptions.MetadataURL=signedServer.URL+"/metadata";strictOptions.TargetsURL=signedServer.URL+"/targets"
  if _,r,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err!=nil||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified||signedHits.Load()!=1{t.Fatal(r,err)}
  if view,r,err:=LoadAuthorizedInstalled(strictOptions.StateDir,digest(root),a);err!=nil||view==nil||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ // The public SDK only opens strict verified installations and checks
+ // the independent checkpoint and expiry. Returned candidate bytes keep
+ // the existing consumer schema and never include the root.
+ co:=ConsumerOptions{StateDir:strictOptions.StateDir,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:1,ExpectedSnapshotSHA256:digest(raw)}
+ session,err:=OpenConsumer(co);if err!=nil{t.Fatal(err)}
+ ci,err:=session.Info();if err!=nil||ci.Sequence!=1||!ci.TUFTargetAuthenticated||!ci.ReleaseApprovalVerified||ci.PrivateEvidenceVerified||ci.ReleaseAuthenticated||ci.TrustStatus!="NOT_ESTABLISHED"||ci.SessionExpiresAt.After(binding.TimestampExpires){t.Fatal(ci,err)}
+ record,err:=session.Find(digest(der));if err!=nil||record.FingerprintSHA256!=digest(der){t.Fatal(record,err)}
+ ps,err:=session.Provenance(digest(der));if err!=nil||len(ps)!=1{t.Fatal(ps,err)}
+ cb,err:=session.CandidateBundle(nil);if err!=nil{t.Fatal(err)}
+ var candidates snapshot.ConsumerBundle
+ if err:=json.Unmarshal(cb,&candidates);err!=nil||candidates.Kind!="UNTRUSTED_CA_CANDIDATES"||candidates.SnapshotSHA256!=ci.SnapshotSHA256||len(candidates.Certificates)!=0{t.Fatal(candidates,err)}
+ if session.checkAt(ci.SessionExpiresAt)==nil||session.checkAt(ci.VerifiedAt.Add(-time.Nanosecond))==nil{t.Fatal("invalid session time accepted")}
+ if _,err:=(&ConsumerSession{}).Find(digest(der));err==nil{t.Fatal("zero session usable")}
+ badConsumer:=co;badConsumer.MinimumSequence=2
+ if _,err:=OpenConsumer(badConsumer);err==nil{t.Fatal("checkpoint rollback")}
+ badConsumer=co;badConsumer.Authority=nil
+ if _,err:=OpenConsumer(badConsumer);err==nil{t.Fatal("missing authority")}
+ badConsumer=co;badConsumer.ExpectedSnapshotSHA256=strings.Repeat("0",64)
+ if _,err:=OpenConsumer(badConsumer);err==nil{t.Fatal("wrong snapshot pin")}
+ if _,err:=session.Diff(session,false);err==nil{t.Fatal("same sequence comparison")}
+ if signedHits.Load()!=1{t.Fatal("offline SDK downloaded target")}
  if _,_,err:=LoadInstalled(strictOptions.StateDir,digest(root));err==nil{t.Fatal("strict offline downgrade")}
  strictOptions.BootstrapRoot=nil;strictOptions.ReviewAuthority=nil
  if _,_,err:=refresh(context.Background(),strictOptions,true,signedServer.Client());err==nil{t.Fatal("strict online downgrade")}
@@ -187,6 +208,11 @@ func TestReviewedPublication(t *testing.T){
  currentDir.Store(assets2);so.BootstrapRoot=nil
  if _,r,err:=refresh(context.Background(),so,true,staticServer.Client());err!=nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
+ nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})
+ if err!=nil{t.Fatal(err)}
+ delta,err:=session.Diff(nextSession,true)
+ if err!=nil||delta.Next.Sequence!=2||delta.Previous.Sequence!=1||len(delta.CertificateChanges)!=0||delta.Transition==nil||delta.ReleaseAuthenticated{t.Fatal(delta,err)}
+
  currentDir.Store(assets)
  if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
  staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)

@@ -132,6 +132,9 @@ func LoadAuthorizedInstalled(stateDir,initialRootSHA256 string,a *review.Authori
 	return loadInstalled(stateDir,initialRootSHA256,a)
 }
 func loadInstalled(stateDir,initialRootSHA256 string,a *review.Authority)(*snapshot.Loaded,Report,error){
+ return loadInstalledCapture(stateDir,initialRootSHA256,a,nil)
+}
+func loadInstalledCapture(stateDir,initialRootSHA256 string,a *review.Authority,capture *[]byte)(*snapshot.Loaded,Report,error){
 	if stateDir==""||!hashPattern.MatchString(initialRootSHA256){return nil,Report{},errors.New("state and independent initial root pin required")}
 	root,err:=filepath.Abs(stateDir);if err!=nil{return nil,Report{},err}
 	if err:=regularDir(root);err!=nil{return nil,Report{},err}
@@ -165,5 +168,16 @@ func loadInstalled(stateDir,initialRootSHA256 string,a *review.Authority)(*snaps
 		report.ReleaseApproval=&approval
 	}
 	view,_,err:=snapshot.LoadPinnedResearch(v.Snapshot,v.SnapshotSHA256,at);if err!=nil{return nil,Report{},err}
-	return view,report,nil
+ // Derive the offline validity bound from the exact authenticated metadata.
+ rootMeta,err:=metadata.Root().FromBytes(v.Root);if err!=nil{return nil,Report{},err}
+ tsMeta,err:=metadata.Timestamp().FromBytes(v.Timestamp);if err!=nil{return nil,Report{},err}
+ smMeta,err:=metadata.Snapshot().FromBytes(v.SnapshotMetadata);if err!=nil{return nil,Report{},err}
+ tgMeta,err:=metadata.Targets().FromBytes(v.Targets);if err!=nil{return nil,Report{},err}
+ until:=report.Registry.Manifest.ExpiresAt
+ for _,expires:=range []time.Time{rootMeta.Signed.Expires,tsMeta.Signed.Expires,smMeta.Signed.Expires,tgMeta.Signed.Expires}{if expires.Before(until){until=expires}}
+ finished:=time.Now().UTC()
+ if finished.Before(at)||!finished.Before(until){return nil,Report{},errors.New("offline verification expired or clock moved backward during load")}
+ report.OfflineVerification=&OfflineVerification{VerifiedAt:at,ValidUntil:until}
+ if capture!=nil{*capture=v.Snapshot}
+ return view,report,nil
 }
