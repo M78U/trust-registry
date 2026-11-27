@@ -110,6 +110,7 @@ try{
  writeFileSync(invalid,Buffer.concat([readFileSync(envelope),Buffer.from("\n")]));
  command("CLI tampered snapshot rejected",trust,["snapshot","verify",invalid],scratch,{failure:true});
  for(const name of ["tuf-publish","tuf-fetch","tuf-load"])command("CLI missing arguments rejected "+name,bin(name),[],scratch,{failure:true});
+ command("Public-source audit and dependency evidence tests",process.execPath,["--test","scripts/audit-public-source.test.mjs","scripts/dependency-license-evidence.test.mjs"],root);
  const tests=readdirSync(join(web,"scripts")).filter(n=>n.endsWith(".test.mjs")).sort();
  check("Explorer tests present",()=>assert.ok(tests.length>0));
  command("Explorer tests",process.execPath,["--test",...tests.map(n=>join("scripts",n))],web);
