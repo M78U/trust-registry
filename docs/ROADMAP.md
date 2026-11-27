@@ -106,3 +106,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Strict authenticated consumer SDK (PR #51): offline verified installed sessions, expiry bound, independent checkpoint options, candidate/query/policy/path and live-session comparison APIs. SigLens integration and locked build pending.
 
 - Independent strict online refresh checkpoint: reject lower sequence/root and same-sequence conflicts before target download, recheck exact envelope, SDK checkpoint export and CLI flags. External storage and locked Go acceptance pending; no extra cloud operations.
+
+- Recoverable final strict installation commit: private complete pending evidence journal outside immutable history, no-replacement link, explicit offline recovery with exact current cache/root/credential and optional checkpoint, idempotent post-link cleanup. Earlier TUF metadata/root interruptions and locked Go acceptance remain pending.
