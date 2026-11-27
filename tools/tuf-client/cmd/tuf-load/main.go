@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"os/signal"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,6 +18,9 @@ func run()error{
 	fp:=flag.String("fingerprint","","optional certificate fingerprint")
 	authority:=flag.String("authority","","independently provisioned review authority file")
 	authorityPin:=flag.String("authority-sha256","","independent authority pin")
+	coordinate:=flag.String("coordinate","","strict update mode: plan, open, recover-pending, recover-root, refresh")
+	metaURL:=flag.String("metadata-url","","explicit HTTPS metadata URL for coordinated refresh")
+	targetsURL:=flag.String("targets-url","","explicit HTTPS targets URL for coordinated refresh")
 	diagnose:=flag.Bool("diagnose",false,"inspect strict local state and recommend a recovery action without repair")
 	recoverPending:=flag.Bool("recover-pending",false,"finish a strict pending installation offline")
 	recoverRoot:=flag.Bool("recover-root-cache",false,"advance cached root to verified archived head offline")
@@ -28,6 +33,20 @@ func run()error{
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
 	checkpointRequested:=false
 	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	if *coordinate!=""{
+		if *diagnose||*recoverPending||*recoverRoot||*fp!=""||*authority==""{return errors.New("coordinate requires strict authority and no separate operation flags")}
+		a,err:=tuf.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err}
+		o:=tuf.CoordinateOptions{DiagnosticOptions:tuf.DiagnosticOptions{StateDir:*state,InitialRootSHA256:*pin,Authority:a},Mode:tuf.UpdateMode(*coordinate),ExpectedRootHeadSHA256:*rootHead,MetadataURL:*metaURL,TargetsURL:*targetsURL}
+		if checkpointRequested{
+			if *checkpointSequence==0||*checkpointHash==""||*checkpointRoot<1{return errors.New("all three checkpoint flags required together")}
+			o.Checkpoint=&tuf.ReleaseCheckpoint{Sequence:*checkpointSequence,SnapshotSHA256:*checkpointHash,RootVersion:*checkpointRoot}
+		}
+		ctx,cancel:=signal.NotifyContext(context.Background(),os.Interrupt);defer cancel()
+		r,_,err:=tuf.CoordinateUpdate(ctx,o)
+		if e:=json.NewEncoder(os.Stdout).Encode(r);e!=nil{return e}
+		return err
+	}
+	if *metaURL!=""||*targetsURL!=""{return errors.New("repository URLs require coordinated refresh")}
 	if *diagnose{
 		if *recoverRoot||*recoverPending||*rootHead!=""||*fp!=""||*authority==""{return errors.New("diagnose requires strict authority and no recovery or fingerprint flags")}
 		a,err:=tuf.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err}

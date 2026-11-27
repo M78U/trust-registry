@@ -197,3 +197,5 @@ Interrupted final strict installation commits can be recovered offline with `tuf
 Strict clients can explicitly repair a root cache that lags an intact verified numbered archive via `tuf-load --recover-root-cache --root-head-sha256` or `tufclient.RecoverRootCache`. This is offline root-only recovery, followed by normal strict refresh/install; see [root history](docs/TUF-PERSISTENT-ROOT-CHAIN.md).
 
 Strict local state diagnostics: `tuf-load --diagnose` or `tufclient.DiagnoseState` gives advisory recovery codes without persistent writes. See [state diagnostics](docs/TUF-STATE-DIAGNOSTICS.md).
+
+Strict update coordination: `tuf-load --coordinate plan|open|recover-root|recover-pending|refresh` or `tufclient.CoordinateUpdate` combines explicit diagnosis, recovery and strict installation/session reopening. See [update coordinator](docs/TUF-UPDATE-ORCHESTRATOR.md).
