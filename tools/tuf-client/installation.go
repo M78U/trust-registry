@@ -14,7 +14,6 @@ import (
 
 	"github.com/M78U/trust-registry/pkg/snapshot"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
-	"github.com/theupdateframework/go-tuf/v2/metadata/trustedmetadata"
 )
 
 const maxInstalled=128
@@ -39,10 +38,12 @@ func encodeEvidence(v evidence)([]byte,error){b,err:=json.Marshal(v);if err!=nil
 // Offline verification intentionally supports only the independently pinned
 // version-one root. No trusting a rotated root from the mutable cache.
 func verifyEvidence(v evidence,pin string,at time.Time)(Report,error){
-	if v.SchemaVersion!="1"||v.Sequence==0||!validTime(v.AcceptedAt)||!validTime(at)||at.Before(v.AcceptedAt)||!hashPattern.MatchString(pin)||len(v.Root)==0||len(v.Root)>maxRoot||digest(v.Root)!=pin||len(v.Timestamp)==0||len(v.Timestamp)>16384||len(v.SnapshotMetadata)==0||len(v.SnapshotMetadata)>2_000_000||len(v.Targets)==0||len(v.Targets)>5_000_000||len(v.Snapshot)==0||len(v.Snapshot)>snapshot.MaxEnvelopeBytes||digest(v.Snapshot)!=v.SnapshotSHA256{return Report{},errors.New("invalid installation evidence or root pin")}
-	tr,err:=trustedmetadata.New(v.Root);if err!=nil{return Report{},err}
-	if tr.Root.Signed.Version!=1||!tr.Root.Signed.ConsistentSnapshot{return Report{},errors.New("offline installation requires pinned initial consistent root")}
-	tr.RefTime=at
+	return verifyEvidenceWithChain(v,pin,at,[][]byte{v.Root})
+}
+
+func verifyEvidenceWithChain(v evidence,pin string,at time.Time,chain [][]byte)(Report,error){
+	if v.SchemaVersion!="1"||v.Sequence==0||!validTime(v.AcceptedAt)||!validTime(at)||at.Before(v.AcceptedAt)||!hashPattern.MatchString(pin)||len(v.Root)==0||len(v.Root)>maxRoot||len(chain)==0||!bytes.Equal(v.Root,chain[len(chain)-1])||len(v.Timestamp)==0||len(v.Timestamp)>16384||len(v.SnapshotMetadata)==0||len(v.SnapshotMetadata)>2_000_000||len(v.Targets)==0||len(v.Targets)>5_000_000||len(v.Snapshot)==0||len(v.Snapshot)>snapshot.MaxEnvelopeBytes||digest(v.Snapshot)!=v.SnapshotSHA256{return Report{},errors.New("invalid installation evidence or root pin")}
+	tr,rr,err:=rootChain(chain,pin,at);if err!=nil{return Report{},err}
 	ts,err:=metadata.Timestamp().FromBytes(v.Timestamp);if err!=nil{return Report{},err}
 	link:=ts.Signed.Meta["snapshot.json"]
 	if link==nil||link.Length<=0||len(link.Hashes["sha256"])!=32{return Report{},errors.New("missing timestamp snapshot hash link")}
@@ -60,7 +61,7 @@ func verifyEvidence(v evidence,pin string,at time.Time)(Report,error){
 	// The current publisher profile ties application sequence to all three
 	// online metadata versions. Fail closed on any other profile.
 	if tg.Signed.Version<=0||uint64(tg.Signed.Version)!=v.Sequence||sm.Signed.Version!=tg.Signed.Version||ts.Signed.Version!=tg.Signed.Version{return Report{},errors.New("metadata/application version mismatch")}
-	return Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:1,TimestampVersion:ts.Signed.Version,SnapshotMetadataVersion:sm.Signed.Version,TargetsVersion:tg.Signed.Version,Registry:r,ApplicationRollbackStatus:"LOCAL_INSTALLED_RECORD",TrustStatus:"NOT_ESTABLISHED"},nil
+	return Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:rr.RootVersion,TimestampVersion:ts.Signed.Version,SnapshotMetadataVersion:sm.Signed.Version,TargetsVersion:tg.Signed.Version,Registry:r,ApplicationRollbackStatus:"LOCAL_INSTALLED_RECORD",TrustStatus:"NOT_ESTABLISHED"},nil
 }
 
 func latestEvidence(dir string)(*evidence,int,error){

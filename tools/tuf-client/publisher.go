@@ -70,7 +70,7 @@ func signRole[T metadata.Roles](m *metadata.Metadata[T],root *metadata.Metadata[
 
 // CreateRoot creates version 1 only. Four roles must have distinct Ed25519
 // public keys. Root private keys alone are needed for this operation.
-func CreateRoot(o RootOptions)([]byte,error){
+func newRoot(o RootOptions)(*metadata.Metadata[metadata.RootType],error){
 	if !validTime(o.Expires)||len(o.Roles)!=4{return nil,errors.New("explicit root expiration and four role configurations required")}
 	root:=metadata.Root(o.Expires)
 	seen:=map[string]bool{}
@@ -90,6 +90,11 @@ func CreateRoot(o RootOptions)([]byte,error){
 		sort.Slice(list,func(i,j int)bool{return list[i].id<list[j].id})
 		for _,e:=range list{if err:=root.Signed.AddKey(e.key,role);err!=nil{return nil,err}}
 	}
+	return root,nil
+}
+
+func CreateRoot(o RootOptions)([]byte,error){
+	root,err:=newRoot(o);if err!=nil{return nil,err}
 	if err:=signRole(root,root,metadata.ROOT,o.Signers);err!=nil{return nil,err}
 	raw,err:=root.ToBytes(false)
 	if err!=nil{return nil,err}
@@ -109,10 +114,14 @@ func metadataLink(version int64,raw []byte)*metadata.MetaFiles{
 // independently pinned initial root and an exact validated local snapshot.
 // No network, private key output, rotation, upload or release authorization.
 func BuildRepository(rootBytes,raw []byte,o PublishOptions)(Repository,error){
+	return buildRepository(rootBytes,raw,o,1)
+}
+
+func buildRepository(rootBytes,raw []byte,o PublishOptions,rootVersion int64)(Repository,error){
 	if len(rootBytes)==0||len(rootBytes)>maxRoot||!hashPattern.MatchString(o.RootSHA256)||digest(rootBytes)!=o.RootSHA256{return Repository{},errors.New("root pin mismatch")}
 	if o.Version<1||!validTime(o.Now)||!validTime(o.TargetsExpires)||!validTime(o.SnapshotExpires)||!validTime(o.TimestampExpires)||!o.TimestampExpires.After(o.Now)||o.SnapshotExpires.Before(o.TimestampExpires)||o.TargetsExpires.Before(o.SnapshotExpires){return Repository{},errors.New("invalid metadata version or expiration ordering")}
 	root,err:=metadata.Root().FromBytes(rootBytes);if err!=nil{return Repository{},err}
-	if root.Signed.Version!=1||!root.Signed.ConsistentSnapshot||!root.Signed.Expires.After(o.Now)||root.Signed.Expires.Before(o.TargetsExpires){return Repository{},errors.New("only valid consistent-snapshot initial root supported")}
+	if root.Signed.Version!=rootVersion||!root.Signed.ConsistentSnapshot||!root.Signed.Expires.After(o.Now)||root.Signed.Expires.Before(o.TargetsExpires){return Repository{},errors.New("expected valid consistent-snapshot root required")}
 	if err:=root.VerifyDelegate(metadata.ROOT,root);err!=nil{return Repository{},err}
 	report,err:=snapshot.Verify(raw,"");if err!=nil{return Repository{},err}
 	if o.Now.Before(report.Manifest.CreatedAt)||!o.Now.Before(report.Manifest.ExpiresAt)||o.TargetsExpires.After(report.Manifest.ExpiresAt){return Repository{},errors.New("snapshot outside declared publication window")}
@@ -136,7 +145,7 @@ func BuildRepository(rootBytes,raw []byte,o PublishOptions)(Repository,error){
 	if len(targetBytes)>5_000_000||len(snapBytes)>2_000_000||len(stampBytes)>16384{return Repository{},errors.New("metadata exceeds client limit")}
 	h:=digest(raw)
 	return Repository{Files:map[string][]byte{
-		"metadata/1.root.json":bytes.Clone(rootBytes),
+		fmt.Sprintf("metadata/%d.root.json",rootVersion):bytes.Clone(rootBytes),
 		fmt.Sprintf("metadata/%d.targets.json",o.Version):targetBytes,
 		fmt.Sprintf("metadata/%d.snapshot.json",o.Version):snapBytes,
 		"metadata/timestamp.json":stampBytes,

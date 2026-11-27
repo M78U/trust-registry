@@ -71,4 +71,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Reviewed TUF publication staging gate, cross-config role separation and pinned snapshot transition validation: merged in #34. Caller-owned baseline, no persistent publication ledger, root rotation or deployment yet.
 
-- Persistent private reviewed-build ledger, sequential immutable records, hash links, exact byte export and optional independent head pin: PR #35. No live publication, external tamper-proof checkpoint or rotation.
+- Persistent private reviewed-build ledger, sequential immutable records, hash links, exact byte export and optional independent head pin: merged in #35. No live publication, external tamper-proof checkpoint or rotation.
+
+- Dual-threshold TUF root rotation and offline chain/repository verification: PR #36. Isolated research builder; reviewed ledger and online/offline installed-state migration pending.
