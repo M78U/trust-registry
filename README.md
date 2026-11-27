@@ -155,3 +155,7 @@ Rotated `build-ledger` accepts the full ordered `--root-chain` and `--initial-ro
 ### Manual release validation
 
 Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and Node >=20 to generate dependency lock candidates and exercise both Go modules, all CLIs and Explorer. After reviewed lock files are committed, run `--mode=locked` on a clean checkout. Manual GitHub workflow `release-validation.yml` provides the same checks and short-lived report artifacts. See [acceptance guide](docs/RELEASE-VALIDATION.md). No automatic PR checks or deployment.
+
+### Offline batch CA candidate intake
+
+`sources intake-plan` checks selected local `ID.cer` files against the embedded SHECA catalog and observed endpoints, binds original file and DER hashes, catalog hashes and explicit observation time. `sources intake-apply --plan-sha256` repeats preflight and imports only unreviewed candidates into an initialized local store. No network or trust promotion. See [batch intake](docs/CA-INTAKE.md).

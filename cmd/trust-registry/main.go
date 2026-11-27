@@ -237,7 +237,8 @@ func runPolicy(args []string,out io.Writer) error {
 }
 
 func runSources(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl")}
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl | intake-plan | intake-apply")}
+	if args[0]=="intake-plan"||args[0]=="intake-apply"{return runSourceIntake(args,out)}
 	c,err:=sources.SHECA();if err!=nil{return err}
 	enc:=json.NewEncoder(out)
 	switch args[0]{
