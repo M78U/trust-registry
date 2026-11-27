@@ -163,3 +163,7 @@ Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and N
 ### Multi-CA research leads
 
 `sources multi-ca [--authority CFCA|BJCA|GDCA]` lists selected observed official chain/certificate leads and scoped third-party SHA-256 observations. `sources multi-ca-audit --id ID FILE` checks a single local certificate only when an exact published SHA-256 lead exists. No network, import or trust authorization. See [multi-CA research](docs/MULTI-CA-RESEARCH.md).
+
+### Offline certificate bundle intake
+
+`sources bundle-plan`, `bundle-export`, `bundle-apply` support bounded CA-only PEM, single DER and certificate-only PKCS#7 containers. Retain original bytes and pinned member manifest; explicitly import only exact matched published leads with original container provenance. See [bundle intake](docs/CERTIFICATE-BUNDLE-INTAKE.md).
