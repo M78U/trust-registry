@@ -7,3 +7,6 @@
 
 /* Open-source release links: same palette, no third-party runtime assets. */
 .nav nav .nav-github{color:var(--fg);font-weight:650}.hero-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.secondary{display:inline-flex;align-items:center;gap:14px;padding:10px 19px;border:1px solid var(--line);border-radius:8px;color:var(--fg);font-weight:650}.secondary:hover{border-color:var(--ring);text-decoration:none}.release-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:12px;color:var(--muted);margin:16px 0 0}.release-line a{font-weight:650;color:var(--ring)}
+
+/* CLI onboarding uses the existing static palette. */
+.install-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}.install-terminal,.install-details{min-width:0;border:1px solid var(--line);border-radius:10px;padding:20px;background:var(--surface)}.install-layout pre{background:var(--bg);border-radius:6px;padding:12px;overflow-x:auto;margin:10px 0;font-size:13px;line-height:1.7}.install-details h3{font-size:16px;margin:0 0 8px}.install-details a{font-size:13px}@media(max-width:760px){.install-layout{grid-template-columns:1fr}}
