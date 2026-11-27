@@ -171,3 +171,33 @@ python3 -B scripts/sheca_source_review_queue.py verify \
 ```
 
 Verify checks exact replay and independent batch digest. All tasks are PENDING_HUMAN_REVIEW; this stage has no disposition/closure API or global queue index. NO_TASKS_FROM_THIS_COMPARISON is not proof of no source change or current trust. The live adapter profile is still unaccepted; do not automate semantic conclusions or publish evidence. No acquisition, inventory mutation, review signature, trust grant, scheduler, dependency or Cloudflare changes. Four synthetic test methods added (not executed in the implementation environment). Next stage: append-only human review dispositions and bounded pending task index; the real SHECA capture checkpoint remains open.
+
+
+## Stage 9: append-only source-review dispositions
+
+After preparing and independently pinning a batch, select one exact task ID. Both commands below replay the original observation pair and verify the saved batch against its independent pin; no editable projection or batch alone is accepted.
+
+```sh
+python3 -B scripts/sheca_source_review_disposition.py history \
+  --queue "$HOME/trust-maintainer-queue" --batch-sha256 BATCH_PIN \
+  --task-id TASK_ID --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  /path/to/private-first.json /path/to/private-next.json
+
+python3 -B scripts/sheca_source_review_disposition.py record \
+  --queue "$HOME/trust-maintainer-queue" --batch-sha256 BATCH_PIN \
+  --task-id TASK_ID --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  --expected-head EMPTY --action NEEDS_INVESTIGATION \
+  --at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --reviewer 'local-maintainer' --note 'Check independent source evidence' \
+  /path/to/private-first.json /path/to/private-next.json
+```
+
+Replace all placeholders with the separately retained pins and task ID. EMPTY explicitly means no prior disposition. For subsequent actions retain and use the last returned headSHA256 (not a blindly refreshed value). NEEDS_INVESTIGATION and REVIEW_COMPLETE are permitted from pending/investigation; REOPENED is permitted only after REVIEW_COMPLETE and returns to pending. The UTC recorded time must strictly exceed current observation time and prior event time. Reviewer and note are bounded printable assertions (128 and 1024 characters); do not put secrets into command arguments or notes. Reviewer identity is not authenticated. REVIEW_COMPLETE means only that the human recorded completion of the source review task, not CA approval, independent reviewer signoff, live profile acceptance, or authorization to publish.
+
+One private task stream under <batchId>.dispositions/<taskId> contains at most 32 numbered immutable-by-convention events, each max 16 KiB. Events bind the exact batch digest, task, sequence, prior event digest, action, resulting status, UTC time and human notes. Replay verifies the chain, allowed transitions and canonical bytes. Reads enumerate only the explicitly selected task's bounded directory, never the global queue. The writer uses a cooperative per-task lock, exact expected head, synced private temp file and no-replace hard link; previous event files are never edited. Conflicts, corrupt records, gaps, unexpected entries and stale heads fail closed. Inspect stale locks manually. A lost response after commit requires a history read; retries with stale heads fail rather than silently repeat. No directory fsync or hostile filesystem protection. A deleted suffix or fully rewritten chain may be undetectable without an independently retained head; protect the private store and back it up. History is advisory and may race a cooperating writer; use expected head on record. No global pending index yet.
+
+Four synthetic test methods added, covering transitions, reopen, stale head, wrong task/batch, corruption/gaps/lock and note bounds. Run the full Python suite from a clean checkout:
+```sh
+python3 -B -m unittest discover -s scripts -p 'test_sheca_source_*.py' -v
+```
+Native execution of these new tests and actual SHECA page acceptance remain pending. No dependency, cloud operations, certificate inventory mutation, formal review signatures or trust decisions.
