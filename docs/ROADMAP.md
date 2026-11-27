@@ -57,4 +57,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - DER-backed validity monitoring and bitemporal local policy history: merged in #27. No automatic trust changes, revocation inference or emergency release channel.
 
-- Local emergency restrictions, append-only policy collection comparison, and fresh-evidence reauthorization guard: PR #28. No production incident distribution, authenticated baseline ledger or global cross-policy kill switch.
+- Local emergency restrictions, append-only policy collection comparison, and fresh-evidence reauthorization guard: merged in #28. No production incident distribution, authenticated baseline ledger or global cross-policy kill switch.
+
+- Offline direct-issuer CRL and OCSP evidence inspection, explicit time cutoffs and conflict reporting: PR #29. Chain integration, evidence persistence and delegated responders remain pending.

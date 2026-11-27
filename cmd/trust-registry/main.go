@@ -33,7 +33,8 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | lifecycle | policy | sources | snapshot") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | lifecycle | revocation | policy | sources | snapshot") }
+	if args[0]=="revocation" { return runRevocation(args[1:],out) }
 	if args[0]=="snapshot" { return runSnapshot(args[1:],out) }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
 	if args[0]=="sources" { return runSources(args[1:],out) }
