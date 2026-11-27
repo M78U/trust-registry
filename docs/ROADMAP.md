@@ -13,6 +13,8 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 ## v0.1 implementation status
 
 - Inventory, provenance storage, SM2 parsing and direct issuer discovery: merged in #8 and #9.
-- Local scoped policy, provenance reviews, decision evaluation: current PR. Production trust material, signed snapshots, independent evidence verification, general schema engine and complete path validation remain separate gates.
+- Local scoped policy, provenance reviews, decision evaluation: merged in #10. Production trust material, signed snapshots, independent evidence verification, complete path validation remain separate gates.
 
-- Derived index, combined search/pagination and unified local inventory + supplied policy validation: PR #11; no persistent database or trust authority.
+- Derived index, combined search/pagination and unified local inventory + supplied policy validation: merged in #11; no persistent database or trust authority.
+
+- Offline embedded Schema runtime and empty registry initialization, CLI smoke tests and release-readiness checklist: current PR. v0.1 is a developer preview only; license decision, final CI/review and release approval remain gates.

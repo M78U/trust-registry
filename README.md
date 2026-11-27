@@ -12,6 +12,7 @@ Pre-release foundation. No real CA certificates or default trust anchors. The in
 
 ```sh
 go test ./...
+go run ./cmd/trust-registry init --registry ./local-registry
 go run ./cmd/trust-registry inspect certificate.cer
 go run ./cmd/trust-registry import --registry ./local-registry --source https://example.org/ca certificate.cer
 go run ./cmd/trust-registry list --registry ./local-registry
@@ -45,4 +46,8 @@ go run ./cmd/trust-registry search --registry ./local-registry --ski HEX --issue
 go run ./cmd/trust-registry validate --registry ./local-registry --policy testdata/policies/empty-cn-document-signing.json
 ```
 
-All search filters are exact AND matches. Serial/SKI/AKI/fingerprint use canonical lowercase hexadecimal. DN display text and asserted source host are discovery keys only, not proof of identity or source authenticity. Results are ordered by fingerprint; pass nextAfter as --after with the same filters and unchanged inventory to continue. The SDK reuses Store.BuildIndex() across queries; rebuild after any change. No persistent index or authenticated snapshot. Repeat --policy to check multiple local documents against one validated inventory; duplicate policy versions and scope changes under the same ID are rejected. Only supplied documents are checked. General JSON Schema engine integration, authenticated completeness and certificate path validation remain pending.
+All search filters are exact AND matches. Serial/SKI/AKI/fingerprint use canonical lowercase hexadecimal. DN display text and asserted source host are discovery keys only, not proof of identity or source authenticity. Results are ordered by fingerprint; pass nextAfter as --after with the same filters and unchanged inventory to continue. The SDK reuses Store.BuildIndex() across queries; rebuild after any change. No persistent index or authenticated snapshot. Repeat --policy to check multiple local documents against one validated inventory; duplicate policy versions and scope changes under the same ID are rejected. Only supplied documents are checked. Embedded Draft 2020-12 JSON Schema validation is enforced alongside semantic checks; authenticated completeness and certificate path validation remain pending.
+
+## v0.1 release readiness
+
+This is a development-only candidate inventory and policy toolkit, not a trusted root distribution. See [release checklist](docs/RELEASE.md). No production trust dataset is included. The schema runtime compiles all six embedded schemas with format assertions, rejects duplicate keys and external schema references, and validates persisted certificate/provenance JSON and local policy documents. No network access during validation. Semantic and cryptographic checks remain independent.

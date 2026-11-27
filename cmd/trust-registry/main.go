@@ -31,7 +31,7 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry inspect FILE | import | list | find | provenance | validate | discover | search | policy") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | search | policy") }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
 	if args[0]=="inspect" {
 		if len(args)!=2 { return errors.New("usage: inspect FILE") }
@@ -45,6 +45,12 @@ func run(args []string,out io.Writer) error {
 	root:=flags.String("registry","registry","local inventory directory")
 	encode:=json.NewEncoder(out)
 	switch args[0] {
+	case "init":
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if flags.NArg()!=0{return errors.New("usage: init --registry DIR")}
+		s,err:=registry.OpenStore(*root);if err!=nil{return err}
+		report,err:=s.Init();if err!=nil{return err}
+		return encode.Encode(report)
 	case "import":
 		source:=flags.String("source","","asserted public HTTPS source URL (not fetched)")
 		if err:=flags.Parse(args[1:]); err!=nil { return err }
