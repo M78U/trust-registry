@@ -34,3 +34,19 @@ done
 Use the same Go toolchain patch version as the proposed Homebrew build. This cross-target evidence collection does not execute Intel binaries or replace native install tests. Source and expected revision are required together. The collector checks the Git root, clean status including untracked files (not ignored files), exact HEAD, tracked regular go.mod/go.sum and unchanged lock hashes. The output must be outside both the tooling and source checkout. Use trusted clean worktrees; this does not defend against concurrent malicious local filesystem changes. Review the resulting inventories and exact notice bytes privately. The new source-selection fixture has not yet been executed in the operator environment.
 
 Complete package-specific notices, platform-specific validation, and a local Homebrew formula install/test before registering the formula in M78U/homebrew-tap. The install should build the reviewed source with pinned Go dependencies, ship all applicable notices, and perform an offline synthetic init/validate smoke test. No CA download, private data, production trust anchor, network update or automatic release job. The existing source-only developer preview is unchanged.
+
+## v0.2.0-preview.1 package acceptance
+
+The source-only preview tag resolves to `45cc3aad74d93ade0fbfde44996e5f44739deb6d`; the owner reported locked validation on macOS ARM64 with Go 1.26.11. All four tracked module lock blobs are unchanged relative to 0.1.0, but the selected package graph may change when source imports change. Before changing the formula, collect the exact released ARM64 package evidence under the same build toolchain (not a floating main checkout):
+
+```sh
+git fetch origin --tags
+git worktree add --detach ../trust-registry-v02-preview v0.2.0-preview.1
+export PATH="$(brew --prefix go@1.26)/bin:$PATH"
+GOOS=darwin GOARCH=arm64 node scripts/cli-license-evidence.mjs \\
+  --source=../trust-registry-v02-preview \\
+  --expected-revision=45cc3aad74d93ade0fbfde44996e5f44739deb6d \\
+  --out=../trust-v02-preview-license-arm64
+```
+
+Review actual selected packages, notice hashes, warnings, changed source headers/embedded assets and redistribution obligations. Verify binary identity and native install/smoke against a separately staged candidate formula before changing public installation. Keep the existing 0.1.0 formula until acceptance; no automatic upgrade on source release. Source review and dependency notices alone do not prove legal permission.
