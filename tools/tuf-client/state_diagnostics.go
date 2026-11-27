@@ -31,6 +31,7 @@ type StateDiagnostic struct {
  Installed *DiagnosticEvidence `json:"installed,omitempty"`
  Pending *DiagnosticEvidence `json:"pending,omitempty"`
  PendingPresent bool `json:"pendingPresent"`
+ CheckpointProvided bool `json:"checkpointProvided"`
  TrustStatus string `json:"trustStatus"`
 }
 
@@ -56,11 +57,11 @@ func diagnoseStateAt(o DiagnosticOptions,at time.Time)(StateDiagnostic,error){
  }
  var checkpoint *ReleaseCheckpoint
  if o.Checkpoint!=nil{c:=*o.Checkpoint;if err:=c.validate();err!=nil{return StateDiagnostic{},err};checkpoint=&c}
- d:=StateDiagnostic{CheckedAt:at,TrustStatus:"NOT_ESTABLISHED"}
+ d:=StateDiagnostic{CheckedAt:at,CheckpointProvided:checkpoint!=nil,TrustStatus:"NOT_ESTABLISHED"}
  finish:=func(status,action string)(StateDiagnostic,error){d.Status=status;d.Recommendation=action;return d,nil}
  root,err:=filepath.Abs(o.StateDir);if err!=nil{return StateDiagnostic{},err}
  if err:=regularDir(root);err!=nil{
-  if os.IsNotExist(err){return finish("STATE_MISSING","EXPLICIT_BOOTSTRAP_WITH_INDEPENDENT_PINS")}
+  if os.IsNotExist(err){return finish("STATE_MISSING","INSPECT_BEFORE_EXPLICIT_BOOTSTRAP_WITH_PINS_AND_CHECKPOINT")}
   return finish("STATE_INVALID","INSPECT_PRIVATE_STATE")
  }
  lock:=filepath.Join(root,".lock")
