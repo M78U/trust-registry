@@ -225,7 +225,7 @@ func TestReviewedPublication(t *testing.T){
   return d
  }
  firstDiag:=expectDiagnostic("INSTALLED_EVIDENCE_MATCHES")
- if firstDiag.Installed==nil||firstDiag.Installed.Sequence!=1||!firstDiag.Installed.CacheMatches{t.Fatal(firstDiag)}
+ if !firstDiag.CheckpointProvided||firstDiag.Installed==nil||firstDiag.Installed.Sequence!=1||!firstDiag.Installed.CacheMatches{t.Fatal(firstDiag)}
  expiredDiag,err:=diagnoseStateAt(diagnostic,binding.TimestampExpires)
  if err!=nil||expiredDiag.Status!="INSTALLED_EXPIRED"||!expiredDiag.Installed.Expired{t.Fatal(expiredDiag,err)}
  if err:=os.Mkdir(filepath.Join(state,".lock"),0700);err!=nil{t.Fatal(err)}
@@ -293,6 +293,7 @@ func TestReviewedPublication(t *testing.T){
  timestampBytes,err:=readRegular(timestampPath,16384);if err!=nil{t.Fatal(err)}
  if err:=os.WriteFile(timestampPath,[]byte("{}"),0600);err!=nil{t.Fatal(err)}
  if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("mismatched cache recovered")}
+ expectDiagnostic("PENDING_CACHE_MISMATCH")
  if err:=os.WriteFile(timestampPath,timestampBytes,0600);err!=nil{t.Fatal(err)}
  if _,err:=os.Stat(installed2);!os.IsNotExist(err){t.Fatal("invalid recovery committed evidence",err)}
  recovered,err:=RecoverPendingInstall(recovery)
@@ -305,6 +306,7 @@ func TestReviewedPublication(t *testing.T){
  if _,err:=RecoverPendingInstall(recovery);err!=nil{t.Fatal(err)}
  restored,err=readRegular(installed2,maxEvidenceBytes);if err!=nil||!bytes.Equal(restored,record2){t.Fatal("cleanup changed installed record",err)}
  if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("no journal unexpectedly recovered")}
+ expectDiagnostic("INSTALLED_EVIDENCE_MATCHES")
  currentDir.Store(assets)
  if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
  staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)
