@@ -189,3 +189,5 @@ Review workspace now accepts explicit pinned bundle archives, reports task count
 `snapshot path-impact` compares a local signer certificate under exact shared policy and time cutoffs across pinned snapshots, optionally isolating changes in private revocation evidence. See [path impact](docs/PATH-IMPACT.md). No production trust or document validation.
 
 Strict offline Go consumer SDK: `tufclient.OpenConsumer` requires installed TUF and independent public release approval; bounded detached sessions expose candidate bundles, search, policy/path diagnostics and live-session comparisons. See [consumer SDK](docs/CONSUMER-SDK.md). No automatic trust or update.
+
+Strict online refresh can optionally enforce an independently retained `ReleaseCheckpoint` (sequence, snapshot SHA-256, root version) before target download, with SDK export and `tuf-fetch --checkpoint-*` flags. See [consumer SDK](docs/CONSUMER-SDK.md). External checkpoint persistence remains caller-owned.
