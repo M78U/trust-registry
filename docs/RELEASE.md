@@ -53,3 +53,7 @@ Static deployment staging is available via static-prepare/static-check (STATIC-P
 ## Manual integration acceptance
 
 Use the explicit validation workflow/script in RELEASE-VALIDATION.md. Both Go module locks are committed as of #64; lock-candidate is discovery only, not locked acceptance. The operator reported a complete local lock-candidate pass on macOS ARM64; final locked validation and applicable cross-platform checks remain pending. See [third-party notices](../THIRD-PARTY-NOTICES.md) for the scoped CLI license inventory. Keep all PR/push checks disabled during development. Only a clean committed-lock validation run can satisfy the local developer gate; actual CA, key ceremony, independent review and live deployment validation are separate.
+
+## Current release checkpoint
+
+The owner-published source-only 0.1.0 Developer Preview and scoped Apple Silicon Homebrew formula exist. Current main is not the previously validated release revision. Follow the [v0.2 release acceptance checkpoint](V02-RELEASE-ACCEPTANCE.md) for actual data, software review and locked validation. Historical implementation notes above describe the state when written, not current acceptance. No tag, package update, or production dataset until the relevant gates are met.
