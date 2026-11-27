@@ -38,3 +38,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Local research Ed25519 signature and threshold verification, explicit time and caller checkpoint checks: merged in #19. Automatic CI suspended by owner; manual checks retained. TUF production integration, authenticated key rotation and durable rollback state remain separate gates.
 
 - Append-only local research installation and persistent checkpoint, reauthenticated SDK loader: PR #20. Cooperative local locking, bounded history; no authenticated production update, root rotation or hostile local rollback resistance.
+
+- Experimental isolated go-tuf/v2 client adapter: PR #21. Top-level metadata refresh, target verification, explicit root pin and persistent protected cache. Dependency lock/execution, signed fixture, publisher and application checkpoint integration pending.

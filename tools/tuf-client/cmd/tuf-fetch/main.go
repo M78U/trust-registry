@@ -1,0 +1,41 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/M78U/trust-registry/tools/tuf-client"
+)
+
+func run()error{
+	state:=flag.String("state","","private TUF state directory")
+	meta:=flag.String("metadata-url","","HTTPS metadata base")
+	targets:=flag.String("targets-url","","HTTPS targets base")
+	pin:=flag.String("root-sha256","","independently obtained initial root SHA-256")
+	root:=flag.String("bootstrap-root","","independently obtained root.json for first use")
+	out:=flag.String("out","","new local snapshot output file")
+	flag.Parse()
+	if flag.NArg()!=0||*state==""||*meta==""||*targets==""||*pin==""||*out==""{return errors.New("state, metadata-url, targets-url, root-sha256 and out required")}
+	if _,err:=os.Lstat(*out);err==nil{return errors.New("output exists")}else if !os.IsNotExist(err){return err}
+	o:=tufclient.Options{StateDir:*state,MetadataURL:*meta,TargetsURL:*targets,InitialRootSHA256:*pin}
+	if *root!=""{
+		i,err:=os.Lstat(*root);if err!=nil{return err}
+		if !i.Mode().IsRegular()||i.Size()>512000{return errors.New("invalid bootstrap root file")}
+		f,err:=os.Open(*root);if err!=nil{return err};defer f.Close()
+		s,err:=f.Stat();if err!=nil{return err}
+		if !os.SameFile(i,s){return errors.New("root file changed")}
+		o.BootstrapRoot,err=io.ReadAll(io.LimitReader(f,512001));if err!=nil{return err}
+	}
+	raw,report,err:=tufclient.Refresh(context.Background(),o);if err!=nil{return err}
+	f,err:=os.OpenFile(*out,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600);if err!=nil{return err}
+	if _,err=f.Write(raw);err==nil{err=f.Sync()}
+	closeErr:=f.Close();if err==nil{err=closeErr}
+	if err!=nil{_ = os.Remove(*out);return err}
+	return json.NewEncoder(os.Stdout).Encode(report)
+}
+func main(){if err:=run();err!=nil{fmt.Fprintln(os.Stderr,err);os.Exit(1)}}

@@ -29,3 +29,5 @@ TUF is the preferred production update architecture (https://theupdateframework.
 The current Ed25519 detached-signature feature is explicitly a local research mechanism, not TUF. It verifies a domain-separated envelope SHA-256 with independently provided public keys, distinct signer threshold, explicit time window and caller-owned checkpoint comparison. It does not set releaseAuthenticated or authorize CA trust, implement root/key rotation, persist rollback state or prevent a frozen still-valid snapshot. Do not deploy it as a production updater.
 
 Local research installation now combines the signed snapshot and checkpoint in append-only records (see SNAPSHOT-INSTALLATION.md). It does not replace TUF metadata/state or prove durability against power loss or deletion of local state. Automatic CI remains disabled by owner request.
+
+Experimental TUF client adapter lives in tools/tuf-client; see TUF-DISTRIBUTION.md. No production root or target has been released; dependency lock, executable tests, application sequence state and publication workflow remain gates.
