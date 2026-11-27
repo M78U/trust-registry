@@ -31,7 +31,9 @@ func run()error{
 	o:=tufclient.Options{StateDir:*state,MetadataURL:*meta,TargetsURL:*targets,InitialRootSHA256:*pin}
 	if (*authority=="")!=(*authorityPin==""){return errors.New("authority and authority-sha256 must be supplied together")}
 	if *authority!=""{a,err:=tufclient.LoadReviewAuthority(*authority,*authorityPin);if err!=nil{return err};o.ReviewAuthority=a}
-	if *checkpointSequence!=0||*checkpointHash!=""||*checkpointRoot!=0{
+	checkpointRequested:=false
+	flag.Visit(func(f *flag.Flag){switch f.Name{case "checkpoint-sequence","checkpoint-snapshot-sha256","checkpoint-root-version":checkpointRequested=true}})
+	if checkpointRequested{
 		if o.ReviewAuthority==nil||*checkpointSequence==0||*checkpointHash==""||*checkpointRoot<1{return errors.New("strict authority and all three checkpoint flags required together")}
 		o.Checkpoint=&tufclient.ReleaseCheckpoint{Sequence:*checkpointSequence,SnapshotSHA256:*checkpointHash,RootVersion:*checkpointRoot}
 	}
