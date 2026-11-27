@@ -225,8 +225,13 @@ func (d Document) Evaluate(s *registry.Store, at, knownAt time.Time) (Evaluation
 		if !ok || r.RecordedAt.After(current.RecordedAt) { latestReviews[r.ProvenanceID]=r }
 	}
 	latest:=map[string]Decision{}
+	latestRestriction:=map[string]Decision{}
 	for _,v:=range d.Decisions {
 		if v.RecordedAt.After(knownAt) || v.EffectiveFrom.After(at) { continue }
+		if v.Status!=Trusted {
+			old,ok:=latestRestriction[v.CertificateSHA256]
+			if !ok||v.RecordedAt.After(old.RecordedAt){latestRestriction[v.CertificateSHA256]=v}
+		}
 		old,ok:=latest[v.CertificateSHA256]
 		if !ok || v.EffectiveFrom.After(old.EffectiveFrom) { latest[v.CertificateSHA256]=v }
 	}
@@ -245,7 +250,13 @@ func (d Document) Evaluate(s *registry.Store, at, knownAt time.Time) (Evaluation
 			default:
 				valid:=true
 				for _,id:=range v.EvidenceIDs { r:=reviews[id]; current:=latestReviews[r.ProvenanceID]; if current.ID!=id || current.Status!="PROVENANCE_VERIFIED" { valid=false;break } }
-				if !valid { row.Reason="positive decision evidence rejected or superseded" } else {
+				restriction,restricted:=latestRestriction[fp]
+				fresh:=true
+				if restricted {
+					fresh=v.RecordedAt.After(restriction.RecordedAt)
+					for _,id:=range v.EvidenceIDs {if !reviews[id].RecordedAt.After(restriction.RecordedAt){fresh=false;break}}
+				}
+				if !fresh { row.Reason="fresh review and authorization required after restriction" } else if !valid { row.Reason="positive decision evidence rejected or superseded" } else {
 					row.Status=Trusted;row.Reason=v.Reason
 					report.LocallyAuthorizedAnchors=append(report.LocallyAuthorizedAnchors,fp)
 				}

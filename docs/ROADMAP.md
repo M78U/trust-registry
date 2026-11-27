@@ -55,4 +55,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 ## v0.5 lifecycle
 
-- DER-backed validity monitoring and bitemporal local policy history: PR #27. No automatic trust changes, revocation inference or emergency release channel.
+- DER-backed validity monitoring and bitemporal local policy history: merged in #27. No automatic trust changes, revocation inference or emergency release channel.
+
+- Local emergency restrictions, append-only policy collection comparison, and fresh-evidence reauthorization guard: PR #28. No production incident distribution, authenticated baseline ledger or global cross-policy kill switch.

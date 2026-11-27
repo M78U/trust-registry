@@ -103,3 +103,7 @@ Explorer includes an interactive evidence constellation with direct catalog/sour
 ## Certificate lifecycle
 
 `trust-registry lifecycle --registry DIR --at RFC3339 --warning-days 90` reports validity of DER-backed current inventory at explicit time. `trust-registry policy history --registry DIR --file POLICY.json --fingerprint HEX --at RFC3339 --known-at RFC3339` exposes time-visible decisions and reviews for a declared anchor. Loaded snapshot SDK offers both operations. See [lifecycle](docs/LIFECYCLE.md). No revocation or production trust inference.
+
+## Emergency local policy changes
+
+`policy restrict` proposes an immediate suspension or indefinite distrust for one declared anchor in an exact policy version; `policy check-transition` compares complete previous/next policy document sets. Neither edits existing files nor publishes a release. Positive authorization after a restriction requires new review and decision recorded after it. See [emergency updates](docs/EMERGENCY-UPDATES.md).
