@@ -1,0 +1,14 @@
+# Effective local authorization impact
+
+This diagnostic compares two independently pinned, fully integrity-validated research snapshots, keyed by exact policy ID/version, never implicitly selecting the latest policy. Both use the same explicit UTC evaluation time and knowledge time (knowledge >= evaluation). Optional paired earlier times add a separate comparison of the old snapshot against itself at the target cutoff. Thus SAME_CUTOFF_DIFFERENT_SNAPSHOT isolates the snapshot input change, and SAME_SNAPSHOT_DIFFERENT_CUTOFF isolates the cutoff change on the old snapshot. This is not a causal analysis of real document verification.
+
+```sh
+trust-registry snapshot authorization-impact --previous old.json \\
+  --previous-sha256 OLD_PIN --snapshot-sha256 NEW_PIN \\
+  --at EVALUATION_RFC3339 --known-at KNOWLEDGE_RFC3339 \\
+  --baseline-at EARLIER_RFC3339 --baseline-known-at EARLIER_KNOWLEDGE_RFC3339 new.json
+```
+
+Baseline flags optional as a pair; cannot exceed respective target times. Next sequence and creation time must increase. This is an offline counterfactual diagnostic, not a historical installation proof: old or new snapshot may be expired, or may not yet have existed at the requested cutoff. Both comparisons report declared snapshot window relative to knowledge time; policy declarations are not filtered by historical publication time, only review/decision events follow existing evaluator semantics. No freshness or append-only transition guarantee; use snapshot diff --require-transition for the latter. It reuses the existing evaluator, now also available as Document.EvaluateAgainst for a shared validated inventory index. Each snapshot is verified and a detached shared index built once; no per-policy inventory scan. All document references are still validated. Fixed reason categories omit private reviewer notes. Added/removed policy scopes and anchor declarations are distinguished; purpose/jurisdiction changes on matching anchors are reported as scope changes, not equivalent authorization transitions. Authorized counts mean local decision and review applicability only. Certificate validity is reported separately (inclusive NotBefore/NotAfter); expired certificates may retain local policy authorization but are not necessarily usable. No path, revocation, legal purpose authorization, release authentication or production trust. Reevaluate affected paths even if report is empty.
+
+Max 32768 declared anchor evaluations across comparisons and 16 MiB canonical report, fail on overflow, no truncation. Existing snapshot size/record limits apply. No network or Cloudflare operations or new dependencies. Synthetic tests cover expiry, restriction, historical knowledge, scope/validity, digest refusal, shared-index parity; not executed. Manual Go acceptance and TUF lock remain pending. No deployment or SigLens code change.
