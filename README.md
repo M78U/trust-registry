@@ -170,6 +170,10 @@ Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and N
 
 Explorer now projects four CA research catalogs into one static browser-local index (32 research rows, 8 SHA-256 leads, 7 SATL name leads). Authority/type/track/status filters and source constellation remain research-only. No runtime API or extra asset request.
 
+### CA acquisition coverage
+
+`sources acquisition-coverage --registry DIR` derives a deterministic offline research queue from the three embedded catalog/endpoint collections. Exact SHA-256 inventory coverage and asserted URL matches are separate from private archive validation (not checked by this command). See [acquisition coverage](docs/CA-ACQUISITION-COVERAGE.md). No source authentication, download or trust grant.
+
 ### Private acquisition archive
 
 `sources archive-fetch` saves exact original bytes and locally asserted observation metadata for an explicit SHECA endpoint, and reuses an intact existing observation without another fetch. `archive-inspect`, `archive-original`, `archive-import` require the independently retained archive digest. See [acquisition archive](docs/ACQUISITION-ARCHIVE.md). No automatic trust or cloud storage.

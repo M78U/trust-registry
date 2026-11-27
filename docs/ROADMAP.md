@@ -122,3 +122,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Pre-public audit preflight: bounded offline reachable-tree/blob inspection with redacted object identifiers, private-path and selected credential-marker review, synthetic deleted-history/branch-only/partial-clone test fixtures. Independent full clone scan, rights review, GitHub metadata review and locked validation remain required; no visibility change.
 
 - Dependency acceptance tooling: independent lock-only resolution and selected Go module graph/license evidence, two Node fixture tests passed. Actual Go 1.26 resolution, lock commit, dependency rights review and locked tests remain open. Private manual artifacts only; no automatic checks or deployment.
+
+- Offline CA acquisition queue and exact fingerprint inventory coverage across SHECA/CFCA/BJCA/GDCA: one validated index, catalog digests, separate asserted URL matching and explicit archive NOT_CHECKED. No network or trust approval; pinned archive coverage and actual acquisition remain separate.
