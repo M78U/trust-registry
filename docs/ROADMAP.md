@@ -98,3 +98,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Bundle archive linkage, diagnostic review queue and cross-snapshot evidence reference reuse: PR #47. New dossier entirely pending; no automatic approval, cloud dependency or publish. Real data and locked validation pending.
 
 - Pinned Registry release diff and structural consumer impact report (PR #48): certificate/provenance deltas, policy declarations and recorded decision/review changes, optional strict transition. No effective trust or production release claims.
+
+- Effective local authorization impact (PR #49): same-cutoff snapshot comparison, optional earlier cutoff on previous snapshot, shared inventory index and separate certificate validity; no actual path or production trust claim.

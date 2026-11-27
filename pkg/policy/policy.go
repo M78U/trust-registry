@@ -216,6 +216,17 @@ func (d Document) Evaluate(s *registry.Store, at, knownAt time.Time) (Evaluation
 	if !validTime(at) || !validTime(knownAt) || knownAt.Before(at) { return Evaluation{},errors.New("UTC evaluation and knowledge times required; knowledge time must not precede evaluation") }
 	reviews,err:=d.validate(s)
 	if err!=nil { return Evaluation{},err }
+	return d.evaluateValidated(reviews,at,knownAt),nil
+}
+
+// EvaluateAgainst shares one validated inventory index across policy
+// evaluations. The complete document is still checked on every call.
+func (d Document) EvaluateAgainst(index *registry.Index,at,knownAt time.Time)(Evaluation,error){
+ if !validTime(at)||!validTime(knownAt)||knownAt.Before(at){return Evaluation{},errors.New("UTC evaluation and knowledge times required; knowledge time must not precede evaluation")}
+ reviews,err:=d.validateIndex(index);if err!=nil{return Evaluation{},err}
+ return d.evaluateValidated(reviews,at,knownAt),nil
+}
+func(d Document)evaluateValidated(reviews map[string]Review,at,knownAt time.Time)Evaluation{
 	p:=d.Policy
 	report:=Evaluation{PolicyID:p.ID,PolicyVersion:p.Version,Purpose:p.Purpose,EvaluationTime:at,KnowledgeTime:knownAt,Mode:"UNAUTHENTICATED_LOCAL_POLICY",TrustStatus:Unknown,ReleaseAuthenticated:false,LocallyAuthorizedAnchors:[]string{},IntermediateCandidates:append([]string{},p.IntermediateCandidates...),AnchorEvaluations:[]AnchorEvaluation{},Constraints:p.Constraints}
 	latestReviews:=map[string]Review{}
@@ -264,5 +275,5 @@ func (d Document) Evaluate(s *registry.Store, at, knownAt time.Time) (Evaluation
 		}
 		report.AnchorEvaluations=append(report.AnchorEvaluations,row)
 	}
-	return report,nil
+	return report
 }

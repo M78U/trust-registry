@@ -100,3 +100,12 @@ func TestRejectInvalidPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestEvaluateAgainstSharedIndex(t *testing.T){
+ s,d,at:=sample(t)
+ i,err:=s.BuildIndex();if err!=nil{t.Fatal(err)}
+ a,err:=d.Evaluate(s,at,at);if err!=nil{t.Fatal(err)}
+ b,err:=d.EvaluateAgainst(i,at,at);if err!=nil||len(a.AnchorEvaluations)!=1||len(b.AnchorEvaluations)!=1||a.AnchorEvaluations[0]!=b.AnchorEvaluations[0]{t.Fatal(a,b,err)}
+ if _,err:=d.EvaluateAgainst(nil,at,at);err==nil{t.Fatal("missing inventory accepted")}
+ if _,err:=d.EvaluateAgainst(i,at,at.Add(-time.Second));err==nil{t.Fatal("bad cutoff")}
+}
