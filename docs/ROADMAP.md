@@ -44,3 +44,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Offline initial TUF root and static repository candidate generation: merged in #22. Four disjoint role key sets, thresholds, linked metadata hashes, consistent-snapshot naming. No rotation, publisher version ledger, deployment or authenticated installation. Dependency lock and executable tests remain pending.
 
 - TUF authenticated research installation and offline evidence loader: PR #23. Initial-root v1, version-aligned publisher profile only; protected filesystem and independent root pin. End-to-end synthetic TLS fixture added, not executed. Rotation evidence, dependency lock and production trust gates pending.
+
+- SigLens candidate exchange v1 and loaded-view issuer discovery: PR #24. Explicit intermediate candidates only, no authenticated release trust.
