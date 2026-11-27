@@ -237,9 +237,10 @@ func runPolicy(args []string,out io.Writer) error {
 }
 
 func runSources(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl | intake-plan | intake-apply | multi-ca | multi-ca-audit")}
+	if len(args)==0{return errors.New("usage: sources list | inspect ID | preview | endpoints | audit | fetch | research | satl | intake-plan | intake-apply | multi-ca | multi-ca-audit | bundle-plan | bundle-export | bundle-apply")}
 	if args[0]=="intake-plan"||args[0]=="intake-apply"{return runSourceIntake(args,out)}
 	if args[0]=="multi-ca"||args[0]=="multi-ca-audit"{return runMultiCA(args,out)}
+	if args[0]=="bundle-plan"||args[0]=="bundle-export"||args[0]=="bundle-apply"{return runBundle(args,out)}
 	c,err:=sources.SHECA();if err!=nil{return err}
 	enc:=json.NewEncoder(out)
 	switch args[0]{

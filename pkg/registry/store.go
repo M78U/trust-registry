@@ -117,7 +117,20 @@ type ImportResult struct {
 func (s *Store) Import(input []byte, source string, at time.Time) (ImportResult, error) {
 	record, provenance, der, err := ImportCandidate(input, source, at)
 	if err != nil { return ImportResult{}, err }
-	if !record.IsCA { return ImportResult{}, errors.New("persistent import accepts CA candidates only") }
+	return s.importRecords(record, provenance, der)
+}
+
+func validateImportRecords(record CertificateRecord,provenance ProvenanceRecord)error{
+ if !record.IsCA{return errors.New("persistent import accepts CA candidates only")}
+ meta,err:=canonicalJSON(record);if err!=nil{return err}
+ p,err:=canonicalJSON(provenance);if err!=nil{return err}
+ if len(meta)>maxRecordBytes||len(p)>maxRecordBytes{return errors.New("metadata too large")}
+ if err:=schemas.ValidateJSON(schemas.Certificate,meta);err!=nil{return err}
+ return schemas.ValidateJSON(schemas.Provenance,p)
+}
+
+func (s *Store) importRecords(record CertificateRecord,provenance ProvenanceRecord,der []byte)(ImportResult,error){
+ if !record.IsCA { return ImportResult{}, errors.New("persistent import accepts CA candidates only") }
 	meta, err := canonicalJSON(record)
 	if err != nil { return ImportResult{}, err }
 	p, err := canonicalJSON(provenance)

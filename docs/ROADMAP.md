@@ -86,3 +86,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Offline pinned SHECA batch candidate intake with preflight, source catalog binding and idempotent provenance: PR #41. Real certificate acquisition, actual Go build/lock and human review remain pending.
 
 - CFCA/BJCA/GDCA multi-CA research catalog, separate chain listings and exact-name fingerprint leads, offline local audit: PR #42. No real certificate acquisition or policy approval. Source review and dependency-lock validation pending.
+
+- Strict offline CA bundle parsing, pinned private archive, matched-member import with original container SHA-256: PR #43. No network acquisition, trust or publication; Go validation and real CA material pending.
