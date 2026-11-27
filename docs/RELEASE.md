@@ -12,7 +12,7 @@ CI builds deterministic artifacts from reviewed inputs; do not commit generated 
 - [ ] Confirm project license and third-party license notices; no public release before decision.
 - [ ] Confirm main-branch rules/review requirements and release approval.
 - [ ] Review release notes and identify exact source commit; choose a version/tag explicitly.
-- [ ] If a preview is published, label it developer preview, no real anchors, no trusted dataset and no authenticated update protocol. Do not publish candidate sources without redistribution review.
+- [ ] If a preview is published, label it developer preview, no real anchors, no trusted dataset and no production authenticated update service. Experimental local TUF tools are included, not an endorsed trust bootstrap. Do not publish candidate sources without redistribution review.
 
 No release tag, GitHub Release, binary package or production trust bundle is created by this PR. Signed distribution is v0.3.
 
@@ -52,4 +52,4 @@ Static deployment staging is available via static-prepare/static-check (STATIC-P
 
 ## Manual integration acceptance
 
-Use the explicit validation workflow/script in RELEASE-VALIDATION.md. The isolated TUF module lock is currently missing; lock-candidate is discovery only, not locked acceptance. Keep all PR/push checks disabled during development. Only a clean committed-lock validation run can satisfy the local developer gate; actual CA, key ceremony, independent review and live deployment validation are separate.
+Use the explicit validation workflow/script in RELEASE-VALIDATION.md. Both Go module locks are committed as of #64; lock-candidate is discovery only, not locked acceptance. The operator reported a complete local lock-candidate pass on macOS ARM64; final locked validation and applicable cross-platform checks remain pending. See [third-party notices](../THIRD-PARTY-NOTICES.md) for the scoped CLI license inventory. Keep all PR/push checks disabled during development. Only a clean committed-lock validation run can satisfy the local developer gate; actual CA, key ceremony, independent review and live deployment validation are separate.
