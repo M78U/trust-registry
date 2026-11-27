@@ -8,7 +8,7 @@ Certificate discovery never implies trust. Trust is explicit, scoped, auditable 
 
 ## Current status
 
-Pre-release foundation. No real CA certificates or default trust anchors. The initial implementation parses standard and SM2 X.509 DER/PEM and persists CA candidates and independent source assertions in a local content-addressed inventory. No trust evaluation or snapshot verification yet. Direct issuer discovery reports local candidate evidence only, never trust.
+Pre-release foundation. No real CA certificates or default trust anchors. The initial implementation parses standard and SM2 X.509 DER/PEM and persists CA candidates and independent source assertions in a local content-addressed inventory. Local policy evaluation is experimental and explicitly unauthenticated; no production trust evaluation or snapshot verification yet. Direct issuer discovery reports local candidate evidence only, never trust.
 
 ```sh
 go test ./...
@@ -32,3 +32,7 @@ Master roadmap: [#1](https://github.com/M78U/trust-registry/issues/1).
 ## Direct issuer discovery
 
 Exact DER issuer/subject names or nonempty AKI/SKI equality select candidates. Signature and limited CA constraints are evaluated separately; unsupported signatures, identifier conflicts and unknown critical extensions do not match. No validity time, full path constraints, policy, revocation or trust-anchor evaluation. `trustStatus` is always `NOT_ESTABLISHED`. Names with equivalent but differently encoded DNs may be missed. The candidate scan is local, bounded to 256 matches, and assumes an operator-controlled inventory. No system roots or network requests.
+
+## Local policy evaluation
+
+`trust-registry policy list` and `policy inspect cn.document-signing` expose empty built-in profiles. `policy evaluate --file policy-review.json --registry ./local-registry --at 2026-01-01T00:00:00Z --known-at 2026-01-01T00:00:00Z` evaluates a local review document. It never establishes release authenticity or certificate trust; even explicit local approvals are reported only as `locallyAuthorizedAnchors`. See [policy format](docs/TRUST-POLICY.md).

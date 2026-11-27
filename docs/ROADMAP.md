@@ -9,3 +9,8 @@
 - [ ] v1.0 — Stable SDK/schema, reproducibility, governance, independent security review and multiple integrations (#7).
 
 Master: #1. International research (AATL, EU trusted lists) follows China source research. No real user documents as fixtures.
+
+## v0.1 implementation status
+
+- Inventory, provenance storage, SM2 parsing and direct issuer discovery: merged in #8 and #9.
+- Local scoped policy, provenance reviews, decision evaluation: current PR. Production trust material, signed snapshots, independent evidence verification, general schema engine and complete path validation remain separate gates.
