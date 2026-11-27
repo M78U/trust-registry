@@ -18,11 +18,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      # Temporary dependency bootstrap; restore tidy -diff after locking checksums.
-      - run: go mod tidy
-      - name: Resolved module lock
-        shell: bash
-        run: cat go.mod go.sum
+      - run: go mod tidy -diff
       - run: go mod verify
       - run: go vet -mod=readonly ./...
       - run: go test -mod=readonly ./...
