@@ -8,7 +8,7 @@ Certificate discovery never implies trust. Trust is explicit, scoped, auditable 
 
 ## Current status
 
-Public Explorer research preview; source repository private pending the [public-source readiness gate](docs/OPEN-SOURCE-READINESS.md). No released real CA dataset or default trust anchors. The local toolkit parses standard and SM2 X.509 DER/PEM, manages candidate provenance, evaluates research policies and supports experimental snapshot authentication, strict TUF installation, recovery and consumer sessions. Committed-lock validation and independent security review remain outstanding. Distribution authentication and candidate discovery do not establish certificate trust.
+Public Explorer research preview and public source repository. [0.1.0 Developer Preview](https://github.com/M78U/trust-registry/releases/tag/0.1.0) is the existing source-only release; the scoped Apple Silicon Homebrew formula remains at 0.1.0. Main is under development toward v0.2; see the [release acceptance checkpoint](docs/V02-RELEASE-ACCEPTANCE.md). No released real CA dataset or default trust anchors. The local toolkit parses standard and SM2 X.509 DER/PEM, manages candidate provenance, evaluates research policies and supports experimental snapshot authentication, strict TUF installation, recovery and consumer sessions. Current-revision committed-lock validation and independent security review remain outstanding; previous release validation does not cover new commits. Distribution authentication and candidate discovery do not establish certificate trust.
 
 ```sh
 go test ./...

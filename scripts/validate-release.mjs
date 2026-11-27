@@ -99,6 +99,54 @@ try{
  const trust=bin("trust-registry");
  jsonCommand("CLI inventory init",trust,["init","--registry",registry],scratch);
  jsonCommand("CLI inventory validate",trust,["validate","--registry",registry],scratch);
+ // Exercise the current source intake CLI, not only legacy inventory commands.
+ // Use an empty private archive directory and explicit invalid selections.
+ // No successful or attempted online acquisition belongs in this validation.
+ const archive=join(scratch,"private-acquisitions");
+ mkdirSync(archive,{mode:0o700});
+ const coverage=jsonCommand("CLI offline CA acquisition coverage",trust,["sources","acquisition-coverage","--registry",registry],scratch);
+ check("CLI acquisition coverage boundaries",()=>{
+  assert.equal(coverage.schemaVersion,"1");
+  assert.deepEqual(coverage.inventory,{certificates:0,provenanceRecords:0});
+  assert.equal(coverage.counts.listingRows,coverage.tasks.length);
+  assert.equal(coverage.counts.exactFingerprintRows,coverage.tasks.filter(t=>t.publishedSHA256!==undefined).length);
+  assert.equal(coverage.counts.missingInventoryRows,coverage.counts.exactFingerprintRows);
+  assert.equal(coverage.counts.noExactFingerprintRows+coverage.counts.exactFingerprintRows,coverage.counts.listingRows);
+  assert.equal(coverage.counts.matchingInventoryRows,0);
+  assert.equal(coverage.counts.matchingSourceAssertionRows,0);
+  assert.equal(coverage.archiveCoverage,undefined);
+  assert.equal(coverage.sourceAuthentication,"NOT_ESTABLISHED");
+  assert.equal(coverage.trustStatus,"NOT_ESTABLISHED");
+  assert.equal(coverage.releaseAuthenticated,false);
+  for(const t of coverage.tasks){
+   assert.equal(t.archiveStatus,"NOT_CHECKED");
+   assert.equal(t.redistributionStatus,"NOT_REVIEWED");
+  }
+  assert.equal(Object.values(coverage.routeCounts).reduce((a,b)=>a+b,0),coverage.tasks.length);
+  for(const id of ["uca-global-g2","uca-sm2","unitrust-global-r3"]){
+   const row=coverage.tasks.find(t=>t.authority==="SHECA"&&t.listingId===id);
+   assert.ok(row&&row.acquisitionRoute==="PINNED_ENDPOINT_ARCHIVE"&&/^[a-f0-9]{64}$/.test(row.publishedSHA256?.fingerprint??""),id);
+  }
+ });
+ command("CLI technical coverage without explicit pins rejected",trust,["sources","acquisition-coverage","--registry",registry,"--technical"],scratch,{failure:true});
+ command("CLI unpinned archive directory rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive],scratch,{failure:true});
+ command("CLI missing pinned archive rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive,"--archive-pin","uca-global-g2="+"0".repeat(64),"--technical"],scratch,{failure:true});
+ // A legacy-only selection is rejected at batch preflight. Use a
+ // nonexistent archive directory as an extra safeguard against networking
+ // even if selection validation regresses in a future implementation.
+ command("CLI legacy-only acquisition batch rejected",trust,["sources","archive-fetch-batch","--archive",join(scratch,"not-created"),"--id","uca-root-g2"],scratch,{failure:true});
+ command("CLI duplicate acquisition batch rejected",trust,["sources","archive-fetch-batch","--archive",join(scratch,"not-created"),"--id","uca-global-g2","--id","uca-global-g2"],scratch,{failure:true});
+ command("CLI unpinned batch import rejected",trust,["sources","archive-import-batch","--registry",registry,"--archive",archive],scratch,{failure:true});
+ command("CLI missing batch archive rejected",trust,["sources","archive-import-batch","--registry",registry,"--archive",archive,"--archive-pin","uca-global-g2="+"0".repeat(64)],scratch,{failure:true});
+ const invalidOriginal=join(scratch,"invalid-original.cer");
+ writeFileSync(invalidOriginal,"not a certificate",{mode:0o600});
+ command("CLI invalid local original rejected",trust,["sources","archive-local","--archive",archive,"--id","uca-global-g2","--recorded-at",at.toISOString(),invalidOriginal],scratch,{failure:true});
+ const finalInventory=jsonCommand("CLI candidate inventory after negative intake cases",trust,["validate","--registry",registry],scratch);
+ check("CLI rejected intake leaves no candidate or archive",()=>{
+  assert.deepEqual(finalInventory,{certificates:0,provenanceRecords:0});
+  assert.deepEqual(readdirSync(archive),[]);
+ });
+
  jsonCommand("CLI snapshot build",trust,["snapshot","build","--registry",registry,"--sequence","1","--revision",report.sourceRevision,"--created-at",at.toISOString(),"--expires-at",expires.toISOString(),"--out",envelope],scratch);
  const verified=jsonCommand("CLI snapshot verify",trust,["snapshot","verify",envelope],scratch);
  check("CLI snapshot identity",()=>{assert.equal(verified.snapshotSHA256,hash(readFileSync(envelope)));assert.equal(verified.releaseAuthenticated,false);assert.equal(verified.trustStatus,"NOT_ESTABLISHED");});
