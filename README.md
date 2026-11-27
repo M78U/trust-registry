@@ -8,15 +8,19 @@ Certificate discovery never implies trust. Trust is explicit, scoped, auditable 
 
 ## Current status
 
-Pre-release foundation. No real CA certificates or default trust anchors. This initial implementation parses standard X.509 DER and PEM and emits candidate records; it does not resolve trust, persist a registry, or verify snapshots. SM2 support is planned.
+Pre-release foundation. No real CA certificates or default trust anchors. The initial implementation parses standard X.509 DER/PEM and persists CA candidates and independent source assertions in a local content-addressed inventory. No trust evaluation or snapshot verification yet. SM2 support is planned.
 
 ```sh
 go test ./...
 go run ./cmd/trust-registry inspect certificate.cer
-go run ./cmd/trust-registry import --source https://example.org/ca certificate.cer
+go run ./cmd/trust-registry import --registry ./local-registry --source https://example.org/ca certificate.cer
+go run ./cmd/trust-registry list --registry ./local-registry
+go run ./cmd/trust-registry find --registry ./local-registry --fingerprint SHA256
+go run ./cmd/trust-registry provenance --registry ./local-registry --fingerprint SHA256
+go run ./cmd/trust-registry validate --registry ./local-registry
 ```
 
-Import currently previews JSON only; it never creates trust or downloads source URLs. Use public CA certificates only, not personal documents or private keys.
+Import persists CA candidates only, never creates trust and never downloads source URLs. Source URLs must be public HTTPS without query, credentials or fragment. The default inventory is registry/; use a separate local directory for experiments. Validate checks byte integrity and references, not source authenticity or certificate trust. Operate on a trusted local directory, one writer at a time, on a filesystem supporting hard links; an interrupted import can leave partial state that validation rejects. Never import personal documents, private keys or confidential CA material.
 
 ## Design
 

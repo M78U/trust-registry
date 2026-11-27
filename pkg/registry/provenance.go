@@ -21,9 +21,8 @@ type ProvenanceRecord struct {
 // ImportCandidate creates an unreviewed record only. source is an asserted
 // location; no network requests are made and no retrieval is claimed.
 func ImportCandidate(input []byte, source string, recordedAt time.Time) (CertificateRecord, ProvenanceRecord, []byte, error) {
-	u, err := url.Parse(source)
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
-		return CertificateRecord{}, ProvenanceRecord{}, nil, errors.New("source must be an HTTPS URL without user info or fragment")
+	if err := validateSourceURL(source); err != nil {
+		return CertificateRecord{}, ProvenanceRecord{}, nil, err
 	}
 	if recordedAt.IsZero() {
 		return CertificateRecord{}, ProvenanceRecord{}, nil, errors.New("recordedAt is required")
@@ -43,4 +42,13 @@ func ImportCandidate(input []byte, source string, recordedAt time.Time) (Certifi
 		ReviewEvidence: []string{},
 		RedistributionStatus: "NOT_REVIEWED",
 	}, der, nil
+}
+
+func validateSourceURL(source string) error {
+	if len(source) > 4096 { return errors.New("source URL too long") }
+	u, err := url.Parse(source)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || u.ForceQuery {
+		return errors.New("source must be a public HTTPS URL without credentials, query or fragment")
+	}
+	return nil
 }
