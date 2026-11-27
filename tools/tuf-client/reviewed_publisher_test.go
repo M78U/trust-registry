@@ -307,13 +307,16 @@ func TestReviewedPublication(t *testing.T){
  if observation==nil||observation.Checkpoint!=*refreshResult.Checkpoint||observation.InitialRootSHA256!=digest(root)||observation.AuthoritySHA256!=a.SHA256()||observation.CompletedAt.Before(refreshResult.Consumer.VerifiedAt)||!observation.CompletedAt.Before(refreshResult.Consumer.SessionExpiresAt){t.Fatal("invalid online observation",observation)}
  beforeAdviceHTTP:=coordinateHTTPHits.Load()
  adviceCoord.RefreshPolicy.LastOnline=observation
- advised,session,err:=coordinateUpdate(context.Background(),adviceCoord,staticServer.Client())
- if err!=nil||session!=nil||advised.RefreshPlan==nil||!advised.RefreshPlan.ObservationMatched||advised.RefreshPlan.RefreshSuggested||advised.OnlineObservation!=nil||coordinateHTTPHits.Load()!=beforeAdviceHTTP{t.Fatal("unexpected post-refresh advice",advised,err)}
+ advised,postRefreshPlanSession,err:=coordinateUpdate(context.Background(),adviceCoord,staticServer.Client())
+ if err!=nil||postRefreshPlanSession!=nil||advised.RefreshPlan==nil||!advised.RefreshPlan.ObservationMatched||advised.RefreshPlan.RefreshSuggested||advised.OnlineObservation!=nil||coordinateHTTPHits.Load()!=beforeAdviceHTTP{t.Fatal("unexpected post-refresh advice",advised,err)}
  if coordinateHTTPHits.Load()<=beforeCoordHTTP||targetHTTPHits.Load()!=2||refreshResult.Install.Transfer==nil||refreshResult.Install.Transfer.TargetSource!="NETWORK"||refreshResult.Install.Transfer.TargetRequests!=1||refreshResult.Install.Transfer.TargetBytes!=int64(len(raw2))||refreshResult.Install.Transfer.ReusedTargetBytes!=0{t.Fatal("new release did not download exact target")}
  beforeCoordHTTP=coordinateHTTPHits.Load()
  if view,r,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil||view==nil||r.RootVersion!=2||r.Registry.Manifest.Sequence!=2||r.ReleaseApproval==nil||!r.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(r,err)}
  nextSession,err:=OpenConsumer(ConsumerOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,MinimumSequence:2,ExpectedSnapshotSHA256:digest(raw2)})
  if err!=nil{t.Fatal(err)}
+ // The plan-only result must not replace the original sequence-one session.
+ previousInfo,err:=session.Info()
+ if err!=nil||previousInfo.Sequence!=1||previousInfo.SnapshotSHA256!=digest(raw){t.Fatal("original comparison session unavailable",previousInfo,err)}
  sessionDelta,err:=session.Diff(nextSession,true)
  if err!=nil||sessionDelta.Next.Sequence!=2||sessionDelta.Previous.Sequence!=1||len(sessionDelta.CertificateChanges)!=0||sessionDelta.Transition==nil||sessionDelta.ReleaseAuthenticated{t.Fatal(sessionDelta,err)}
 
