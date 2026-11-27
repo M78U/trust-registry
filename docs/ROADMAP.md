@@ -17,4 +17,8 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Derived index, combined search/pagination and unified local inventory + supplied policy validation: merged in #11; no persistent database or trust authority.
 
-- Offline embedded Schema runtime and empty registry initialization, CLI smoke tests and release-readiness checklist: current PR. v0.1 is a developer preview only; license decision, final CI/review and release approval remain gates.
+- Offline embedded Schema runtime and empty registry initialization, CLI smoke tests and release-readiness checklist: merged in #12. v0.1 is a developer preview only; license decision, final CI/review and release approval remain gates.
+
+## v0.2 research
+
+- SHECA selected official listing metadata and offline candidate intake preview: PR #13. Binary acquisition, independent fingerprint/evidence review, redistribution and scoped decisions remain open.

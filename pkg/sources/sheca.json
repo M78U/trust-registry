@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "1",
+  "authorityId": "cn.sheca",
+  "authorityName": "上海市数字证书认证中心有限公司",
+  "observedOn": "2026-11-27",
+  "repositoryURL": "https://www.sheca.com/repository",
+  "coverage": "SELECTED_RESEARCH_ROWS",
+  "entries": [
+    {
+      "id": "uca-root-g2",
+      "label": "UCA Root G2",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "571e0b0b40f7966d1ebb7acfc64e704d319bf4fd",
+      "publishedValidUntil": "2036-12-31",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "uca-global-g2",
+      "label": "UCA Global G2 Root",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "28f97816197aff182518aa44fec1a0ce5cb64c8a",
+      "publishedValidUntil": "2040-12-31",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "uca-sm2",
+      "label": "UCA Root SM2",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "f1ec3b4c09a8cc4e4db802fff4209b61d9964dc3",
+      "publishedValidUntil": "2038-12-31",
+      "researchTrack": "SM2_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "uca-rapid-sm2",
+      "label": "UCA Rapid SM2 Root",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "9798a2d9bca48d1774f0d42813b1b6684db2f055",
+      "publishedValidUntil": "2042-12-31",
+      "researchTrack": "SM2_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "unitrust-global-r1",
+      "label": "UniTrust Global Root CA R1",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "bc5d7c12f22d1a1ccaaf00898a6f5fc1167f34ac",
+      "publishedValidUntil": "2045-04-28",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "unitrust-global-r2",
+      "label": "UniTrust Global Root CA R2",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "184d4099f4dadd814b97b3fab59710f3371f978a",
+      "publishedValidUntil": "2045-04-28",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "unitrust-global-r3",
+      "label": "UniTrust Global Root CA R3",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "f0fe97b482030ada4975fa00b276f69bab4355b5",
+      "publishedValidUntil": "2045-04-28",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "event-root-r1",
+      "label": "UniTrust Event Certificate Root CA R1",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "caa94009fa4a3bc286911537d82df211cbbc7ba7",
+      "publishedValidUntil": "2044-11-10",
+      "researchTrack": "EVENT_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "timestamp-rsa-r1",
+      "label": "UniTrust Global Time Stamping RSA Root CA R1",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "da891e9dc30f38dab0896ccdc5fdd7504f155b30",
+      "publishedValidUntil": "2039-03-27",
+      "researchTrack": "TIMESTAMP_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "timestamp-ecc-r2",
+      "label": "UniTrust Global Time Stamping ECC Root CA R2",
+      "publishedRole": "ROOT",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "c20e70d5e4015590a717b62dddb5389d7627a1b7",
+      "publishedValidUntil": "2039-03-27",
+      "researchTrack": "TIMESTAMP_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-g2",
+      "label": "UCA Root G2 - SHECA G2",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "e253e0082382f056d54a9358ef2ac650fb2f491b",
+      "publishedValidUntil": "2036-12-26",
+      "researchTrack": "GENERAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-event-g1",
+      "label": "UniTrust Event Certificate Root CA R1 - SHECA Event Certificate CA G1",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "ddd14d52d93e74ab715e490e323e6701b66e427d",
+      "publishedValidUntil": "2034-11-10",
+      "researchTrack": "EVENT_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-rsa-tsa-g1",
+      "label": "UCA Global G2 Root - SHECA RSA Time Stamp Authority G1",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "LISTED",
+      "publishedSHA1": "13f59a627813b5689e5f60d54bc8cf641c767dfe",
+      "publishedValidUntil": "2033-04-27",
+      "researchTrack": "TIMESTAMP_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "uca-root-historical",
+      "label": "UCA Root",
+      "publishedRole": "ROOT",
+      "publishedStatus": "DISUSE",
+      "publishedSHA1": "8250bed5a214433a66377cbc10ef83f669da3a67",
+      "publishedValidUntil": "2029-12-31",
+      "researchTrack": "HISTORICAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-g3-historical",
+      "label": "UCA Root - SHECA G3",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "DISUSE",
+      "publishedSHA1": "821978256d28ae125f34d0499b1b142b6e465b69",
+      "publishedValidUntil": "2028-12-31",
+      "researchTrack": "HISTORICAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-tsa-g2-historical",
+      "label": "UCA Global G2 Root - SHECA Time Stamping CA G2",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "DISUSE",
+      "publishedSHA1": "4c499cf8a3a8fd4e3b80b1f38ac9ffffcccada1c",
+      "publishedValidUntil": "2036-03-16",
+      "researchTrack": "HISTORICAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    },
+    {
+      "id": "sheca-aatl-historical",
+      "label": "UCA Root G2 - GlobalSign China CA for AATL",
+      "publishedRole": "INTERMEDIATE",
+      "publishedStatus": "DISUSE",
+      "publishedSHA1": "16cdff380f33b259865185ba4cff754d1128f7f4",
+      "publishedValidUntil": "2024-08-12",
+      "researchTrack": "HISTORICAL_RESEARCH",
+      "redistributionStatus": "NOT_REVIEWED"
+    }
+  ]
+}
