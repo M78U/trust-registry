@@ -67,7 +67,7 @@ func withInstallationLock(root string,bootstrap bool,fn func(string)error)error{
 	if root==""{return errors.New("installation directory required")}
 	abs,err:=filepath.Abs(root);if err!=nil{return err}
 	if bootstrap{
-		if err:=os.Mkdir(abs,0700);err!=nil&&!os.IsExist(err){return err}
+		if err:=os.Mkdir(abs,0700);err!=nil{return fmt.Errorf("bootstrap requires a new installation directory: %w",err)}
 	}
 	info,err:=os.Lstat(abs);if err!=nil{return err}
 	if !info.IsDir(){return errors.New("installation must be a regular directory")}
@@ -143,10 +143,14 @@ func commitRecord(root string,rec installedRecord)error{
 }
 
 // InstallResearch authenticates before installing and compares against the
-// latest accepted record. Bootstrap must be explicit for an empty directory
+// latest accepted record. Bootstrap must be explicit for a new directory
 // and is forbidden after acceptance. No network or production release trust.
 func InstallResearch(root string,raw []byte,sigs []Signature,o InstallationOptions)(InstallationReport,error){
 	config,err:=configDigest(o);if err!=nil{return InstallationReport{},err}
+	if o.Bootstrap {
+		// Validate before creating state so bad signatures cannot leave empty state.
+		if _,err:=AuthenticateResearch(raw,sigs,o.Keys,o.Threshold,o.At,nil);err!=nil{return InstallationReport{},err}
+	}
 	var result InstallationReport
 	err=withInstallationLock(root,o.Bootstrap,func(dir string)error{
 		latest,count,err:=latestRecord(dir);if err!=nil{return err}

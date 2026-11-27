@@ -3,6 +3,9 @@ package snapshot
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -68,4 +71,28 @@ func TestInstallationLockAndUnexpectedEntry(t *testing.T){
 	if err:=os.Remove(filepath.Join(dir,".lock"));err!=nil{t.Fatal(err)}
 	if err:=os.WriteFile(filepath.Join(dir,".pending-crash"),[]byte("x"),0600);err!=nil{t.Fatal(err)}
 	if err:=withInstallationLock(dir,false,func(root string)error{_,_,err:=latestRecord(root);return err});err==nil{t.Fatal("partial file ignored")}
+}
+
+func TestBootstrapAndLoadedPolicyPath(t *testing.T){
+	s,docs,o:=fixture(t)
+	pub,key,err:=ed25519.GenerateKey(rand.Reader);if err!=nil{t.Fatal(err)}
+	raw,_,err:=Build(s,docs,o);if err!=nil{t.Fatal(err)}
+	sig,err:=SignResearch(raw,key);if err!=nil{t.Fatal(err)}
+	opts:=InstallationOptions{Keys:[]ed25519.PublicKey{pub},Threshold:1,At:o.CreatedAt.Add(time.Hour),Bootstrap:true}
+	if _,err:=InstallResearch(t.TempDir(),raw,[]Signature{sig},opts);err==nil{t.Fatal("existing empty directory bootstrap")}
+	dir:=filepath.Join(t.TempDir(),"new")
+	bad:=sig;bad.Signature=append([]byte{},sig.Signature...);bad.Signature[0]^=1
+	if _,err:=InstallResearch(dir,raw,[]Signature{bad},opts);err==nil{t.Fatal("bad signature")}
+	if _,err:=os.Stat(dir);!os.IsNotExist(err){t.Fatal("bad bootstrap created state")}
+	if _,err:=InstallResearch(dir,raw,[]Signature{sig},opts);err!=nil{t.Fatal(err)}
+	opts.Bootstrap=false
+	view,_,err:=LoadResearch(dir,opts);if err!=nil{t.Fatal(err)}
+	leaf:=&x509.Certificate{SerialNumber:big.NewInt(2),Subject:pkix.Name{CommonName:"Synthetic end entity"},NotBefore:o.CreatedAt,NotAfter:o.ExpiresAt,KeyUsage:x509.KeyUsageDigitalSignature}
+	der,err:=x509.CreateCertificate(rand.Reader,leaf,leaf,pub,key);if err!=nil{t.Fatal(err)}
+	id,purpose:=docs[0].Policy.ID,docs[0].Policy.Purpose
+	result,err:=view.VerifyLocalPath(der,id,1,purpose,"",opts.At,opts.At)
+	if err!=nil||result.Path.PathStatus!="NOT_ESTABLISHED"||result.TrustStatus!="NOT_ESTABLISHED"{t.Fatalf("empty policy: %+v %v",result,err)}
+	if _,err:=view.VerifyLocalPath(der,id,2,purpose,"",opts.At,opts.At);err==nil{t.Fatal("unknown version accepted")}
+	if _,err:=view.VerifyLocalPath(der,id,1,"timestamping","",opts.At,opts.At);err==nil{t.Fatal("wrong purpose accepted")}
+	if _,err:=view.VerifyLocalPath(der,id,1,purpose,"",opts.At,opts.At.Add(time.Hour));err==nil{t.Fatal("future knowledge accepted")}
 }

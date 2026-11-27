@@ -15,8 +15,8 @@ import (
 )
 
 func runSnapshot(args []string,out io.Writer)error{
-	if len(args)==0{return errors.New("usage: snapshot build | verify | sign-research | authenticate-research | install-research | load-research | find-installed")}
-	if args[0]=="install-research"||args[0]=="load-research"||args[0]=="find-installed"{return runInstalledSnapshot(args,out)}
+	if len(args)==0{return errors.New("usage: snapshot build | verify | sign-research | authenticate-research | install-research | load-research | find-installed | verify-installed-path")}
+	if args[0]=="install-research"||args[0]=="load-research"||args[0]=="find-installed"||args[0]=="verify-installed-path"{return runInstalledSnapshot(args,out)}
 	if args[0]=="sign-research"||args[0]=="authenticate-research"{return runResearchSignature(args,out)}
 	flags:=flag.NewFlagSet("snapshot "+args[0],flag.ContinueOnError)
 	enc:=json.NewEncoder(out)
