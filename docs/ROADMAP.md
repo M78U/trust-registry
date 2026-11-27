@@ -88,3 +88,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - CFCA/BJCA/GDCA multi-CA research catalog, separate chain listings and exact-name fingerprint leads, offline local audit: PR #42. No real certificate acquisition or policy approval. Source review and dependency-lock validation pending.
 
 - Strict offline CA bundle parsing, pinned private archive, matched-member import with original container SHA-256: PR #43. No network acquisition, trust or publication; Go validation and real CA material pending.
+
+- Multi-CA Explorer integration: PR #44. Combined static source projection, authority and research-type filters, scoped evidence graph, 256 KiB catalog module budget. No real DER or trust promotion.

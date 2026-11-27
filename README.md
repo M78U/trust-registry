@@ -167,3 +167,5 @@ Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and N
 ### Offline certificate bundle intake
 
 `sources bundle-plan`, `bundle-export`, `bundle-apply` support bounded CA-only PEM, single DER and certificate-only PKCS#7 containers. Retain original bytes and pinned member manifest; explicitly import only exact matched published leads with original container provenance. See [bundle intake](docs/CERTIFICATE-BUNDLE-INTAKE.md).
+
+Explorer now projects four CA research catalogs into one static browser-local index (32 research rows, 8 SHA-256 leads, 7 SATL name leads). Authority/type/track/status filters and source constellation remain research-only. No runtime API or extra asset request.
