@@ -57,7 +57,7 @@ func writeNew(path string,b []byte)error{
 	if _,err=f.Write(b);err==nil{err=f.Sync()};e:=f.Close();if err==nil{err=e};if err!=nil{_ = os.Remove(path)};return err
 }
 func run(args []string)error{
-	if len(args)==0{return errors.New("usage: tuf-publish root | build | build-reviewed")}
+	if len(args)==0{return errors.New("usage: tuf-publish root | build | build-reviewed | build-ledger | ledger-export")}
 	f:=flag.NewFlagSet(args[0],flag.ContinueOnError)
 	out:=f.String("out","","new output file or directory")
 	switch args[0]{
@@ -75,7 +75,9 @@ func run(args []string)error{
 		o.Signers,err=private(signer);if err!=nil{return err};defer wipe(o.Signers)
 		raw,err:=tuf.CreateRoot(o);if err!=nil{return err}
 		return writeNew(*out,raw)
-	case "build","build-reviewed":
+	case "ledger-export":
+		return exportLedger(f,args[1:],out)
+	case "build","build-reviewed","build-ledger":
 		root:=f.String("root","","initial root metadata file")
 		pin:=f.String("root-sha256","","independently verified root hash")
 		ver:=f.Int64("version",0,"metadata version matching snapshot sequence")
@@ -85,7 +87,12 @@ func run(args []string)error{
 		tse:=f.String("timestamp-expires","","timestamp expiration")
 		var dossierPath,evidenceDir,authorityPath,authorityPin,approvalPath,previousPath,previousPin string
 		var bootstrap bool
-		if args[0]=="build-reviewed"{
+		var ledgerDir,expectedHead string
+		if args[0]=="build-ledger"{
+			f.StringVar(&ledgerDir,"ledger","","private publication ledger directory")
+			f.StringVar(&expectedHead,"expected-head","","optional independently retained record pin")
+		}
+		if args[0]!="build"{
 			f.StringVar(&dossierPath,"dossier","","complete local review dossier")
 			f.StringVar(&evidenceDir,"evidence","","private evidence directory")
 			f.StringVar(&authorityPath,"authority","","independent role key configuration")
@@ -98,7 +105,7 @@ func run(args []string)error{
 		var tk,sk,ts paths
 		f.Var(&tk,"targets-key","repeatable targets PKCS#8 PEM");f.Var(&sk,"snapshot-key","repeatable snapshot PKCS#8 PEM");f.Var(&ts,"timestamp-key","repeatable timestamp PKCS#8 PEM")
 		if err:=f.Parse(args[1:]);err!=nil{return err}
-		if f.NArg()!=1||*out==""||*root==""||*pin==""{return errors.New("root, pin, output and one snapshot required")}
+		if f.NArg()!=1||*root==""||*pin==""||args[0]!="build-ledger"&&*out==""||args[0]=="build-ledger"&&(*out!=""||ledgerDir==""){return errors.New("root, pin, one snapshot and output (or ledger only in build-ledger) required")}
 		o:=tuf.PublishOptions{RootSHA256:*pin,Version:*ver}
 		var err error
 		for _,v:=range []struct{s string;t *time.Time}{{*now,&o.Now},{*te,&o.TargetsExpires},{*se,&o.SnapshotExpires},{*tse,&o.TimestampExpires}}{*v.t,err=instant(v.s);if err!=nil{return err}}
@@ -109,9 +116,9 @@ func run(args []string)error{
 		raw,err:=read(f.Arg(0),snapshot.MaxEnvelopeBytes);if err!=nil{return err}
 		var repo tuf.Repository
 		var reviewed *tuf.ReviewedPublicationReport
-		if args[0]=="build-reviewed"{
+		if args[0]!="build"{
 			if dossierPath==""||evidenceDir==""||authorityPath==""||authorityPin==""||approvalPath==""{return errors.New("reviewed mode requires dossier, evidence, authority pin and approval")}
-			if bootstrap&&(previousPath!=""||previousPin!="")||!bootstrap&&(previousPath==""||previousPin==""){return errors.New("explicit bootstrap or previous snapshot and independent pin required")}
+			if args[0]=="build-ledger"{if previousPath!=""||previousPin!=""{return errors.New("ledger selects previous baseline automatically")}}else if bootstrap&&(previousPath!=""||previousPin!="")||!bootstrap&&(previousPath==""||previousPin==""){return errors.New("explicit bootstrap or previous snapshot and independent pin required")}
 			db,err:=read(dossierPath,review.MaxDossierBytes);if err!=nil{return err}
 			d,err:=review.DecodeDossier(db);if err!=nil{return err}
 			ab,err:=read(authorityPath,review.MaxAuthorityBytes);if err!=nil{return err}
@@ -119,8 +126,13 @@ func run(args []string)error{
 			vb,err:=read(approvalPath,review.MaxApprovalBytes);if err!=nil{return err}
 			v,err:=review.DecodeApproval(vb);if err!=nil{return err}
 			var previous []byte
-			if !bootstrap{previous,err=read(previousPath,snapshot.MaxEnvelopeBytes);if err!=nil{return err}}
-			result,report,err:=tuf.BuildReviewedRepository(rb,raw,tuf.ReviewedPublishOptions{Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap});if err!=nil{return err}
+			if args[0]=="build-reviewed"&&!bootstrap{previous,err=read(previousPath,snapshot.MaxEnvelopeBytes);if err!=nil{return err}}
+			options:=tuf.ReviewedPublishOptions{Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap}
+			if args[0]=="build-ledger"{
+				receipt,err:=tuf.BuildInLedger(rb,raw,tuf.LedgerOptions{Directory:ledgerDir,AuthoritySHA256:authorityPin,ExpectedHeadSHA256:expectedHead,Reviewed:options});if err!=nil{return err}
+				return json.NewEncoder(os.Stdout).Encode(receipt)
+			}
+			result,report,err:=tuf.BuildReviewedRepository(rb,raw,options);if err!=nil{return err}
 			repo=result;reviewed=&report
 		}else{repo,err=tuf.BuildRepository(rb,raw,o);if err!=nil{return err}}
 		// Output is a fresh local staging directory, not a live repository.

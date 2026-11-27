@@ -1,6 +1,7 @@
 package tufclient
 
 import (
+ "bytes"
  "crypto/ecdsa"
  "crypto/ed25519"
  "crypto/elliptic"
@@ -67,6 +68,34 @@ func TestReviewedPublication(t *testing.T){
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("missing baseline")}
  bad=o;bad.Publish.Now=now.Add(time.Hour)
  if _,_,err:=BuildReviewedRepository(root,raw,bad);err==nil{t.Fatal("expired approval")}
+ // Ledger commits exact signed metadata, with an independently retainable head.
+ ledger:=filepath.Join(t.TempDir(),"publication")
+ lo:=LedgerOptions{Directory:ledger,AuthoritySHA256:digest(ab),Reviewed:o}
+ receipt,err:=BuildInLedger(root,raw,lo);if err!=nil||receipt.Sequence!=1||receipt.Status!="LOCAL_REVIEWED_BUILD_COMMITTED"{t.Fatal(receipt,err)}
+ exported,er,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt.RecordSHA256,now)
+ if err!=nil||er.RecordSHA256!=receipt.RecordSHA256||len(exported.Files)!=5{t.Fatal(er,err)}
+ for name,data:=range repo.Files{if !bytes.Equal(exported.Files[name],data){t.Fatal("changed export",name)}}
+ if _,err:=BuildInLedger(root,raw,lo);err==nil{t.Fatal("repeat bootstrap")}
+ if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),strings.Repeat("b",64),now);err==nil{t.Fatal("wrong head pin")}
+ if err:=os.Mkdir(filepath.Join(ledger,".lock"),0700);err!=nil{t.Fatal(err)}
+ if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),"",now);err==nil{t.Fatal("concurrent operation")}
+ if err:=os.Remove(filepath.Join(ledger,".lock"));err!=nil{t.Fatal(err)}
+ // Sequence two reuses inventory but needs a fresh signed approval.
+ later:=now.Add(time.Minute)
+ raw2,_,err:=snapshot.Build(s,nil,snapshot.Options{Sequence:2,SourceRevision:strings.Repeat("b",40),CreatedAt:later,ExpiresAt:now.Add(24*time.Hour)});if err!=nil{t.Fatal(err)}
+ d2,err:=review.Plan(raw2);if err!=nil{t.Fatal(err)}
+ for i:=range d2.Reviews{
+  for _,v:=range d.Reviews{if d2.Reviews[i].Requirement.ID==v.Requirement.ID{d2.Reviews[i]=v;d2.Reviews[i].ReviewedAt=&later;break}}
+ }
+ a2,err:=review.NewApproval(raw2,d2,dir,a,later,later.Add(time.Hour));if err!=nil{t.Fatal(err)}
+ for _,v:=range d2.Reviews{a2,err=review.SignReview(raw2,d2,dir,a,a2,v.Requirement.ID,reviewers[v.Reviewer],later);if err!=nil{t.Fatal(err)}}
+ for _,id:=range []string{"release-a","release-b"}{a2,err=review.SignRelease(raw2,d2,dir,a,a2,id,reviewers[id],later);if err!=nil{t.Fatal(err)}}
+ lo.Reviewed.Bootstrap=false;lo.Reviewed.Publish.Version=2;lo.Reviewed.Publish.Now=later;lo.Reviewed.Dossier=d2;lo.Reviewed.Approval=a2;lo.ExpectedHeadSHA256=receipt.RecordSHA256
+ receipt2,err:=BuildInLedger(root,raw2,lo);if err!=nil||receipt2.Sequence!=2||receipt2.PreviousRecordSHA256!=receipt.RecordSHA256{t.Fatal(receipt2,err)}
+ if _,err:=BuildInLedger(root,raw2,lo);err==nil{t.Fatal("stale head replay")}
+ if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,now.Add(time.Hour));err==nil{t.Fatal("expired timestamp exported")}
+ if err:=os.Remove(filepath.Join(ledger,evidenceName(1)));err!=nil{t.Fatal(err)}
+ if _,_,err:=ExportLedgerHead(ledger,digest(root),digest(ab),receipt2.RecordSHA256,later);err==nil{t.Fatal("gap ignored")}
  // A review key listed in ANY TUF role is rejected, even if not used to sign.
  opts.Roles[metadata.TARGETS]=RoleKeys{[]ed25519.PublicKey{reviewers["source"].Public().(ed25519.PublicKey)},1}
  badRoot,err:=CreateRoot(opts);if err!=nil{t.Fatal(err)}
