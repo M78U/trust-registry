@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="M78U Labs 独立证书研究目录。发现信任，独立验证。">
+<title>Trust Registry · M78U Labs</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#catalog">跳转证书目录</a>
+<header class="site-header"><div class="wrap nav"><a class="brand" href="/" aria-label="Trust Registry 首页"><img src="/icon.svg" alt="" width="64" height="40"><span>Trust Registry<small>M78U LABS</small></span></a><nav aria-label="主导航"><a href="#catalog">证书目录</a><a href="#programs">信任列表</a><a href="#policies">策略</a><a href="https://labs.m78u.com">M78U Labs ↗</a></nav></div></header>
+<main class="wrap">
+<section class="hero" aria-labelledby="hero-title"><div><p class="eyebrow"><span class="dot"></span> RESEARCH PREVIEW · 研究预览</p><h1 id="hero-title">Discover trust.<br><span>Verify independently.</span></h1><p class="intro">探索证书来源、签发关系与信任边界。<br>一个独立、离线优先的 PKI 研究目录。</p><a class="primary" href="#catalog">探索证书目录 <span aria-hidden="true">↓</span></a></div><div class="hero-art"><img src="/icon.svg" alt="恒星、行星与卫星的 Trust Registry 品牌标志" width="575" height="360"></div></section>
+<section class="notice" aria-label="研究边界"><span class="notice-label">NOT ESTABLISHED</span><div><strong>发现证书，不等于信任证书。</strong><p>当前只包含选定公开目录的研究线索；没有经独立审核的正式信任锚，没有证书原件下载，也没有签名验证服务。</p></div></section>
+<section class="stats" aria-label="研究目录统计"><div><strong id="count-ca">—</strong><span>SHECA 目录记录</span></div><div><strong id="count-hash">—</strong><span>第三方 SHA-256 线索</span></div><div><strong id="count-satl">—</strong><span>SATL 名称线索</span></div><div><strong>0</strong><span>已授权信任锚</span></div></section>
+<section id="catalog" class="section"><div class="section-heading"><div><p class="eyebrow">01 / CERTIFICATE RESEARCH</p><h2>证书研究目录</h2><p>来源：SHECA 公开目录选定记录，非实时、非完整证书库。</p></div><a href="https://www.sheca.com/repository" rel="noreferrer">官方目录 ↗</a></div>
+<div class="filters"><label class="search"><span>搜索名称、CA、指纹</span><input id="search" type="search" maxlength="256" placeholder="UCA Root、SM2、SHA-256…" autocomplete="off"></label><label>目录角色<select id="role"><option value="">全部</option><option value="ROOT">根证书</option><option value="INTERMEDIATE">中间证书</option></select></label><label>研究方向<select id="track"><option value="">全部</option><option value="GENERAL_RESEARCH">通用</option><option value="SM2_RESEARCH">国密</option><option value="EVENT_RESEARCH">事件证书</option><option value="TIMESTAMP_RESEARCH">时间戳</option><option value="HISTORICAL_RESEARCH">历史</option></select></label><label>目录状态<select id="status"><option value="">全部</option><option value="LISTED">列出</option><option value="DISUSE">停用目录</option></select></label></div>
+<p class="result-count" id="result-count" role="status">正在载入研究目录…</p><div id="results" class="results"></div><noscript><p>请启用 JavaScript 以在本地浏览目录。不会上传查询内容。</p></noscript></section>
+<section id="programs" class="section"><div class="section-heading"><div><p class="eyebrow">02 / TRUST PROGRAMS</p><h2>信任列表研究</h2><p>SATL · Suwell Approved Trust List。来自官方网页的搜索索引，仅名称线索，不代表当前成员资格。</p></div><a href="https://satl.ofd.cn/list" rel="noreferrer">SATL 目录 ↗</a></div><div id="program-list" class="program-list"></div><p class="note">同名关联不代表证书身份相同；待 DER SHA-256 与签发关系核实。<a href="https://satl.ofd.cn/strategy" rel="noreferrer">认证策略 ↗</a></p></section>
+<section id="policies" class="section"><div class="section-heading"><div><p class="eyebrow">03 / SCOPED TRUST</p><h2>按用途划分的信任策略</h2><p>四个独立的初始策略模板，目前均未授权任何信任锚。</p></div></div><div id="policy-list" class="policy-list"></div><p class="note">路径匹配、签名正确、用途符合与最终信任是不同的判断。正式证书关系图谱及发布数据将在审核后提供。</p></section>
+</main>
+<footer class="wrap footer"><div><strong>Trust Registry</strong><p>Discover trust. Verify independently.</p></div><div><a href="https://labs.m78u.com">M78U Labs</a><a href="https://github.com/M78U/trust-registry">GitHub</a><a href="https://github.com/M78U/siglens">SigLens</a><span>无上传 · 无遥测</span></div></footer>
+</body></html>

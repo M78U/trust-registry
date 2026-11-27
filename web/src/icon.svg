@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="75 105 575 360" role="img" aria-labelledby="title">
+  <title id="title">Trust Registry — orbital star system</title>
+  <!-- Flat vector reconstruction of the approved brand sheet. -->
+  <defs><mask id="moon-clearance" maskUnits="userSpaceOnUse" x="75" y="105" width="575" height="360"><rect x="75" y="105" width="575" height="360" fill="white"/><circle cx="535" cy="308" r="22.5" fill="black"/></mask></defs>
+  <path fill="#B6AAF9" d="M567 145 C530 104 417 125 338 181 C293 212 259 244 241 242 C213 240 262 207 241 216 C191 232 119 307 98 348 C88 368 97 388 126 382 C95 380 103 362 116 345 C169 283 261 258 337 216 C430 164 514 133 567 145 Z"/>
+  <path fill="#8875ED" d="M356 240 C289 257 213 303 190 348 C159 407 213 440 279 426 C333 416 386 405 432 388 C374 404 300 417 253 406 C208 395 203 371 221 340 C249 299 305 267 356 240 Z"/>
+  <path fill="#8875ED" d="M314 241 C390 205 479 174 549 188 C621 201 647 237 624 280 C597 331 530 382 465 409 C401 438 337 451 292 450 C367 434 459 402 526 359 C583 322 612 270 596 238 C571 183 468 193 392 217 Z"/>
+  <g mask="url(#moon-clearance)">
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M396 267 L428 258 M389 375 C433 364 482 344 515 323 M559 296 C588 274 577 257 544 251" stroke="#8875ED" stroke-width="7"/>
+      <path d="M287 320 C262 333 251 352 253 366 C257 386 299 384 359 379" stroke="#B6AAF9" stroke-width="8"/>
+    </g>
+    <circle cx="487" cy="268" r="50" fill="#8875ED"/>
+    <path d="M444 292 C475 317 532 269 521 232 A50 50 0 0 1 444 292Z" fill="#2B2A4F" opacity=".24"/>
+    <path d="M452 272 C452 248 465 233 483 230 C495 229 488 237 480 244 C466 253 461 265 455 273Z" fill="#B6AAF9"/>
+  </g>
+  <circle cx="535" cy="308" r="20" fill="#B6AAF9"/>
+  <path d="M373 235 Q381 294 441 312 Q381 328 373 390 Q363 328 304 312 Q363 296 373 235Z" fill="#E6B65C"/>
+  <path d="M604 124 Q611 148 636 155 Q611 162 604 187 Q597 162 573 155 Q597 148 604 124Z" fill="#E6B65C"/>
+  <g fill="#B6AAF9"><circle cx="279" cy="188" r="5.5"/><circle cx="169" cy="324" r="5.5"/><circle cx="513" cy="414" r="5.5"/><circle cx="554" cy="389" r="5.5"/></g>
+</svg>

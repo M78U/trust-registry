@@ -93,3 +93,7 @@ Experimental TUF `tuf-fetch --install` persists signed metadata and snapshot tog
 ### SigLens candidate exchange
 
 `snapshot export-candidates --snapshot-sha256 HEX --at RFC3339 [--certificate SIGNER.cer] SNAPSHOT` emits a portable candidate-only JSON bundle. See [consumer contract](docs/CONSUMER-CANDIDATES.md). No roots or trust grants; keep local signer input private.
+
+## Registry Explorer research preview
+
+`cd web && npm test && npm run build` creates a dependency-free static research preview in `web/dist`. See [Explorer deployment](docs/EXPLORER.md). The public projection contains only selected source-directory leads and empty policy templates, never certificate bytes or local snapshots. Planned Workers custom domain trust.m78u.com; not deployed.
