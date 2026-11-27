@@ -15,6 +15,7 @@ func runAcquisitionCoverage(args []string,out io.Writer)error{
 	f:=flag.NewFlagSet("sources acquisition-coverage",flag.ContinueOnError)
 	root:=f.String("registry","","initialized private local registry")
 	var o sources.AcquisitionArchiveOptions
+	f.BoolVar(&o.Technical,"technical",false,"derive technical evidence from explicitly pinned archive CA members")
 	f.StringVar(&o.ArchiveDir,"archive","","private endpoint archive directory")
 	f.Func("archive-pin","listing-id=independent-sha256 (repeatable)",func(v string)error{
 		id,h,ok:=strings.Cut(v,"=");if !ok||id==""||h==""||len(o.Archives)>=sources.MaxCoverageArchives{return errors.New("invalid archive selection")}

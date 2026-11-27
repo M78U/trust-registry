@@ -93,7 +93,31 @@ func (s *Store) BuildGraph(input []byte)(*Graph,error){
 	return buildGraph(parsed)
 }
 
+// ResearchGraph derives direct issuer evidence solely from explicit local
+// CA certificate inputs. Unlike Store.BuildGraph, all selected CA inputs
+// may act as candidate issuers. No node is asserted to be in inventory.
+// No path validation, trust authorization, or filesystem access.
+func ResearchGraph(inputs [][]byte)(RelationshipGraph,error){
+ if len(inputs)==0||len(inputs)>MaxGraphNodes{return RelationshipGraph{},errors.New("research graph input count limit")}
+ parsed:=make(map[string]parsedNode,len(inputs))
+ total:=0
+ for _,raw:=range inputs{
+  if len(raw)>MaxGraphDERBytes-total{return RelationshipGraph{},errors.New("research graph byte limit")}
+  total+=len(raw)
+  r,der,err:=ParseCertificate(raw);if err!=nil{return RelationshipGraph{},err}
+  if !r.IsCA{return RelationshipGraph{},errors.New("research graph requires CA certificates")}
+  if _,ok:=parsed[r.FingerprintSHA256];ok{continue}
+  c,err:=smx509.ParseCertificate(der);if err!=nil{return RelationshipGraph{},err}
+  parsed[r.FingerprintSHA256]=parsedNode{record:r,cert:c}
+ }
+ g,err:=buildGraphWithResearchIssuers(parsed,true);if err!=nil{return RelationshipGraph{},err}
+ return g.Export()
+}
+
 func buildGraph(parsed map[string]parsedNode)(*Graph,error){
+ return buildGraphWithResearchIssuers(parsed,false)
+}
+func buildGraphWithResearchIssuers(parsed map[string]parsedNode,research bool)(*Graph,error){
 	g:=&Graph{view:RelationshipGraph{SchemaVersion:"1",TrustStatus:"NOT_ESTABLISHED",Nodes:[]GraphNode{},Edges:[]GraphEdge{}},nodes:make(map[string]GraphNode,len(parsed)),parents:make(map[string][]string)}
 	fps:=make([]string,0,len(parsed))
 	byDN:=map[string][]string{}
@@ -102,7 +126,7 @@ func buildGraph(parsed map[string]parsedNode)(*Graph,error){
 	sort.Strings(fps)
 	for _,fp:=range fps{
 		n:=parsed[fp]
-		if !n.inventory{continue}
+		if !n.inventory&&!research{continue}
 		byDN[string(n.cert.RawSubject)]=append(byDN[string(n.cert.RawSubject)],fp)
 		if len(n.cert.SubjectKeyId)>0{bySKI[string(n.cert.SubjectKeyId)]=append(bySKI[string(n.cert.SubjectKeyId)],fp)}
 	}

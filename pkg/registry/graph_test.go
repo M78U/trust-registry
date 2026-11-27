@@ -88,3 +88,26 @@ func TestGraphCycleAndMissingIssuer(t *testing.T){
 	if _,err:=g.Paths(strings.Repeat("f",64),MaxPathDepth);err==nil{t.Fatal("unknown start accepted")}
 	if _,err:=g.Paths(digest(a),MaxPathDepth+1);err==nil{t.Fatal("invalid depth accepted")}
 }
+
+func TestResearchGraphExplicitCAInputs(t *testing.T){
+ rootKey,childKey,wrongKey:=graphKey(t),graphKey(t),graphKey(t)
+ root,parent:=graphCert(t,21,"Research root",true,rootKey,rootKey,nil)
+ child,_:=graphCert(t,22,"Research intermediate",true,childKey,rootKey,parent)
+ wrong,_:=graphCert(t,23,"Research root",true,wrongKey,wrongKey,nil)
+ leaf,_:=graphCert(t,24,"Research leaf",false,childKey,rootKey,parent)
+ v,err:=ResearchGraph([][]byte{child,wrong,root,root})
+ if err!=nil||len(v.Nodes)!=3||v.TrustStatus!="NOT_ESTABLISHED"||v.MatchedEdges!=1{t.Fatal(v,err)}
+ for _,n:=range v.Nodes{if n.InInventory{t.Fatal("research input treated as inventory")}}
+ matched,rejected:=false,false
+ for _,e:=range v.Edges{
+  if e.ChildSHA256!=digest(child){continue}
+  if e.IssuerSHA256==digest(root)&&e.DirectIssuerStatus=="MATCHED"{matched=true}
+  if e.IssuerSHA256==digest(wrong)&&e.DirectIssuerStatus!="MATCHED"{rejected=true}
+ }
+ if !matched||!rejected{t.Fatal(v.Edges)}
+ other,err:=ResearchGraph([][]byte{root,wrong,child});if err!=nil{t.Fatal(err)}
+ a,_:=json.Marshal(v);b,_:=json.Marshal(other);if string(a)!=string(b){t.Fatal("unstable research graph")}
+ for _,bad:=range [][][]byte{nil,{leaf},{[]byte("bad")},make([][]byte,MaxGraphNodes+1)}{
+  if _,err:=ResearchGraph(bad);err==nil{t.Fatal("invalid research graph accepted")}
+ }
+}
