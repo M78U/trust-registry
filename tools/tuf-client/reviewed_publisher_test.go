@@ -226,6 +226,41 @@ func TestReviewedPublication(t *testing.T){
  sessionDelta,err:=session.Diff(nextSession,true)
  if err!=nil||sessionDelta.Next.Sequence!=2||sessionDelta.Previous.Sequence!=1||len(sessionDelta.CertificateChanges)!=0||sessionDelta.Transition==nil||sessionDelta.ReleaseAuthenticated{t.Fatal(sessionDelta,err)}
 
+ // Simulate the process interruption boundaries using only the local fixture:
+ // a complete pending journal exists, but sequence two is not linked yet.
+ installed2:=filepath.Join(state,"installed",evidenceName(2))
+ journal:=filepath.Join(state,pendingInstallName)
+ if _,err:=os.Lstat(journal);!os.IsNotExist(err){t.Fatal("successful install left a journal",err)}
+ record2,err:=readRegular(installed2,maxEvidenceBytes);if err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(journal,record2,0600);err!=nil{t.Fatal(err)}
+ if err:=os.Remove(installed2);err!=nil{t.Fatal(err)}
+ if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err==nil{t.Fatal("partial installation fell back to old record")}
+ recovery:=RecoveryOptions{StateDir:state,InitialRootSHA256:digest(root),Authority:a,Checkpoint:&checkpoint}
+ badRecovery:=recovery;badRecovery.Authority=nil
+ if _,err:=RecoverPendingInstall(badRecovery);err==nil{t.Fatal("recovery without authority")}
+ badRecovery=recovery;higher:=ReleaseCheckpoint{Sequence:3,SnapshotSHA256:digest(raw2),RootVersion:2};badRecovery.Checkpoint=&higher
+ if _,err:=RecoverPendingInstall(badRecovery);err==nil{t.Fatal("recovery below independent checkpoint")}
+ if err:=os.Mkdir(filepath.Join(state,".lock"),0700);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("recovery bypassed lock")}
+ if err:=os.Remove(filepath.Join(state,".lock"));err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(journal,append(bytes.Clone(record2),' '),0600);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("noncanonical journal recovered")}
+ if err:=os.WriteFile(journal,record2,0600);err!=nil{t.Fatal(err)}
+ timestampPath:=filepath.Join(state,"metadata","timestamp.json")
+ timestampBytes,err:=readRegular(timestampPath,16384);if err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(timestampPath,[]byte("{}"),0600);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("mismatched cache recovered")}
+ if err:=os.WriteFile(timestampPath,timestampBytes,0600);err!=nil{t.Fatal(err)}
+ if _,err:=os.Stat(installed2);!os.IsNotExist(err){t.Fatal("invalid recovery committed evidence",err)}
+ recovered,err:=RecoverPendingInstall(recovery)
+ if err!=nil||!recovered.RecoveredPendingInstall||!recovered.IndependentCheckpointChecked||recovered.Registry.Manifest.Sequence!=2||recovered.RootVersion!=2||recovered.ReleaseApproval==nil||!recovered.ReleaseApproval.ReleaseApprovalVerified{t.Fatal(recovered,err)}
+ restored,err:=readRegular(installed2,maxEvidenceBytes);if err!=nil||!bytes.Equal(restored,record2){t.Fatal("recovery changed exact evidence",err)}
+ if _,_,err:=LoadAuthorizedInstalled(state,digest(root),a);err!=nil{t.Fatal(err)}
+ // Crash after link but before unlink: cleanup is idempotent, no history rewrite.
+ if err:=os.Link(installed2,journal);err!=nil{t.Fatal(err)}
+ if _,err:=RecoverPendingInstall(recovery);err!=nil{t.Fatal(err)}
+ restored,err=readRegular(installed2,maxEvidenceBytes);if err!=nil||!bytes.Equal(restored,record2){t.Fatal("cleanup changed installed record",err)}
+ if _,err:=RecoverPendingInstall(recovery);err==nil{t.Fatal("no journal unexpectedly recovered")}
  currentDir.Store(assets)
  if _,_,err:=refresh(context.Background(),so,true,staticServer.Client());err==nil{t.Fatal("older static deployment accepted")}
  staticOpts.PreviousManifestSHA256=strings.Repeat("f",64)
