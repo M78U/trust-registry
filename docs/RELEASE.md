@@ -49,3 +49,7 @@ Reviewed ledger and client installation now support persisted TUF root chains (T
 Strict clients can now require an independent public release credential bound to exact root pins, snapshot digest/sequence and online metadata expiries. Reviewed publishers embed it in Targets custom metadata. See CLIENT-RELEASE-AUTHORIZATION.md. Research mode remains separate; strict state must be explicitly initialized with independent authority. No production trust or live publication.
 
 Static deployment staging is available via static-prepare/static-check (STATIC-PUBLICATION.md). Public credential required for every history record; no preview-only redeploy after release. Actual deployment remains manual and gated on end-to-end testing, verified branding/CA rights and live smoke checks.
+
+## Manual integration acceptance
+
+Use the explicit validation workflow/script in RELEASE-VALIDATION.md. The isolated TUF module lock is currently missing; lock-candidate is discovery only, not locked acceptance. Keep all PR/push checks disabled during development. Only a clean committed-lock validation run can satisfy the local developer gate; actual CA, key ceremony, independent review and live deployment validation are separate.

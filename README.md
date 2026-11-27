@@ -151,3 +151,7 @@ Rotated `build-ledger` accepts the full ordered `--root-chain` and `--initial-ro
 ### Static release staging
 
 `tuf-publish static-prepare` builds a complete static Explorer/TUF asset collection from a pinned public-authorized ledger and produces a private SHA-256 manifest and delta estimate. `static-check` verifies the exact asset collection before manual deployment using `web/wrangler.release.jsonc`. See [static publication](docs/STATIC-PUBLICATION.md). No Cloudflare bindings or live deployment.
+
+### Manual release validation
+
+Run `node scripts/validate-release.mjs --mode=lock-candidate` with Go 1.26 and Node >=20 to generate dependency lock candidates and exercise both Go modules, all CLIs and Explorer. After reviewed lock files are committed, run `--mode=locked` on a clean checkout. Manual GitHub workflow `release-validation.yml` provides the same checks and short-lived report artifacts. See [acceptance guide](docs/RELEASE-VALIDATION.md). No automatic PR checks or deployment.
