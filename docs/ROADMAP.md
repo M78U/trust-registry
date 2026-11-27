@@ -124,3 +124,7 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Dependency acceptance tooling: independent lock-only resolution and selected Go module graph/license evidence, two Node fixture tests passed. Actual Go 1.26 resolution, lock commit, dependency rights review and locked tests remain open. Private manual artifacts only; no automatic checks or deployment.
 
 - Offline CA acquisition queue and exact fingerprint inventory coverage across SHECA/CFCA/BJCA/GDCA: one validated index, catalog digests, separate asserted URL matching and explicit archive NOT_CHECKED. No network or trust approval; pinned archive coverage and actual acquisition remain separate.
+
+## Current release checkpoint — v0.2 China CA Registry Research
+
+0.1.0 Developer Preview source and Apple Silicon Homebrew installation are already reported successful. This does not complete a verified CA dataset. Prioritize the existing v0.2 order: SHECA actual private original acquisition and fingerprint/relationship analysis, independent source/usage and redistribution review, then remaining CA research. The explicit first three SHA-256-backed SHECA archive batch and independent-pin candidate import path are in [acquisition archive](ACQUISITION-ARCHIVE.md#v02-first-real-sheca-acquisition-batch). Actual acquisition and full locked validation are still required. No new release tag or production trust anchors before independent review; v0.3 authenticated publication remains a separate gate.
