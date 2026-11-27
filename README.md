@@ -200,6 +200,8 @@ Strict local state diagnostics: `tuf-load --diagnose` or `tufclient.DiagnoseStat
 
 Strict update coordination: `tuf-load --coordinate plan|open|recover-root|recover-pending|refresh` or `tufclient.CoordinateUpdate` combines explicit diagnosis, recovery and strict installation/session reopening. See [update coordinator](docs/TUF-UPDATE-ORCHESTRATOR.md).
 
+Strict offline refresh advice: `tufclient.PlanRefresh` combines one local diagnostic with caller-owned last successful online observation and explicit age/expiry thresholds. No automatic refresh or per-document network calls. See [update coordinator](docs/TUF-UPDATE-ORCHESTRATOR.md).
+
 Strict online installation reuses the latest identical authenticated target after metadata and approval checks, with per-refresh transfer statistics. See [transfer optimization](docs/TUF-TRANSFER-OPTIMIZATION.md).
 
 ## License and security
