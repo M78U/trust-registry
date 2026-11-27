@@ -65,4 +65,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Explicit single-hop HTTPS AIA research acquisition and local issuer matching: merged in #31. DNS/IP pinning, conservative IPv4-only egress profile, offline audit/import separation. No automatic recursive fetch or trust authorization.
 
-- Local CA release-candidate review dossier, exact snapshot binding, required source/redistribution/scope/disclosure review and evidence artifact verification: PR #32. No reviewer authentication, actual CA review or production publication.
+- Local CA release-candidate review dossier, exact snapshot binding, required source/redistribution/scope/disclosure review and evidence artifact verification: merged in #32. No reviewer authentication, actual CA review or production publication.
+
+- Pinned role-key review signatures and threshold local release approval: PR #33. Exact snapshot/dossier/signature-set binding, short validity window. Publisher enforcement, independent key ceremony, rotation and durable release baseline remain pending.
