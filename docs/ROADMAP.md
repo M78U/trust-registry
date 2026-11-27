@@ -114,3 +114,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Strict offline state diagnostics: bounded archive/cache and latest evidence inspection, signed expiry, optional checkpoint, lock and pending recovery guidance. No automatic repair or network; locked Go validation pending.
 
 - Strict explicit update orchestrator: plan/open/root repair/pending recovery/one online refresh modes, action-stage reporting and exact session/checkpoint binding. No automatic bootstrap, retries, fallback or new cloud operations; locked Go acceptance pending.
+
+- Strict target reuse and transfer reporting: unchanged installed release skips redundant target transfer only after current signed metadata, credential, checkpoint and target length/hash checks. New releases still download; no new cloud bindings, cache format or telemetry. Locked Go acceptance pending.
