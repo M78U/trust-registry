@@ -13,7 +13,7 @@ import (
 
 func exportLedger(f *flag.FlagSet,args []string,out *string)error{
  dir:=f.String("ledger","","private publication ledger")
- root:=f.String("root-sha256","","independent root pin")
+ root:=f.String("root-sha256","","independent initial v1 root pin")
  authority:=f.String("authority-sha256","","independent authority pin")
  expected:=f.String("expected-head","","optional independently retained record pin")
  now:=f.String("now","","current RFC3339 time")

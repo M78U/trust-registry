@@ -91,7 +91,7 @@ func run(args []string)error{
 		var bootstrap bool
 		var chainPaths rootPaths
 		var initialPin string
-		if args[0]=="build-rotated"{f.Var(&chainPaths,"root-chain","numbered root files in order (repeatable)");f.StringVar(&initialPin,"initial-root-sha256","","independent v1 root pin")}
+		if args[0]=="build-rotated"||args[0]=="build-ledger"{f.Var(&chainPaths,"root-chain","numbered root files in order (repeatable)");f.StringVar(&initialPin,"initial-root-sha256","","independent v1 root pin")}
 		var ledgerDir,expectedHead string
 		if args[0]=="build-ledger"{
 			f.StringVar(&ledgerDir,"ledger","","private publication ledger directory")
@@ -134,7 +134,9 @@ func run(args []string)error{
 			if args[0]=="build-reviewed"&&!bootstrap{previous,err=read(previousPath,snapshot.MaxEnvelopeBytes);if err!=nil{return err}}
 			options:=tuf.ReviewedPublishOptions{Publish:o,Authority:a,Dossier:d,EvidenceDir:evidenceDir,Approval:v,PreviousSnapshot:previous,PreviousSHA256:previousPin,Bootstrap:bootstrap}
 			if args[0]=="build-ledger"{
-				receipt,err:=tuf.BuildInLedger(rb,raw,tuf.LedgerOptions{Directory:ledgerDir,AuthoritySHA256:authorityPin,ExpectedHeadSHA256:expectedHead,Reviewed:options});if err!=nil{return err}
+				var chain [][]byte
+				if len(chainPaths)>0{chain,err=loadRootChain(chainPaths);if err!=nil{return err}}
+				receipt,err:=tuf.BuildInLedger(rb,raw,tuf.LedgerOptions{Directory:ledgerDir,AuthoritySHA256:authorityPin,ExpectedHeadSHA256:expectedHead,Reviewed:options,RootChain:chain,InitialRootSHA256:initialPin});if err!=nil{return err}
 				return json.NewEncoder(os.Stdout).Encode(receipt)
 			}
 			result,report,err:=tuf.BuildReviewedRepository(rb,raw,options);if err!=nil{return err}

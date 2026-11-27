@@ -43,3 +43,5 @@ Local authenticated review approvals now support independent pinned role keys, t
 The optional `build-ledger` mode uses a protected local publication ledger to select the latest committed build as baseline and commits the signed bytes before `ledger-export`. See PUBLICATION-LEDGER.md. Retain independent head receipts; no durable external anti-rollback proof or upload. Do not bypass this mode with experimental direct builders.
 
 Root rotation research tools are available (TUF-ROOT-ROTATION.md). Do not use rotated research outputs in the reviewed v1 ledger or production distribution. Historical root-chain persistence, reviewed rotation authorization, ledger integration and installed-state migration remain gates.
+
+Reviewed ledger and client installation now support persisted TUF root chains (TUF-PERSISTENT-ROOT-CHAIN.md). Old initial root pin remains the ledger/export anchor. Rotation still requires separate operator/root-role authorization; review approvals do not bind root configuration, and clients authenticate TUF bytes only. No live publication or production trust.

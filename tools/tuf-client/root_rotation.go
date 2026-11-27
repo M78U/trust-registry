@@ -60,6 +60,11 @@ func strictRootProfile(root *metadata.Metadata[metadata.RootType],authority *rev
 // each sequential old/new threshold check to go-tuf. Intermediate expiry is
 // intentionally not checked, per TUF; final expiry is checked by the caller.
 func rootChain(chain [][]byte,pin string,at time.Time)(*trustedmetadata.TrustedMetadata,RootChainReport,error){
+ return validateRootChain(chain,pin,at,true)
+}
+
+// Only the root-update stage may traverse an expired current head.
+func validateRootChain(chain [][]byte,pin string,at time.Time,requireCurrent bool)(*trustedmetadata.TrustedMetadata,RootChainReport,error){
  if !validTime(at)||!hashPattern.MatchString(pin)||len(chain)<1||len(chain)>MaxRootChain||digest(chain[0])!=pin{return nil,RootChainReport{},errors.New("invalid pinned root chain or time")}
  for _,v:=range chain{if len(v)==0||len(v)>maxRoot{return nil,RootChainReport{},errors.New("root metadata size limit")}}
  tr,err:=trustedmetadata.New(chain[0]);if err!=nil{return nil,RootChainReport{},err}
@@ -73,7 +78,7 @@ func rootChain(chain [][]byte,pin string,at time.Time)(*trustedmetadata.TrustedM
   if err:=strictRootProfile(root,nil);err!=nil{return nil,RootChainReport{},err}
   hashes=append(hashes,digest(raw))
  }
- if !tr.Root.Signed.Expires.After(at){return nil,RootChainReport{},errors.New("current root expired")}
+ if requireCurrent&&!tr.Root.Signed.Expires.After(at){return nil,RootChainReport{},errors.New("current root expired")}
  return tr,RootChainReport{InitialRootSHA256:pin,CurrentRootSHA256:hashes[len(hashes)-1],RootVersion:tr.Root.Signed.Version,RootSHA256:hashes,ExpiresAt:tr.Root.Signed.Expires.UTC(),Status:"PINNED_ROOT_CHAIN_VERIFIED",TrustStatus:"NOT_ESTABLISHED"},nil
 }
 func VerifyRootChain(chain [][]byte,pin string,at time.Time)(RootChainReport,error){
@@ -113,7 +118,7 @@ func RotateRoot(chain [][]byte,pin string,o RotateRootOptions)([]byte,RootChainR
 
 // BuildRotatedRepository produces a local research candidate under the
 // verified current root. Keep every numbered root available for old clients.
-// Existing reviewed/ledger publisher APIs intentionally stay v1-only.
+// The separate reviewed ledger enforces its own approval and history gates.
 func BuildRotatedRepository(chain [][]byte,pin string,raw []byte,o PublishOptions)(Repository,RootChainReport,error){
  report,err:=VerifyRootChain(chain,pin,o.Now);if err!=nil{return Repository{},RootChainReport{},err}
  if o.RootSHA256!=report.CurrentRootSHA256{return Repository{},RootChainReport{},errors.New("current root pin mismatch")}
