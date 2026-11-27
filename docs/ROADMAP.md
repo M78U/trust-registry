@@ -61,4 +61,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Offline direct-issuer CRL and OCSP evidence inspection, explicit time cutoffs and conflict reporting: merged in #29. Chain integration, evidence persistence and delegated responders remain pending.
 
-- Private content-addressed revocation observations and all-path revocation inspection: PR #30. Independent local storage, explicit observation cutoff, no public snapshot/OCSP data publication or trust promotion.
+- Private content-addressed revocation observations and all-path revocation inspection: merged in #30. Independent local storage, explicit observation cutoff, no public snapshot/OCSP data publication or trust promotion.
+
+- Explicit single-hop HTTPS AIA research acquisition and local issuer matching: PR #31. DNS/IP pinning, conservative IPv4-only egress profile, offline audit/import separation. No automatic recursive fetch or trust authorization.
