@@ -124,6 +124,16 @@ func regularDir(path string)error{
 // cache is retained across invocations. No default roots, unsafe local mode,
 // automatic cache reset, or automatic installation.
 func Refresh(ctx context.Context,o Options)([]byte,Report,error){
+	return refresh(ctx,o,false,nil)
+}
+
+// RefreshAndInstall validates and persists a versioned offline evidence record
+// under the same cooperative lock as TUF metadata refresh.
+func RefreshAndInstall(ctx context.Context,o Options)(Report,error){
+	_,report,err:=refresh(ctx,o,true,nil)
+	return report,err
+}
+func refresh(ctx context.Context,o Options,install bool,testClient *http.Client)([]byte,Report,error){
 	metaURL,err:=baseURL(o.MetadataURL);if err!=nil{return nil,Report{},err}
 	targetURL,err:=baseURL(o.TargetsURL);if err!=nil{return nil,Report{},err}
 	if o.StateDir==""||!hashPattern.MatchString(o.InitialRootSHA256){return nil,Report{},errors.New("state directory and independent initial root SHA-256 required")}
@@ -170,6 +180,7 @@ func Refresh(ctx context.Context,o Options)([]byte,Report,error){
 	tr:=&http.Transport{TLSClientConfig:&tls.Config{MinVersion:tls.VersionTLS12},DisableCompression:true,ResponseHeaderTimeout:15*time.Second}
 	defer tr.CloseIdleConnections()
 	client:=&http.Client{Transport:tr,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return errors.New("redirect disabled")}}
+	if testClient!=nil{client=testClient} // private integration test seam only
 	ctx,cancel:=context.WithTimeout(ctx,5*time.Minute);defer cancel()
 	cfg.Fetcher=&boundedFetcher{ctx:ctx,client:client,metadataBase:metaURL,targetsBase:targetURL,remaining:maxDownloadBytes}
 	u,err:=updater.New(cfg);if err!=nil{return nil,Report{},err}
@@ -185,5 +196,10 @@ func Refresh(ctx context.Context,o Options)([]byte,Report,error){
 	now:=time.Now().UTC()
 	if now.Before(reg.Manifest.CreatedAt)||!now.Before(reg.Manifest.ExpiresAt){return nil,Report{},errors.New("registry envelope outside declared validity window")}
 	trusted:=u.GetTrustedMetadataSet()
-	return raw,Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"},nil
+	report:=Report{Target:TargetName,TUFTargetAuthenticated:true,RootVersion:trusted.Root.Signed.Version,TimestampVersion:trusted.Timestamp.Signed.Version,SnapshotMetadataVersion:trusted.Snapshot.Signed.Version,TargetsVersion:trusted.Targets[metadata.TARGETS].Signed.Version,Registry:reg,ApplicationRollbackStatus:"NOT_CHECKED",TrustStatus:"NOT_ESTABLISHED"}
+	if install{
+		if err:=installEvidence(dir,o.InitialRootSHA256,raw,report,now);err!=nil{return nil,Report{},err}
+		report.ApplicationRollbackStatus="CHECKED_LOCAL_INSTALLATION"
+	}
+	return raw,report,nil
 }

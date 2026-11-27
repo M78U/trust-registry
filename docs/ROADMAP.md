@@ -41,4 +41,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Experimental isolated go-tuf/v2 client adapter: merged in #21. Top-level metadata refresh, target verification, explicit root pin and persistent protected cache. Dependency lock/execution, signed fixture, publisher and application checkpoint integration pending.
 
-- Offline initial TUF root and static repository candidate generation: PR #22. Four disjoint role key sets, thresholds, linked metadata hashes, consistent-snapshot naming. No rotation, publisher version ledger, deployment or authenticated installation. Dependency lock and executable tests remain pending.
+- Offline initial TUF root and static repository candidate generation: merged in #22. Four disjoint role key sets, thresholds, linked metadata hashes, consistent-snapshot naming. No rotation, publisher version ledger, deployment or authenticated installation. Dependency lock and executable tests remain pending.
+
+- TUF authenticated research installation and offline evidence loader: PR #23. Initial-root v1, version-aligned publisher profile only; protected filesystem and independent root pin. End-to-end synthetic TLS fixture added, not executed. Rotation evidence, dependency lock and production trust gates pending.
