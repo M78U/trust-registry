@@ -105,6 +105,15 @@ def parser():
     w.add_argument("--max-fetches", required=True, type=int)
     w.add_argument("--id", action="append", required=True)
     commands.add_parser("workspace-info", help="read private workspace configuration")
+    u = commands.add_parser("workspace-update", help="replace configuration with explicit prior and binary pins")
+    u.add_argument("--expected-config-sha256", required=True)
+    u.add_argument("--binary", required=True, type=Path)
+    u.add_argument("--binary-sha256", required=True)
+    u.add_argument("--interval-hours", required=True, type=int)
+    u.add_argument("--max-fetches", required=True, type=int)
+    u.add_argument("--id", action="append", required=True)
+    a = commands.add_parser("workspace-archive", help="replay one explicitly pinned old configuration")
+    a.add_argument("--config-sha256", required=True)
     c = commands.add_parser("check", help="delegate one bounded online source run to trusted Go CLI")
     c.add_argument("--binary", type=Path)
     c.add_argument("--store", type=Path)
@@ -138,12 +147,21 @@ def parser():
 def execute(args):
     op = args.operation
     root = args.workspace
-    if op in ("workspace-init", "workspace-info"):
+    if op in ("workspace-init", "workspace-info", "workspace-update", "workspace-archive"):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")
         if op == "workspace-init":
             return workspace.initialize(root, args.binary, args.binary_sha256, args.interval_hours, args.max_fetches, args.id), 0
+        if op == "workspace-update":
+            return workspace.update(root, args.expected_config_sha256, args.binary, args.binary_sha256,
+                                    args.interval_hours, args.max_fetches, args.id), 0
+        if op == "workspace-archive":
+            return workspace.archived(root, args.config_sha256), 0
         return workspace.describe(root, workspace.read_config(root)), 0
+    if root is not None and op == "check":
+        with workspace.check_update_lock(root):
+            workspace.apply(root, args)
+            return None, check(args)
     if root is not None:
         workspace.apply(root, args)
     if op == "check":

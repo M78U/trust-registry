@@ -303,3 +303,35 @@ python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" stat
 ```
 
 Workspace mode supplies check parameters and queue directory for enqueue/refresh/history/record/status; direct conflicting options are refused. Offline acceptance and plan still take explicit originals and pins without workspace. Direct commands from stage 11 remain supported. Check rehashes the bounded binary before delegation. This is a local consistency check, not code signing or protection against malicious filesystem replacement between check and execution. Use trusted private parents and filesystem; config digest is informational and should be retained independently. Info does not verify binary bytes. A changed binary is blocked; no rebind/edit/migration command in this stage. Preserve old config and evidence; explicit reviewed rebind and configuration update are future work. Interrupted init can leave a partial directory; inspect it, never blindly overwrite it. No directory fsync. No automatic collection-to-semantic conversion, profile acceptance, trust decision, cloud resources or dependency changes. Four synthetic test methods added; current environment cannot clone GitHub (DNS) and has Go 1.23.2 only, so actual checkout tests and real page acceptance are pending.
+
+
+## Stage 13: reviewed workspace update and CLI rebinding
+
+Workspace-update requires the independently retained current configuration digest, all new check parameters, an absolute reviewed executable path and its exact SHA-256. It preserves the existing observations and review-queue. Old canonical configurations are retained in configuration-history/<configurationSHA256>.json with no replacement; exact existing copies can be reused after an interrupted update. After archiving the old config, atomic replacement of workspace.json is the update commit point. Identical configuration is a verified no-op. Existing stage 12 workspaces work without migration. No network, auto-update, dependency change or scheduler.
+
+Use a fresh version-specific private binary path, not the path currently in use. From a clean reviewed checkout after tests:
+
+```sh
+umask 077
+go build -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry-new" ./cmd/trust-registry
+shasum -a 256 "$HOME/trust-maintainer-bin/trust-registry-new"
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-info
+```
+
+Replace OLD_CONFIG_PIN and NEW_CLI_PIN with independently reviewed values, and supply the full intended source policy:
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-update \
+  --expected-config-sha256 OLD_CONFIG_PIN \
+  --binary "$HOME/trust-maintainer-bin/trust-registry-new" --binary-sha256 NEW_CLI_PIN \
+  --interval-hours 168 --max-fetches 1 --id sheca-repository
+
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-archive \
+  --config-sha256 OLD_CONFIG_PIN
+```
+
+Retain the returned new configuration digest. Reverting is another explicit workspace-update with the current expected configuration digest and the old complete settings/binary pin, after verifying the old executable is still present and unchanged. No auto rollback, archive scanning, or deletion. The archive stores configuration only, not binary contents or an authenticated chronological event ledger; repeated config content is stored once. Archive count grows with distinct manual configurations, not with checks. Back up both configuration and retained binaries privately.
+
+Workspace-mode check and update hold one cooperative workspace lock from config read/binary validation through Go subprocess completion or config commit. A stale lock must be investigated, not removed blindly. Direct stage 11 calls and older versions do not participate in this workspace lock; stop them before updating. Queue operations do not change config and can read a complete old or new config. If an update fails or its response is lost, inspect workspace-info and the archived prior pin before retrying. No directory fsync, hostile-filesystem rollback prevention or race-free executable identity between hash and exec. Archive replay verifies bytes against the provided pin, not binary bytes or reviewer identity.
+
+Added three synthetic test methods for explicit rebind, preserved observations/review queue, config history/no-op, wrong digest, shared lock, corrupt archive, reuse and explicit restore. Not executed against a full checkout in this environment. Actual SHECA DOM acceptance and native locked validation remain open. No release or trust decision.

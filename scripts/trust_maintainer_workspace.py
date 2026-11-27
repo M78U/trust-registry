@@ -1,4 +1,5 @@
 """Private explicit maintainer workspace configuration (no scheduler)."""
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -11,6 +12,8 @@ from sheca_source_adapter import digest, unique_object
 from sheca_source_review_queue import canonical, private_root
 
 CONFIG = "workspace.json"
+HISTORY = "configuration-history"
+LOCK = ".workspace-check-update.lock"
 MAX_CONFIG_BYTES = 16384
 MAX_BINARY_BYTES = 128 << 20
 SOURCES = ("bjca-downloads", "bjca-root-directory", "cfca-repository",
@@ -62,9 +65,7 @@ def validate(config):
         raise ValueError("invalid workspace request budget")
 
 
-def read_config(root):
-    private_root(root)
-    path = root / CONFIG
+def read_config_file(path):
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or not 0 < info.st_size <= MAX_CONFIG_BYTES:
         raise ValueError("invalid private workspace config file")
@@ -78,32 +79,114 @@ def read_config(root):
     validate(config)
     if canonical(config) != raw:
         raise ValueError("noncanonical workspace config")
+    return config
+
+
+def read_config(root):
+    private_root(root)
+    config = read_config_file(root / CONFIG)
     private_root(root / "observations")
     private_root(root / "review-queue")
     return config
 
 
-def write_config(root, config):
+def commit_config(path, config, replace=False):
+    validate(config)
     data = canonical(config)
     if len(data) > MAX_CONFIG_BYTES:
         raise ValueError("workspace config size limit")
-    fd, temp = tempfile.mkstemp(prefix=".workspace-pending-", dir=root)
+    fd, temp = tempfile.mkstemp(prefix=".workspace-pending-", dir=path.parent)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.link(temp, root / CONFIG)
+        if replace:
+            os.replace(temp, path)
+        else:
+            os.link(temp, path)
     finally:
-        os.unlink(temp)
+        if os.path.exists(temp):
+            os.unlink(temp)
 
 
-def initialize(root, binary, binary_pin, hours, budget, ids):
+def write_config(root, config):
+    commit_config(root / CONFIG, config)
+
+
+@contextmanager
+def check_update_lock(root):
+    """Serialize cooperating workspace checks and configuration changes."""
+    private_root(root)
+    lock = root / LOCK
+    lock.mkdir(mode=0o700)
+    try:
+        yield
+    finally:
+        lock.rmdir()
+
+
+def configuration(binary, binary_pin, hours, budget, ids):
     config = {"schemaVersion": "1", "binary": str(binary), "binarySHA256": binary_pin,
               "intervalHours": hours, "maxFetches": budget, "sourceIds": list(ids)}
     validate(config)
     if binary_digest(binary) != binary_pin:
-        raise ValueError("CLI digest mismatch; no workspace created")
+        raise ValueError("CLI digest mismatch")
+    return config
+
+
+def archive_configuration(root, config):
+    archive = root / HISTORY
+    archive.mkdir(mode=0o700, exist_ok=True)
+    private_root(archive)
+    pin = digest(canonical(config))
+    path = archive / (pin + ".json")
+    try:
+        commit_config(path, config)
+    except FileExistsError:
+        if canonical(read_config_file(path)) != canonical(config):
+            raise ValueError("historical configuration conflicts; preserve and investigate")
+    return pin
+
+
+def update(root, expected, binary, binary_pin, hours, budget, ids):
+    if not HEX.fullmatch(expected):
+        raise ValueError("explicit expected current configuration SHA-256 required")
+    # Validate all proposed settings and binary before any configuration write.
+    with check_update_lock(root):
+        old = read_config(root)
+        old_pin = digest(canonical(old))
+        if expected != old_pin:
+            raise ValueError("current configuration digest differs; inspect before update")
+        new = configuration(binary, binary_pin, hours, budget, ids)
+        if canonical(old) == canonical(new):
+            return describe(root, old, "WORKSPACE_CONFIGURATION_UNCHANGED")
+        archive_configuration(root, old)
+        commit_config(root / CONFIG, new, replace=True)
+        result = describe(root, new, "WORKSPACE_CONFIGURATION_UPDATED")
+        result["previousConfigurationSHA256"] = old_pin
+        result["previousConfigurationArchived"] = True
+        result["binaryVerification"] = "MATCHED_AT_UPDATE_TIME"
+        return result
+
+
+def archived(root, pin):
+    if not HEX.fullmatch(pin):
+        raise ValueError("explicit historical configuration SHA-256 required")
+    private_root(root)
+    directory = root / HISTORY
+    private_root(directory)
+    config = read_config_file(directory / (pin + ".json"))
+    if digest(canonical(config)) != pin:
+        raise ValueError("historical configuration digest mismatch")
+    return {"status": "HISTORICAL_CONFIGURATION_REPLAYED", "configuration": config,
+            "configurationSHA256": pin, "binaryVerification": "NOT_RECHECKED_AT_INFO_TIME",
+            "trustStatus": "NOT_ESTABLISHED"}
+
+
+
+def initialize(root, binary, binary_pin, hours, budget, ids):
+    config = configuration(binary, binary_pin, hours, budget, ids)
     # No adoption or overwrite of an existing directory, including symlinks.
     # If initialization is interrupted, leave partial state for inspection.
     root.mkdir(mode=0o700)
