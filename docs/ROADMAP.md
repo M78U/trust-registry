@@ -27,4 +27,6 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Manual report-only Certificate Research workflow, explicit bounded batch and selected SATL indexed name leads: merged in #15. First actual runner acquisition results, fingerprint-based SATL matching, redistribution review and CA policy evidence are pending.
 
-- Local certificate relationship graph and bounded candidate path enumeration: PR #16. No complete path validation or production trust; actual research run and reviewed real CA data remain pending.
+- Local certificate relationship graph and bounded candidate path enumeration: merged in #16. No complete path validation or production trust; actual research run and reviewed real CA data remain pending.
+
+- Explicit local CA-set path validation and local policy binding: PR #17. No authenticated release, revocation or business-purpose authorization.
