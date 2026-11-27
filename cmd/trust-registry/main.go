@@ -33,7 +33,7 @@ func readInput(path string) ([]byte, error) {
 }
 
 func run(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | policy | sources | snapshot") }
+	if len(args)==0 { return errors.New("usage: trust-registry init | inspect FILE | import | list | find | provenance | validate | discover | graph | paths | verify-path | search | lifecycle | policy | sources | snapshot") }
 	if args[0]=="snapshot" { return runSnapshot(args[1:],out) }
 	if args[0]=="policy" { return runPolicy(args[1:],out) }
 	if args[0]=="sources" { return runSources(args[1:],out) }
@@ -95,6 +95,15 @@ func run(args []string,out io.Writer) error {
 		if args[0]=="graph"{report,err:=g.Export();if err!=nil{return err};return encode.Encode(report)}
 		report,err:=g.Paths(*fp,*depth);if err!=nil{return err}
 		return encode.Encode(report)
+	case "lifecycle":
+		at:=flags.String("at","","explicit evaluation time RFC3339")
+		days:=flags.Int("warning-days",90,"expiry warning horizon in UTC days (0..365)")
+		if err:=flags.Parse(args[1:]);err!=nil{return err}
+		if flags.NArg()!=0||*at==""{return errors.New("usage: lifecycle --registry DIR --at RFC3339 [--warning-days N]")}
+		when,err:=time.Parse(time.RFC3339Nano,*at);if err!=nil{return err}
+		s,err:=registry.OpenStore(*root);if err!=nil{return err}
+		r,err:=s.Lifecycle(registry.LifecycleOptions{At:when.UTC(),WarningDays:*days});if err!=nil{return err}
+		return encode.Encode(r)
 	case "verify-path":
 		file:=flags.String("policy","","local policy review JSON")
 		purpose:=flags.String("purpose","","explicit requested policy purpose")
@@ -178,7 +187,7 @@ func main() {
 }
 
 func runPolicy(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: policy list | inspect ID | evaluate --file FILE --at RFC3339 --known-at RFC3339") }
+	if len(args)==0 { return errors.New("usage: policy list | inspect ID | evaluate | history --file FILE --fingerprint HEX --at RFC3339 --known-at RFC3339") }
 	enc:=json.NewEncoder(out)
 	switch args[0] {
 	case "list":
@@ -188,8 +197,9 @@ func runPolicy(args []string,out io.Writer) error {
 		if len(args)!=2 { return errors.New("usage: policy inspect ID") }
 		for _,p:=range policy.Defaults() { if p.ID==args[1] { return enc.Encode(p) } }
 		return errors.New("unknown built-in policy")
-	case "evaluate":
-		flags:=flag.NewFlagSet("policy evaluate",flag.ContinueOnError)
+	case "evaluate","history":
+		flags:=flag.NewFlagSet("policy "+args[0],flag.ContinueOnError)
+		fp:=flags.String("fingerprint","","history anchor fingerprint")
 		file:=flags.String("file","","local policy review document (unauthenticated)")
 		root:=flags.String("registry","registry","local inventory directory")
 		at:=flags.String("at","","explicit evaluation time RFC3339")
@@ -200,6 +210,12 @@ func runPolicy(args []string,out io.Writer) error {
 		k,err:=time.Parse(time.RFC3339Nano,*known);if err!=nil { return err }
 		d,err:=policy.LoadDocument(*file);if err!=nil { return err }
 		s,err:=registry.OpenStore(*root);if err!=nil { return err }
+		if args[0]=="history"{
+			if *fp==""{return errors.New("history requires --fingerprint")}
+			result,err:=d.History(s,*fp,e.UTC(),k.UTC());if err!=nil{return err}
+			return enc.Encode(result)
+		}
+		if *fp!=""{return errors.New("fingerprint is a history option")}
 		result,err:=d.Evaluate(s,e.UTC(),k.UTC());if err!=nil { return err }
 		return enc.Encode(result)
 	default:return errors.New("unknown policy command")

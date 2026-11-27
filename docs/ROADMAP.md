@@ -51,4 +51,8 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 
 - Static Cloudflare Workers research preview with client-side catalog search, detail/provenance leads, SATL name references and empty policy templates: merged in #25. No production graph, approved data publication, deployment or signed release yet.
 
-- Interactive Explorer evidence constellation: PR #26. Direct source/name/fingerprint associations only, no cryptographically verified issuer edges until approved CA data exists.
+- Interactive Explorer evidence constellation: merged in #26. Direct source/name/fingerprint associations only, no cryptographically verified issuer edges until approved CA data exists.
+
+## v0.5 lifecycle
+
+- DER-backed validity monitoring and bitemporal local policy history: PR #27. No automatic trust changes, revocation inference or emergency release channel.

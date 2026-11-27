@@ -99,3 +99,7 @@ Experimental TUF `tuf-fetch --install` persists signed metadata and snapshot tog
 `cd web && npm test && npm run build` creates a dependency-free static research preview in `web/dist`. See [Explorer deployment](docs/EXPLORER.md). The public projection contains only selected source-directory leads and empty policy templates, never certificate bytes or local snapshots. Planned Workers custom domain trust.m78u.com; not deployed.
 
 Explorer includes an interactive evidence constellation with direct catalog/source/fingerprint/name associations, keyboard navigation, relation filters and complete neighbor list. These are research associations, not verified certificate chains.
+
+## Certificate lifecycle
+
+`trust-registry lifecycle --registry DIR --at RFC3339 --warning-days 90` reports validity of DER-backed current inventory at explicit time. `trust-registry policy history --registry DIR --file POLICY.json --fingerprint HEX --at RFC3339 --known-at RFC3339` exposes time-visible decisions and reviews for a declared anchor. Loaded snapshot SDK offers both operations. See [lifecycle](docs/LIFECYCLE.md). No revocation or production trust inference.
