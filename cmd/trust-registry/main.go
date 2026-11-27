@@ -187,9 +187,10 @@ func main() {
 }
 
 func runPolicy(args []string,out io.Writer) error {
-	if len(args)==0 { return errors.New("usage: policy list | inspect ID | evaluate | history --file FILE --fingerprint HEX --at RFC3339 --known-at RFC3339") }
+	if len(args)==0 { return errors.New("usage: policy list | inspect ID | evaluate | history | restrict | check-transition") }
 	enc:=json.NewEncoder(out)
 	switch args[0] {
+	case "restrict","check-transition":return runPolicyChange(args,out)
 	case "list":
 		if len(args)!=1 { return errors.New("usage: policy list") }
 		return enc.Encode(policy.Defaults())
