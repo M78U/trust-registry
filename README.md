@@ -89,3 +89,7 @@ The isolated `tools/tuf-client` Go module connects to go-tuf/v2 for independentl
 Experimental offline `tools/tuf-client/cmd/tuf-publish` builds initial root metadata and a local static TUF repository candidate with separate role keys. See [publisher](docs/TUF-PUBLISHER.md). No live publishing or release authorization.
 
 Experimental TUF `tuf-fetch --install` persists signed metadata and snapshot together; `tuf-load` reauthenticates current local evidence offline. Initial-root v1 profile only; see [TUF installation](docs/TUF-INSTALLATION.md). No production trust; dependency lock and execution pending.
+
+### SigLens candidate exchange
+
+`snapshot export-candidates --snapshot-sha256 HEX --at RFC3339 [--certificate SIGNER.cer] SNAPSHOT` emits a portable candidate-only JSON bundle. See [consumer contract](docs/CONSUMER-CANDIDATES.md). No roots or trust grants; keep local signer input private.

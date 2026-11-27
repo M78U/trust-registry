@@ -22,6 +22,8 @@ type Loaded struct {
 	payload []Payload
 	policies map[policyKey][]byte
 	loadedAt time.Time
+	sequence uint64
+	snapshotSHA256 string
 }
 
 // LoadResearch reauthenticates the latest accepted record, including current
@@ -102,7 +104,7 @@ func LoadPinnedResearch(raw []byte,expectedSHA256 string,at time.Time)(*Loaded,R
 func loadView(raw []byte,at time.Time)(*Loaded,error){
 	var env Envelope
 	if err:=json.Unmarshal(raw,&env);err!=nil{return nil,err}
-	v:=&Loaded{payload:env.Payload,policies:make(map[policyKey][]byte),loadedAt:at}
+	v:=&Loaded{payload:env.Payload,policies:make(map[policyKey][]byte),loadedAt:at,sequence:env.Manifest.Sequence,snapshotSHA256:digest(raw)}
 	for _,f:=range env.Payload{
 		if strings.HasPrefix(f.Path,"policies/"){
 			d,err:=policy.DecodeDocument(f.Data);if err!=nil{return nil,err}
