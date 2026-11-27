@@ -13,6 +13,7 @@ from sheca_source_diff import read_observation
 from sheca_source_review_queue import prepare, canonical, persist, private_root
 from sheca_source_review_disposition import append, inspect, ACTIONS, utc
 from sheca_source_review_index import refresh, listing, STATES
+import trust_maintainer_workspace as workspace
 
 ERRORS = (ValueError, TypeError, KeyError, OSError, RecursionError)
 HEX = re.compile(r"[0-9a-f]{64}")
@@ -86,7 +87,7 @@ def pair_args(p, queue=False, pin=False, at=False):
     p.add_argument("--previous-sha256", required=True)
     p.add_argument("--current-sha256", required=True)
     if queue:
-        p.add_argument("--queue", required=True, type=Path)
+        p.add_argument("--queue", type=Path)
     if pin:
         p.add_argument("--batch-sha256", required=True)
     if at:
@@ -95,13 +96,21 @@ def pair_args(p, queue=False, pin=False, at=False):
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--workspace", type=Path, help="explicit private workspace (before subcommand)")
     commands = p.add_subparsers(dest="operation", required=True)
+    w = commands.add_parser("workspace-init", help="initialize a new private workspace")
+    w.add_argument("--binary", required=True, type=Path)
+    w.add_argument("--binary-sha256", required=True)
+    w.add_argument("--interval-hours", required=True, type=int)
+    w.add_argument("--max-fetches", required=True, type=int)
+    w.add_argument("--id", action="append", required=True)
+    commands.add_parser("workspace-info", help="read private workspace configuration")
     c = commands.add_parser("check", help="delegate one bounded online source run to trusted Go CLI")
-    c.add_argument("--binary", required=True, type=Path)
-    c.add_argument("--store", required=True, type=Path)
-    c.add_argument("--interval", required=True)
-    c.add_argument("--max-fetches", required=True, type=int)
-    c.add_argument("--id", action="append", required=True)
+    c.add_argument("--binary", type=Path)
+    c.add_argument("--store", type=Path)
+    c.add_argument("--interval")
+    c.add_argument("--max-fetches", type=int)
+    c.add_argument("--id", action="append")
     a = commands.add_parser("acceptance", help="cross-check one capture against selected research baseline")
     a.add_argument("observation", type=Path)
     a.add_argument("--sha256", required=True)
@@ -119,7 +128,7 @@ def parser():
     r.add_argument("--reviewer", required=True)
     r.add_argument("--note", required=True)
     s = commands.add_parser("status", help="read advisory index only")
-    s.add_argument("--queue", required=True, type=Path)
+    s.add_argument("--queue", type=Path)
     s.add_argument("--status", choices=("open", "all", *STATES), default="open")
     s.add_argument("--limit", type=int, default=50)
     s.add_argument("--offset", type=int, default=0)
@@ -128,8 +137,21 @@ def parser():
 
 def execute(args):
     op = args.operation
+    root = args.workspace
+    if op in ("workspace-init", "workspace-info"):
+        if root is None:
+            raise ValueError("explicit --workspace path required before subcommand")
+        if op == "workspace-init":
+            return workspace.initialize(root, args.binary, args.binary_sha256, args.interval_hours, args.max_fetches, args.id), 0
+        return workspace.describe(root, workspace.read_config(root)), 0
+    if root is not None:
+        workspace.apply(root, args)
     if op == "check":
+        if any(getattr(args, k) is None for k in ("binary", "store", "interval", "max_fetches", "id")):
+            raise ValueError("explicit workspace or all direct check options required")
         return None, check(args)
+    if op in ("enqueue", "refresh", "history", "record", "status") and args.queue is None:
+        raise ValueError("explicit workspace or --queue required")
     if op == "status":
         return listing(args.queue, args.status, args.limit, args.offset), 0
     if op == "acceptance":
