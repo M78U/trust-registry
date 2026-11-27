@@ -7,7 +7,7 @@ CI builds deterministic artifacts from reviewed inputs; do not commit generated 
 ## v0.1 developer preview checklist (not a trust dataset)
 
 - [ ] Final CI on Linux/macOS/Windows: module lock/tidy, verify, vet, test, build, CLI smoke.
-- [ ] Review the six embedded Draft 2020-12 schemas, format assertions, duplicate-key rejection and deny-all external reference loader; retain semantic validation.
+- [ ] Review all embedded Draft 2020-12 schemas, format assertions, duplicate-key rejection and deny-all external reference loader; retain semantic validation.
 - [ ] Review synthetic standard/SM2 fixtures, candidate storage, discovery, index, provenance and local policy lifecycle.
 - [ ] Confirm project license and third-party license notices; no public release before decision.
 - [ ] Confirm main-branch rules/review requirements and release approval.
