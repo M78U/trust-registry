@@ -112,3 +112,33 @@ Use a fresh private output path and check the exit status before consuming it. B
 An aggregate exact-duplicate count change is a review signal even if unique rows are unchanged. Duplicate multiplicity is not tracked per fingerprint by the current adapter, so equal aggregate counts do not prove equal multiplicities. BODY_CHANGED_PROJECTED_ROWS_UNCHANGED means only that the recognized normalized unique rows and aggregate duplicate count matched; it is not proof that the page only changed layout, or that no certificate or policy changed. Unrecognized page text, policies, JS content, and other nonprojected content are outside semantic coverage. The raw observations remain available for review. No network, writes by the script itself, certificate acquisition, inventory mutation, trust changes, cloud operations or Go dependency changes. Keep output private; hrefs remain untrusted literals.
 
 Added six synthetic comparison tests for format-only changes, new/missing claims, field/section changes, ambiguity/duplicate counts, determinism, pin/time/mode and invalid-page rejection. Test execution and live page profile acceptance remain pending for this revision; the implementation environment cannot resolve raw.githubusercontent.com to retrieve the exact test checkout. Next: actual SHECA HTML validation and review queue integration with source-level change reports; do not schedule automated semantic conclusions before real-page acceptance.
+
+
+## Stage 7: actual SHECA page acceptance (operator checkpoint)
+
+The stage 5/6 adapters remain experimental. The implementation container still cannot resolve the real SHECA host or raw.githubusercontent.com; no actual page bytes or native Go 1.26 validation have been obtained here. The new acceptance script reprojects one exact independently pinned original and cross-checks the existing selected 17 research rows in pkg/sources/sheca.json (not an authoritative or exhaustive baseline). It reports exact selected field matches, missing SHA-1 claims, mismatched fields, ambiguous SHA-1 groups, section counts and unlisted claims. DISUSE is compared only as a section; role is not inferred from it. The baseline file SHA-256 binds the report to the actual local baseline. The report excludes raw page contents and literal hrefs; row names/dates/fingerprints remain unverified source claims and should still be reviewed before sharing. All results remain HUMAN_REVIEW_REQUIRED and liveProfileAccepted=false, even if all selected rows match. No catalog edit, certificate import, URL follow, revocation or trust decision.
+
+From a clean checkout of the current main after merge, on a trusted Mac:
+
+```sh
+git switch main
+git pull --ff-only
+export PATH="$(brew --prefix go@1.26)/bin:$PATH"
+python3 -B -m unittest discover -s scripts -p 'test_sheca_source_*.py' -v
+go build -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
+umask 077
+work="$(mktemp -d "$HOME/trust-sheca-acceptance.XXXXXXXX")"
+/tmp/trust-registry-monitor sources monitor-fetch --id sheca-repository --out "$work/observation.json" > "$work/receipt.json"
+cat "$work/receipt.json"
+```
+
+Inspect the receipt and independently retain its observationSHA256. If the direct HTTPS request fails, manually save the actual page HTML from the independently checked official page and use monitor-local with explicit UTC observation time and a fresh output path; do not substitute search snippets, a screenshot, or rendered plain text. Do not mix modes in later comparisons. Run these only after the capture succeeds, replacing the placeholder with the reviewed receipt digest:
+
+```sh
+pin='REVIEWED_OBSERVATION_SHA256'
+python3 -B scripts/sheca_source_acceptance.py --sha256 "$pin" "$work/observation.json" > "$work/acceptance.json"
+jq '{status,counts,sectionRowCounts,projectedDistinctRows,exactDuplicateRows,unlistedFingerprintClaimCount,liveProfileAccepted}' "$work/acceptance.json"
+python3 -B scripts/sheca_source_adapter.py --sha256 "$pin" "$work/observation.json" > "$work/projection.json"
+```
+
+Check exit codes before reading outputs; parse errors produce no successful report. Compare all sections, actual table rows, href literals and any ignored or dynamically rendered content against the independently inspected page. A selected-row match does not prove complete extraction. If the parser rejects the real markup, preserve the private observation and report the exact error; do not relax checks or treat the page as empty. No raw HTML or private paths in Git. Send the reduced jq summary and parser error if any; share the actual capture only if reviewed for secrets/private data and permitted. No automatic semantic scheduling until real profile acceptance. The four added synthetic acceptance tests are not executed in the implementation environment; run the full Python suite above. No Go dependency, CI, Cloudflare or release changes.
