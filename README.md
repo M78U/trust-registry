@@ -59,3 +59,7 @@ This is a development-only candidate inventory and policy toolkit, not a trusted
 `trust-registry sources endpoints` lists observed acquisition URLs; `sources fetch --id uca-sm2 --out FILE` explicitly downloads a bounded original certificate to a new local file, checks listing hashes and outputs an unreviewed report. `sources audit --id uca-sm2 FILE` runs offline. Other endpoints without external SHA-256 require `--allow-legacy-only`. Fetch is research-only; ordinary validation and discovery remain offline. No trust promotion or automatic registry import.
 
 `trust-registry sources research` runs the explicit report-only SHECA batch (SHA-256 leads by default; `--include-legacy` opts into weaker legacy-only checks). The manually triggered Certificate Research Actions workflow saves JSON only. `sources satl` lists selected name-only SATL research leads; see [SATL research](docs/research/SATL.md). No program membership or trust is inferred.
+
+## Certificate relationship graph
+
+`trust-registry graph --registry ./local-registry` exports deterministic candidate nodes and edges. `trust-registry paths --registry ./local-registry --certificate signer.cer` enumerates matched direct-issuer paths without saving the input; `--fingerprint HEX` selects a stored CA. Self-signature, missing issuer, cycle and depth limit are explicit path terminal states. No trusted root or complete path verification is established. See [relationship graph](docs/RELATIONSHIP-GRAPH.md). Do not publish graphs containing a private signer certificate.
