@@ -142,3 +142,32 @@ python3 -B scripts/sheca_source_adapter.py --sha256 "$pin" "$work/observation.js
 ```
 
 Check exit codes before reading outputs; parse errors produce no successful report. Compare all sections, actual table rows, href literals and any ignored or dynamically rendered content against the independently inspected page. A selected-row match does not prove complete extraction. If the parser rejects the real markup, preserve the private observation and report the exact error; do not relax checks or treat the page as empty. No raw HTML or private paths in Git. Send the reduced jq summary and parser error if any; share the actual capture only if reviewed for secrets/private data and permitted. No automatic semantic scheduling until real profile acceptance. The four added synthetic acceptance tests are not executed in the implementation environment; run the full Python suite above. No Go dependency, CI, Cloudflare or release changes.
+
+
+## Stage 8: private maintenance review batches
+
+An explicit offline queue preparation tool replays two independently pinned original SHECA observations through stage 6. It never consumes editable diff JSON. Every changed fingerprint group becomes a pending review task, unchanged ambiguous groups also become tasks, and exact duplicate count changes are retained. Every raw body change creates a separate source-body review task, even if projected rows match, because material outside the parser coverage can change. Failed parsing, invalid pins, mixed mode or non-increasing time block the entire batch rather than generating an empty review queue.
+
+From the repository root with the two original observations and separately retained pins:
+
+```sh
+umask 077
+mkdir -m 700 "$HOME/trust-maintainer-queue"
+python3 -B scripts/sheca_source_review_queue.py prepare \
+  --queue "$HOME/trust-maintainer-queue" \
+  --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  /path/to/private-first.json /path/to/private-next.json
+```
+
+Inspect the resulting receipt and retain batchSHA256 independently. The file named <batchId>.json in the queue directory contains deterministic tasks and a canonical diff digest, without raw HTML, hrefs or row labels. Inspect it locally with jq. Task IDs bind batch ID, task kind and optional published SHA-1 claim. The batch ID binds source, adapter and exact observation pair, so repeated identical input is idempotent. A new observation pair is a separate review batch, not a claim of global incident deduplication. The immutable-by-convention canonical file is written via a synced private temporary file and no-replace hard link; conflicting existing data is rejected, not repaired. Max batch size 8 MiB. No directory scan, directory fsync, signed ledger or hostile-filesystem rollback protection. Use an existing private directory outside Git, retain pins and backups.
+
+To verify the exact saved batch, rerun with the same originals and pins:
+
+```sh
+python3 -B scripts/sheca_source_review_queue.py verify \
+  --queue "$HOME/trust-maintainer-queue" --batch-sha256 REVIEWED_BATCH_PIN \
+  --previous-sha256 FIRST_PIN --current-sha256 NEXT_PIN \
+  /path/to/private-first.json /path/to/private-next.json
+```
+
+Verify checks exact replay and independent batch digest. All tasks are PENDING_HUMAN_REVIEW; this stage has no disposition/closure API or global queue index. NO_TASKS_FROM_THIS_COMPARISON is not proof of no source change or current trust. The live adapter profile is still unaccepted; do not automate semantic conclusions or publish evidence. No acquisition, inventory mutation, review signature, trust grant, scheduler, dependency or Cloudflare changes. Four synthetic test methods added (not executed in the implementation environment). Next stage: append-only human review dispositions and bounded pending task index; the real SHECA capture checkpoint remains open.
