@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/M78U/trust-registry/pkg/registry"
+	"github.com/M78U/trust-registry/schemas"
 )
 
 const MaxRecords = 4096
@@ -161,6 +162,7 @@ func (d Document) ValidateAgainst(index *registry.Index) error {
 }
 
 func (d Document) validateIndex(index *registry.Index) (map[string]Review,error) {
+	if err:=schemas.ValidateValue(schemas.PolicyDocument,d);err!=nil { return nil,err }
 	p:=d.Policy
 	if err:=p.Validate(); err!=nil { return nil,err }
 	if d.Reviews==nil || d.Decisions==nil || len(d.Reviews)>MaxRecords || len(d.Decisions)>MaxRecords { return nil,errors.New("invalid review or decision collection") }

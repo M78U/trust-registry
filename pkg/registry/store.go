@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/M78U/trust-registry/schemas"
 )
 
 const maxRecordBytes = 64 << 10
@@ -121,6 +123,8 @@ func (s *Store) Import(input []byte, source string, at time.Time) (ImportResult,
 	p, err := canonicalJSON(provenance)
 	if err != nil { return ImportResult{}, err }
 	if len(meta) > maxRecordBytes || len(p) > maxRecordBytes { return ImportResult{}, errors.New("metadata too large") }
+	if err := schemas.ValidateJSON(schemas.Certificate,meta); err != nil { return ImportResult{},err }
+	if err := schemas.ValidateJSON(schemas.Provenance,p); err != nil { return ImportResult{},err }
 	if err := s.dirs(true); err != nil { return ImportResult{}, err }
 	fp := record.FingerprintSHA256
 	id := digest(p)
@@ -146,6 +150,7 @@ func (s *Store) Find(fp string) (CertificateRecord, error) {
 	expected, err := canonicalJSON(record)
 	if err != nil { return CertificateRecord{}, err }
 	if !bytes.Equal(meta, expected) { return CertificateRecord{}, errors.New("certificate metadata mismatch") }
+	if err:=schemas.ValidateJSON(schemas.Certificate,meta);err!=nil { return CertificateRecord{},err }
 	return record, nil
 }
 
@@ -181,6 +186,7 @@ func readProvenance(path, id string) (ProvenanceRecord,error) {
 	b, err := readRegular(path,maxRecordBytes)
 	if err != nil { return p,err }
 	if digest(b) != id { return p,errors.New("provenance content address mismatch") }
+	if err:=schemas.ValidateJSON(schemas.Provenance,b);err!=nil { return p,err }
 	if err := json.Unmarshal(b,&p); err != nil { return p,err }
 	expected, err := canonicalJSON(p)
 	if err != nil { return p,err }
@@ -254,4 +260,17 @@ func (s *Store) Validate() (ValidationReport, error) {
 	certs, sources, err := s.validatedInventory()
 	if err != nil { return ValidationReport{}, err }
 	return ValidationReport{len(certs), len(sources)}, nil
+}
+
+// Init initializes a fresh empty local inventory. It does not repair an
+// existing partial inventory or create any trust records.
+func (s *Store) Init() (ValidationReport,error) {
+	if s==nil { return ValidationReport{},errors.New("inventory required") }
+	if err:=ensureDir(s.root,true);err!=nil { return ValidationReport{},err }
+	entries,err:=os.ReadDir(s.root)
+	if err!=nil { return ValidationReport{},err }
+	if len(entries)==0 {
+		if err:=s.dirs(true);err!=nil { return ValidationReport{},err }
+	}
+	return s.Validate()
 }
