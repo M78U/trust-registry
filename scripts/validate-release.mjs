@@ -6,21 +6,22 @@ import {existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, w
 import {tmpdir} from "node:os";
 import {dirname, join, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
+import {parseModuleStream,collectLicenseEvidence} from "./dependency-license-evidence.mjs";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const tuf=join(root,"tools","tuf-client"), web=join(root,"web");
 const opts=new Map();
 for(const arg of process.argv.slice(2)){
  const i=arg.indexOf("=");
- if(i<1||!["--mode","--report-dir"].includes(arg.slice(0,i))||opts.has(arg.slice(0,i))||!arg.slice(i+1))throw Error("usage: node scripts/validate-release.mjs --mode=locked|lock-candidate [--report-dir=NEW_DIR]");
+ if(i<1||!["--mode","--report-dir"].includes(arg.slice(0,i))||opts.has(arg.slice(0,i))||!arg.slice(i+1))throw Error("usage: node scripts/validate-release.mjs --mode=locked|lock-candidate|lock-only [--report-dir=NEW_DIR]");
  opts.set(arg.slice(0,i),arg.slice(i+1));
 }
 const mode=opts.get("--mode")??"locked";
-if(!["locked","lock-candidate"].includes(mode))throw Error("unsupported validation mode");
+if(!["locked","lock-candidate","lock-only"].includes(mode))throw Error("unsupported validation mode");
 const reportDir=opts.has("--report-dir")?resolve(opts.get("--report-dir")):mkdtempSync(join(tmpdir(),"m78u-validation-report-"));
 if(opts.has("--report-dir"))mkdirSync(reportDir,{mode:0o700});
 const scratch=mkdtempSync(join(tmpdir(),"m78u-validation-"));
-const report={schemaVersion:"1",kind:"LOCAL_DEVELOPER_VALIDATION",mode,startedAt:new Date().toISOString(),sourceRevision:null,sourceClean:false,stages:[],dependencyFiles:[],status:"FAILED",productionReleaseAuthorized:false,cloudflareDeployment:false};
+const report={schemaVersion:"1",kind:"LOCAL_DEVELOPER_VALIDATION",mode,startedAt:new Date().toISOString(),sourceRevision:null,sourceClean:false,stages:[],dependencyFiles:[],status:"FAILED",productionReleaseAuthorized:false,cloudflareDeployment:false,licenseReviewComplete:false,dependencyGraphEvidence:null};
 const env={...process.env,GOWORK:"off",GOTOOLCHAIN:"local",GOFLAGS:"",GOSUMDB:"sum.golang.org",GOPRIVATE:"",GONOSUMDB:"",GONOPROXY:""};
 const hash=data=>createHash("sha256").update(data).digest("hex");
 const modules=[{name:"registry",dir:root},{name:"tuf-client",dir:tuf}];
@@ -63,9 +64,26 @@ try{
  });
  // Resolve both module graphs before executing tests, so a main-module
  // test failure does not prevent collecting the TUF lock candidate.
+ const graphs=[];
+ let resolutionFailed=false;
  for(const m of modules){
-  command(m.name+" dependency "+mode,"go",mode==="locked"?["mod","tidy","-diff"]:["mod","tidy"],m.dir);
+  try{
+   command(m.name+" dependency "+mode,"go",mode==="locked"?["mod","tidy","-diff"]:["mod","tidy"],m.dir);
+   graphs.push({name:m.name,items:parseModuleStream(command(m.name+" selected module graph","go",["list","-m","-mod=readonly","-json","all"],m.dir,{capture:true}))});
+  }catch(err){
+   resolutionFailed=true;
+   if(mode==="locked")throw err;
+   console.error(m.name+" dependency resolution/evidence failed; continuing with other module");
+  }
  }
+ if(graphs.length){
+  const evidence=collectLicenseEvidence(graphs,root,join(reportDir,"dependency-licenses"));
+  report.dependencyGraphEvidence={graphs:graphs.map(g=>g.name),rows:evidence.modules.length,evidenceBytes:evidence.evidenceBytes,inventory:"dependency-licenses/inventory.json"};
+ }
+ if(resolutionFailed)throw Error("dependency resolution or graph collection failed");
+ if(mode==="lock-only"){
+  report.status="LOCK_CANDIDATE_RESOLVED_NOT_TESTED";
+ }else{
  for(const m of modules){
   command(m.name+" module verify","go",["mod","verify"],m.dir);
   command(m.name+" vet","go",["vet","-mod=readonly","./..."],m.dir);
@@ -109,6 +127,7 @@ try{
   assert.equal(git("final source status",["status","--porcelain","--untracked-files=normal"]),"");
  }
  report.status=mode==="locked"?"LOCKED_DEVELOPER_VALIDATION_PASSED":"LOCK_CANDIDATE_VALIDATED_NOT_COMMITTED";
+ }
 }catch(err){
  failed=true;report.error=String(err.message??err);console.error(report.error);
 }finally{
@@ -116,7 +135,7 @@ try{
   const data=existsSync(f.path)?readFileSync(f.path):null;
   const after=data?hash(data):null;
   report.dependencyFiles.push({module:f.module,name:f.name,before:before.get(f.path),after,changed:after!==before.get(f.path)});
-  if(mode==="lock-candidate"&&data){
+  if(mode!=="locked"&&data){
    const dir=join(reportDir,"lock-candidate",f.module);mkdirSync(dir,{recursive:true,mode:0o700});
    writeFileSync(join(dir,f.name),data,{mode:0o600});
   }
