@@ -44,4 +44,17 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(len(r['rows']),5)
 
 
+    def test_nested_ignored_elements(self):
+        expected = project(*wrap(fixture()))["rows"]
+        hidden = "<template><template>nested</template>" + fixture() + "</template>"
+        self.assertEqual(project(*wrap(hidden + fixture()))["rows"], expected)
+        hidden = "<template><noscript>" + fixture() + "</noscript></template>"
+        self.assertEqual(project(*wrap(hidden + fixture()))["rows"], expected)
+        for bad in ("<template><template></template>" + fixture(),
+                    "<template><noscript></template></noscript>" + fixture(),
+                    "<template>"*33 + "</template>"*33 + fixture()):
+            with self.assertRaises(ValueError):
+                project(*wrap(bad))
+
+
 if __name__=='__main__': unittest.main()

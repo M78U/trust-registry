@@ -18,6 +18,7 @@ SOURCE = {"id": "sheca-repository", "authority": "SHECA",
 SECTIONS = {"Root Certificates / 根证书": "ROOT",
             "Intermediate Certificates / 中级证书": "INTERMEDIATE",
             "Disuse Certificates / 停用证书": "DISUSE"}
+IGNORED_TAGS = ("script", "style", "template", "noscript")
 HEADER = ["Name / 名称", "Fingerprint / 指纹（SHA1）", "Valid Until / 有效期至", "Links / 链接"]
 MONTHS = {m: i for i, m in enumerate("January February March April May June July August September October November December".split(), 1)}
 
@@ -86,14 +87,15 @@ class Tables(HTMLParser):
         self.cell = None
         self.table_rows = []
         self.sections = {}
-        self.ignored = None
+        self.ignored = []
         self.count = 0
 
     def handle_starttag(self, tag, attrs):
-        if self.ignored:
-            return
-        if tag in ("script", "style", "template", "noscript"):
-            self.ignored = tag
+        if self.ignored or tag in IGNORED_TAGS:
+            if tag in IGNORED_TAGS:
+                if len(self.ignored) >= 32:
+                    raise ValueError("ignored element nesting limit")
+                self.ignored.append(tag)
             return
         if tag == "table":
             if self.in_table:
@@ -120,8 +122,10 @@ class Tables(HTMLParser):
 
     def handle_endtag(self, tag):
         if self.ignored:
-            if tag == self.ignored:
-                self.ignored = None
+            if tag in IGNORED_TAGS:
+                if tag != self.ignored[-1]:
+                    raise ValueError("mismatched ignored element end")
+                self.ignored.pop()
             return
         if not self.in_table:
             return

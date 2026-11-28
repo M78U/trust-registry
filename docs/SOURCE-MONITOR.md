@@ -440,3 +440,22 @@ node scripts/validate-release.mjs --mode=locked
 ```
 
 Retain report.json from the printed report directory and verify status, sourceRevision, sourceClean and all stage results. Do not tag a failed or untested revision. Full suite execution remains pending in the implementation environment (GitHub DNS failure and Go 1.23.2). Separately complete stage 7 actual SHECA page acceptance and stage 14 manual macOS schedule smoke with no external webhook until desired. The developer gate does not establish live acceptance. No new release, scheduler installation, dependencies, trust or cloud changes.
+
+
+## Stage 18: offline cross-language maintainer acceptance
+
+The developer release validator now executes a source-only offline workflow with the actual tagged Go executable and the default consumer executable. It generates synthetic HTML from the checked-in selected SHECA research baseline (not captured official HTML), makes two LOCAL_INPUT observations with Go, independently hashes and indexes both, verifies the stored originals/history, cross-checks the first through the Python acceptance tool against the actual committed baseline, then previews and pins the review batch, rejects an incorrect batch pin before writes, enqueues/replays and records one synthetic human disposition. It confirms the open index count and consumer rejection reason. One synthetic label is changed; expected tasks are the field change and raw body review. The second observation carries nanosecond precision. All outputs live in a temporary private directory, no scheduler, external notification, network collection, inventory import or trust mutation.
+
+The HTML parser also tracks nested ignored elements (template/noscript/script/style) with a depth bound; inner closure must not expose outer ignored content. Malformed or unclosed ignored nesting is rejected. This remains a conservative parser, not a browser visibility engine; actual SHECA DOM acceptance is still a separate manual checkpoint.
+
+Run the complete locked developer validation after merge on a clean checkout, as in stage 17. It requires Go matching committed modules, Python 3.11+ and Node 20+. Do not tag until the exact clean revision passes all gates. The offline smoke can be repeated independently using explicitly built binaries:
+
+```sh
+umask 077
+scratch="$(mktemp -d)"
+go build -mod=readonly -o "$scratch/consumer" ./cmd/trust-registry &&
+go build -tags maintainer -mod=readonly -o "$scratch/maintainer" ./cmd/trust-registry &&
+python3 -B scripts/validate-maintainer-offline.py --consumer "$scratch/consumer" --maintainer "$scratch/maintainer"
+```
+
+Expected status OFFLINE_MAINTAINER_WORKFLOW_PASSED; liveProfileAccepted false. This is a developer gate only, not a Homebrew dependency. No production dataset or trust claims follow from synthetic acceptance. Go 1.26 native builds and full checkout tests were not run in the implementation container (GitHub DNS unavailable, Go 1.23.2); real page and macOS schedule acceptance also remain outstanding.
