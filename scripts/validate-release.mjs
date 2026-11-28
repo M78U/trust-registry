@@ -133,7 +133,13 @@ try{
  command("Maintainer tagged CLI tests","go",["test","-tags","maintainer","-mod=readonly","-count=1","./cmd/trust-registry","./pkg/sources"],root);
  command("Build separate maintainer CLI","go",["build","-tags","maintainer","-mod=readonly","-trimpath","-o",bin("trust-registry-maintainer"),"./cmd/trust-registry"],root);
  command("Maintainer CLI source list",bin("trust-registry-maintainer"),["sources","monitor-list"],scratch);
- command("Consumer CLI monitor commands excluded",trust,["sources","monitor-list"],scratch,{failure:true});
+ const offlineMaintainer=jsonCommand("Offline Go/Python maintainer workflow","python3",["-B","scripts/validate-maintainer-offline.py","--maintainer",bin("trust-registry-maintainer"),"--consumer",trust],root);
+ check("Offline maintainer scope and completion",()=>{
+  assert.equal(offlineMaintainer.status,"OFFLINE_MAINTAINER_WORKFLOW_PASSED");
+  assert.equal(offlineMaintainer.observationMode,"LOCAL_INPUT");
+  assert.equal(offlineMaintainer.liveProfileAccepted,false);
+  assert.equal(offlineMaintainer.trustStatus,"NOT_ESTABLISHED");
+ });
  command("CLI technical coverage without explicit pins rejected",trust,["sources","acquisition-coverage","--registry",registry,"--technical"],scratch,{failure:true});
  command("CLI unpinned archive directory rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive],scratch,{failure:true});
  command("CLI missing pinned archive rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive,"--archive-pin","uca-global-g2="+"0".repeat(64),"--technical"],scratch,{failure:true});
