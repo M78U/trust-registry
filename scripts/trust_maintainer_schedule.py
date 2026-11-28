@@ -13,6 +13,7 @@ import tempfile
 from sheca_source_adapter import digest, unique_object
 from sheca_source_review_queue import canonical, private_root
 import trust_maintainer_workspace as workspace
+import trust_maintainer_alerts as alerts
 
 LAST = "last-scheduled-check.json"
 MAX_REPORT = 256 << 10
@@ -89,6 +90,8 @@ def last(root):
 def scheduled_check(root, command_builder):
     """One collection pass; no semantic parsing, enqueue or approval."""
     with workspace.check_update_lock(root):
+        # Reconcile any prior committed receipt before replacing it.
+        alerts.observe(root, last(root))
         result = {"schemaVersion": "1", "startedAt": now(), "configurationSHA256": None,
                   "status": "CHECK_FAILED", "exitCode": 1, "monitorReport": None,
                   "detail": None, "liveProfileAccepted": False,
@@ -125,4 +128,5 @@ def scheduled_check(root, command_builder):
             result["detail"] = "CONFIG_EXECUTION_OR_REPORT_REVIEW_REQUIRED"
         result["finishedAt"] = now()
         write_latest(root, result)
+        alerts.observe(root, result)
         return result, 0 if result["exitCode"] == 0 else 1

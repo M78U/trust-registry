@@ -376,3 +376,23 @@ launchctl print "gui/$(id -u)/$label"
 ```
 
 Optional explicit immediate run (no -k; do not kill an active process): launchctl kickstart "gui/$(id -u)/$label". Inspect last-check again after completion. Disable by launchctl bootout "gui/$(id -u)" "$dest", verify unloaded, then move the installed plist to a private backup outside LaunchAgents to prevent reload at login. Stop the job before updating the Python checkout/interpreter; the Go executable binding does not pin Python source/interpreter contents. workspace-info now reports schedulerInstallation=NOT_CHECKED rather than asserting no installed scheduler. No automatic trust, certificate inventory mutation, semantic processing, cloud resources or dependencies. Four synthetic test methods added; actual macOS launchctl and full checkout tests pending. Real SHECA HTML acceptance remains open.
+
+
+## Stage 15: durable local maintenance alerts
+
+Scheduled checks now reconcile the previous latest receipt under the shared workspace lock before starting a new collection, and reconcile the new receipt immediately after writing it. A private bounded maintenance-alerts.json retains pending alert slots across successful checks. A repeated reconciliation of the same latest receipt is a no-op. If alert reconciliation fails, the next check refuses to overwrite the previous receipt until local state is investigated. This is not an authenticated journal or an atomic transaction across both files; interrupted writes, deleted state, restored old receipts, or hostile local changes may lose or repeat alerts. No automatic deletion or external delivery. Slots coalesce by source and kind, retain first/last UTC time, saturated occurrence count and last receipt digest, not original details, hrefs, paths or raw data. Up to 25 slots (eight sources times three kinds plus workspace failure), maximum 64 KiB.
+
+Alert rules: raw source body change immediately; two unsuccessful fetch attempts for one source (cooldown and not-due do not increment, successful indexed capture resets streak); local state/store/lock/cancellation failures immediately; workspace check failure immediately. Existing pending alerts survive later successful checks until manually acknowledged. No alert for normal baseline or unchanged source, budget skips or cooldown alone. Missing/stale scheduled receipt is not a heartbeat alarm in this stage. A busy workspace may leave stale receipt without alert; inspect launchctl.
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" alerts
+```
+
+The command reconciles the latest receipt if necessary, then reports local pending alerts and stateSHA256. To acknowledge one exact alert after investigation, use the independently retained state pin and exact alertId from the report:
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" alert-ack \
+  --expected-state-sha256 REVIEWED_STATE_PIN --alert-id 'sheca-repository:SOURCE_BODY_CHANGED'
+```
+
+A changed state rejects stale acknowledgement. Acknowledgement removes only the local alert slot, not the review batch, failure streak, historical observation or CA trust. New events may open the slot again. No Bark credentials, external requests, automated delivery, certificate inventory changes or trust approval. Next stage may add optional sanitized delivery with explicit endpoint/credential setup and delivery deduplication. Four synthetic tests added; not executed against checkout (GitHub DNS failure confirmed; Go 1.23.2 only). Real source and macOS acceptance remain open.
