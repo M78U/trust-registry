@@ -15,6 +15,7 @@ from sheca_source_review_disposition import append, inspect, ACTIONS, utc
 from sheca_source_review_index import refresh, listing, STATES
 import trust_maintainer_workspace as workspace
 import trust_maintainer_schedule as schedule
+import trust_maintainer_alerts as alerts
 
 ERRORS = (ValueError, TypeError, KeyError, OSError, RecursionError)
 HEX = re.compile(r"[0-9a-f]{64}")
@@ -115,6 +116,10 @@ def parser():
     job.add_argument("--minute", required=True, type=int)
     commands.add_parser("scheduled-check", help="one bounded check with latest private receipt")
     commands.add_parser("last-check", help="read latest scheduled check receipt")
+    commands.add_parser("alerts", help="read local pending operational alerts")
+    ack = commands.add_parser("alert-ack", help="acknowledge one alert without granting trust")
+    ack.add_argument("--expected-state-sha256", required=True)
+    ack.add_argument("--alert-id", required=True)
     u = commands.add_parser("workspace-update", help="replace configuration with explicit prior and binary pins")
     u.add_argument("--expected-config-sha256", required=True)
     u.add_argument("--binary", required=True, type=Path)
@@ -157,6 +162,14 @@ def parser():
 def execute(args):
     op = args.operation
     root = args.workspace
+    if op in ("alerts", "alert-ack"):
+        if root is None:
+            raise ValueError("explicit --workspace path required before subcommand")
+        with workspace.check_update_lock(root):
+            state = alerts.observe(root, schedule.last(root))
+            if op == "alert-ack":
+                return alerts.acknowledge(root, state, args.expected_state_sha256, args.alert_id), 0
+            return alerts.listing(state), 0
     if op in ("schedule-plist", "scheduled-check", "last-check"):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")
