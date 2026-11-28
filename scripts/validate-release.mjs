@@ -128,6 +128,9 @@ try{
    assert.ok(row&&row.acquisitionRoute==="PINNED_ENDPOINT_ARCHIVE"&&/^[a-f0-9]{64}$/.test(row.publishedSHA256?.fingerprint??""),id);
   }
  });
+ command("Build separate maintainer CLI","go",["build","-tags","maintainer","-mod=readonly","-trimpath","-o",join(scratch,"trust-registry-maintainer"),"./cmd/trust-registry"],root);
+ command("Maintainer CLI source list",join(scratch,"trust-registry-maintainer"),["sources","monitor-list"],scratch);
+ command("Consumer CLI monitor commands excluded",trust,["sources","monitor-list"],scratch,{failure:true});
  command("CLI technical coverage without explicit pins rejected",trust,["sources","acquisition-coverage","--registry",registry,"--technical"],scratch,{failure:true});
  command("CLI unpinned archive directory rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive],scratch,{failure:true});
  command("CLI missing pinned archive rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive,"--archive-pin","uca-global-g2="+"0".repeat(64),"--technical"],scratch,{failure:true});

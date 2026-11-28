@@ -16,7 +16,7 @@ from sheca_source_review_index import refresh, listing, STATES
 import trust_maintainer_workspace as workspace
 import trust_maintainer_schedule as schedule
 import trust_maintainer_alerts as alerts
-import trust_maintainer_bark as bark
+import trust_maintainer_webhook as webhook
 
 ERRORS = (ValueError, TypeError, KeyError, OSError, RecursionError)
 HEX = re.compile(r"[0-9a-f]{64}")
@@ -115,10 +115,10 @@ def parser():
     job = commands.add_parser("schedule-plist", help="render daily macOS LaunchAgent XML; never install")
     job.add_argument("--hour", required=True, type=int)
     job.add_argument("--minute", required=True, type=int)
-    job.add_argument("--notify-bark", action="store_true", help="opt in to Bark after scheduled checks")
+    job.add_argument("--notify-webhook", action="store_true", help="opt in to Webhook after scheduled checks")
     scheduled = commands.add_parser("scheduled-check", help="one bounded check with latest private receipt")
-    scheduled.add_argument("--notify-bark", action="store_true")
-    commands.add_parser("notify-bark", help="explicitly send a sanitized pending alert summary")
+    scheduled.add_argument("--notify-webhook", action="store_true")
+    commands.add_parser("notify-webhook", help="explicitly send a sanitized pending alert summary")
     commands.add_parser("last-check", help="read latest scheduled check receipt")
     commands.add_parser("alerts", help="read local pending operational alerts")
     ack = commands.add_parser("alert-ack", help="acknowledge one alert without granting trust")
@@ -166,13 +166,13 @@ def parser():
 def execute(args):
     op = args.operation
     root = args.workspace
-    if op in ("alerts", "alert-ack", "notify-bark"):
+    if op in ("alerts", "alert-ack", "notify-webhook"):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")
         with workspace.check_update_lock(root):
             state = alerts.observe(root, schedule.last(root))
-            if op == "notify-bark":
-                r = bark.notify(root, state, schedule.now())
+            if op == "notify-webhook":
+                r = webhook.notify(root, state, schedule.now())
                 return r, 1 if r["status"] == "FAILED_OR_UNCONFIRMED" else 0
             if op == "alert-ack":
                 return alerts.acknowledge(root, state, args.expected_state_sha256, args.alert_id), 0
@@ -181,14 +181,14 @@ def execute(args):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")
         if op == "schedule-plist":
-            return schedule.plist(root, args.hour, args.minute, Path(__file__).resolve(), Path(sys.executable).resolve(), args.notify_bark), 0
+            return schedule.plist(root, args.hour, args.minute, Path(__file__).resolve(), Path(sys.executable).resolve(), args.notify_webhook), 0
         if op == "scheduled-check":
             result, code = schedule.scheduled_check(root, check_command)
-            if args.notify_bark:
+            if args.notify_webhook:
                 try:
                     with workspace.check_update_lock(root):
                         state = alerts.observe(root, schedule.last(root))
-                        result["notification"] = bark.notify(root, state, schedule.now())
+                        result["notification"] = webhook.notify(root, state, schedule.now())
                     if result["notification"]["status"] == "FAILED_OR_UNCONFIRMED":
                         code = 1
                 except ERRORS:

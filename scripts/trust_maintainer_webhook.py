@@ -1,4 +1,4 @@
-"""Optional fixed-endpoint Bark delivery for sanitized local alert summaries."""
+"""Optional product-neutral HTTPS webhook delivery for local alert summaries."""
 import datetime as dt
 import http.client
 import json
@@ -7,6 +7,7 @@ import re
 import ssl
 import stat
 import tempfile
+from urllib.parse import urlsplit
 
 from sheca_source_adapter import unique_object
 from sheca_source_review_queue import canonical, private_root
@@ -14,12 +15,10 @@ from sheca_source_review_disposition import utc
 from trust_maintainer_alerts import KINDS
 from trust_maintainer_workspace import SOURCES
 
-KEY = "bark-device-key"
-FILE = "bark-delivery.json"
+CONFIG = "notification-webhook.json"
+FILE = "webhook-delivery.json"
 MAX_BYTES = 16384
 COOLDOWN = dt.timedelta(hours=6)
-HOST = "api.day.app"
-PATH = "/push"
 MESSAGES = {
     "SOURCE_BODY_CHANGED": "source content changed",
     "REPEATED_FETCH_FAILURE": "repeated fetch failures",
@@ -56,14 +55,35 @@ def private_read(root, name, limit):
     return raw
 
 
-def device_key(root):
-    raw = private_read(root, KEY, 257)
+def configuration(root):
+    raw = private_read(root, CONFIG, MAX_BYTES)
     if raw is None:
         return None
-    # Restrict to ordinary opaque Bark keys. Do not echo a credential on failure.
-    if not re.fullmatch(rb"[A-Za-z0-9_-]{8,256}\n?", raw):
-        raise ValueError("invalid Bark device key format")
-    return raw.rstrip(b"\n").decode("ascii")
+    try:
+        config = json.loads(raw, object_pairs_hook=unique_object)
+        if not isinstance(config, dict) or set(config) not in ({"url"}, {"url", "bearerToken"}):
+            raise ValueError()
+        url = config["url"]
+        if not isinstance(url, str) or not 0 < len(url) <= 4096 or not all(33 <= ord(c) <= 126 for c in url):
+            raise ValueError()
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.password is not None or "#" in url or "\\" in url:
+            raise ValueError()
+        if not re.fullmatch(r"[A-Za-z0-9.-]+", parsed.hostname) or not parsed.hostname.strip("."):
+            raise ValueError()
+        port = parsed.port or 443
+        if not 1 <= port <= 65535 or parsed.port == 0:
+            raise ValueError()
+        token = config.get("bearerToken")
+        if "bearerToken" in config and (not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9._~+/\-=]{1,4096}", token)):
+            raise ValueError()
+        target = parsed.path or "/"
+        if parsed.query:
+            target += "?" + parsed.query
+        return {"host": parsed.hostname, "port": port, "target": target, "token": token}
+    except (ValueError, TypeError, KeyError, RecursionError):
+        # The URL itself can contain credentials. Never include it in errors.
+        raise ValueError("invalid private webhook configuration") from None
 
 
 def empty():
@@ -74,7 +94,7 @@ def empty():
 def validate(state):
     if not isinstance(state, dict) or set(state) != set(empty()) or state["schemaVersion"] != "1":
         raise ValueError("invalid delivery state")
-    if state["lastOutcome"] not in ("NONE", "ATTEMPT_RESERVED", "ACCEPTED_BY_RELAY", "FAILED_OR_UNCONFIRMED"):
+    if state["lastOutcome"] not in ("NONE", "ATTEMPT_RESERVED", "ACCEPTED_BY_ENDPOINT", "FAILED_OR_UNCONFIRMED"):
         raise ValueError("invalid delivery outcome")
     if (state["lastAttemptAt"] is None) != (state["lastOutcome"] == "NONE"):
         raise ValueError("inconsistent attempt state")
@@ -106,7 +126,7 @@ def save(root, state):
     raw = canonical(state)
     if len(raw) > MAX_BYTES:
         raise ValueError("delivery state size limit")
-    fd, temp = tempfile.mkstemp(prefix=".bark-delivery-pending-", dir=root)
+    fd, temp = tempfile.mkstemp(prefix=".webhook-delivery-pending-", dir=root)
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(raw)
@@ -118,29 +138,24 @@ def save(root, state):
             os.unlink(temp)
 
 
-def send(key, body):
-    # Fixed HTTPS endpoint, no shell, proxy, redirect or response/error echo.
-    payload = json.dumps({"device_key": key, "title": "M78U Trust Registry",
-                          "body": body, "group": "M78U Trust Registry"},
-                         ensure_ascii=True).encode("ascii")
-    conn = http.client.HTTPSConnection(HOST, port=443, timeout=10,
-                                       context=ssl.create_default_context())
+def send(config, payload):
+    # Explicit operator endpoint only. No redirects, proxy or response/error echo.
+    headers = {"Content-Type": "application/json; charset=utf-8",
+               "Accept": "application/json", "Accept-Encoding": "identity"}
+    if config["token"] is not None:
+        headers["Authorization"] = "Bearer " + config["token"]
+    conn = None
     try:
-        conn.request("POST", PATH, body=payload,
-                     headers={"Content-Type": "application/json; charset=utf-8",
-                              "Accept": "application/json", "Accept-Encoding": "identity"})
+        conn = http.client.HTTPSConnection(config["host"], port=config["port"], timeout=10,
+                                           context=ssl.create_default_context())
+        conn.request("POST", config["target"], body=canonical(payload), headers=headers)
         response = conn.getresponse()
-        if response.status != 200 or response.getheader("Content-Encoding", "identity") != "identity":
-            return False
-        raw = response.read(4097)
-        if len(raw) > 4096:
-            return False
-        answer = json.loads(raw, object_pairs_hook=unique_object)
-        return isinstance(answer, dict) and type(answer.get("code")) is int and answer["code"] == 200
+        return 200 <= response.status < 300
     except (OSError, http.client.HTTPException, ValueError, TypeError, RecursionError):
         return False
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 def notify(root, alert_state, now, transport=send):
@@ -148,9 +163,9 @@ def notify(root, alert_state, now, transport=send):
     def result(status, count=0, attempted=False):
         return {"status": status, "alertCount": count, "requestAttempted": attempted,
                 "trustStatus": "NOT_ESTABLISHED"}
-    key = device_key(root)
-    if key is None:
-        return result("BARK_DISABLED_NO_KEY")
+    config = configuration(root)
+    if config is None:
+        return result("WEBHOOK_DISABLED_NO_CONFIG")
     state = load(root)
     at = instant(now)
     active = alert_state["alerts"]
@@ -173,17 +188,18 @@ def notify(root, alert_state, now, transport=send):
     state["lastAttemptAt"] = now
     state["lastOutcome"] = "ATTEMPT_RESERVED"
     save(root, state)
-    # Only fixed source IDs and fixed descriptions, no paths, digests, URLs,
-    # timestamps, credentials (except the required key), or raw source text.
-    body = "Maintenance review required:\n" + "\n".join(
-        a["sourceId"] + ": " + MESSAGES[a["kind"]] for _, a in pending)
+    # Fixed schema and allowlisted source/kind data only.
+    payload = {"schemaVersion": "1", "event": "trust-registry.maintenance.alerts",
+               "title": "M78U Trust Registry", "alertCount": len(pending),
+               "alerts": [{"sourceId": a["sourceId"], "kind": a["kind"],
+                           "message": MESSAGES[a["kind"]]} for _, a in pending]}
     try:
-        accepted = transport(key, body) is True
+        accepted = transport(config, payload) is True
     except (OSError, http.client.HTTPException, ValueError, TypeError, RecursionError):
         accepted = False
     if accepted:
         state["delivered"].update({k: a["firstAt"] for k, a in pending})
-        state["lastOutcome"] = "ACCEPTED_BY_RELAY"
+        state["lastOutcome"] = "ACCEPTED_BY_ENDPOINT"
     else:
         state["lastOutcome"] = "FAILED_OR_UNCONFIRMED"
     save(root, state)
