@@ -164,3 +164,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 15: bounded persistent local alerts with receipt reconciliation, coalescing, repeated fetch failure threshold and explicit expected-state acknowledgement. No external delivery or trust decision. See [source monitoring](SOURCE-MONITOR.md#stage-15-durable-local-maintenance-alerts).
 
 - Maintainer stage 16: provider-neutral opt-in HTTPS webhook with private URL/optional bearer config and bounded deduplicated delivery. Default consumer CLI excludes monitoring implementation; source-only maintainer tag required. No provider-specific dependency, notification sent, or release. See [source monitoring](SOURCE-MONITOR.md#stage-16-optional-product-neutral-https-webhook-and-distribution-boundary).
+
+- Maintainer stage 17: read-only operational health (receipt age/config binding, lock, alerts, advisory index, webhook state) and Python/tagged Go developer release validation gates. No self-heartbeat guarantee, external request, trust or consumer package dependency. See [source monitoring](SOURCE-MONITOR.md#stage-17-local-health-and-developer-acceptance-gate).

@@ -128,8 +128,11 @@ try{
    assert.ok(row&&row.acquisitionRoute==="PINNED_ENDPOINT_ARCHIVE"&&/^[a-f0-9]{64}$/.test(row.publishedSHA256?.fingerprint??""),id);
   }
  });
- command("Build separate maintainer CLI","go",["build","-tags","maintainer","-mod=readonly","-trimpath","-o",join(scratch,"trust-registry-maintainer"),"./cmd/trust-registry"],root);
- command("Maintainer CLI source list",join(scratch,"trust-registry-maintainer"),["sources","monitor-list"],scratch);
+ command("Maintainer Python runtime","python3",["-c","import sys; assert sys.version_info >= (3, 11)"],root);
+ command("Maintainer Python regression suite","python3",["-B","-m","unittest","discover","-s","scripts","-p","test_*.py","-v"],root);
+ command("Maintainer tagged CLI tests","go",["test","-tags","maintainer","-mod=readonly","-count=1","./cmd/trust-registry","./pkg/sources"],root);
+ command("Build separate maintainer CLI","go",["build","-tags","maintainer","-mod=readonly","-trimpath","-o",bin("trust-registry-maintainer"),"./cmd/trust-registry"],root);
+ command("Maintainer CLI source list",bin("trust-registry-maintainer"),["sources","monitor-list"],scratch);
  command("Consumer CLI monitor commands excluded",trust,["sources","monitor-list"],scratch,{failure:true});
  command("CLI technical coverage without explicit pins rejected",trust,["sources","acquisition-coverage","--registry",registry,"--technical"],scratch,{failure:true});
  command("CLI unpinned archive directory rejected",trust,["sources","acquisition-coverage","--registry",registry,"--archive",archive],scratch,{failure:true});
