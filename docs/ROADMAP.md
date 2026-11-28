@@ -162,3 +162,5 @@ Master: #1. International research (AATL, EU trusted lists) follows China source
 - Maintainer stage 14: read-only macOS daily LaunchAgent generation, explicit manual install/disable steps, one bounded scheduled collection pass with shared lock and latest private operational receipt. No automatic installation, semantic queue, notification, trust or cloud changes. See [source monitoring](SOURCE-MONITOR.md#stage-14-manual-macos-launchagent-and-latest-check-receipt).
 
 - Maintainer stage 15: bounded persistent local alerts with receipt reconciliation, coalescing, repeated fetch failure threshold and explicit expected-state acknowledgement. No external delivery or trust decision. See [source monitoring](SOURCE-MONITOR.md#stage-15-durable-local-maintenance-alerts).
+
+- Maintainer stage 16: optional fixed official Bark HTTPS POST, private local key file, sanitized summary, per-generation delivery deduplication and persisted six-hour global attempt cooldown; explicit schedule opt-in only. No relay delivery guarantee, automatic acknowledgement, cloud resource or trust change. See [source monitoring](SOURCE-MONITOR.md#stage-16-optional-bark-alert-summaries).

@@ -396,3 +396,25 @@ python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" aler
 ```
 
 A changed state rejects stale acknowledgement. Acknowledgement removes only the local alert slot, not the review batch, failure streak, historical observation or CA trust. New events may open the slot again. No Bark credentials, external requests, automated delivery, certificate inventory changes or trust approval. Next stage may add optional sanitized delivery with explicit endpoint/credential setup and delivery deduplication. Four synthetic tests added; not executed against checkout (GitHub DNS failure confirmed; Go 1.23.2 only). Real source and macOS acceptance remain open.
+
+
+## Stage 16: optional Bark alert summaries
+
+Default remains local-only. Bark official service supports JSON POST /push with device_key in the body (see https://github.com/Finb/Bark/blob/master/docs/tutorial.md). This adapter uses only https://api.day.app/push with ordinary TLS verification, no proxy configuration, redirects, shell, automatic retry or user-defined URL. A private local file named bark-device-key in the workspace is required (owner-only, regular, no symlink, bounded; never a CLI argument, environment variable, Git file or plist value). Only use a key for the official relay; a self-hosted endpoint is not supported in this stage. The relay receives the required key and unencrypted-to-relay alert summary via TLS. No raw evidence, receipt digests, local paths, URLs, reviewer notes or arbitrary source text is included. A relay acceptance is not proof of iPhone receipt.
+
+After local acceptance, open a terminal on the maintenance Mac. With a new key file path (do not overwrite an existing one), enter the Device Key interactively with echo disabled:
+
+```sh
+umask 077
+python3 -c 'import getpass,os,sys; from pathlib import Path; assert sys.stdin.isatty(); p=Path.home()/"trust-maintainer"/"bark-device-key"; fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600); f=os.fdopen(fd,"w"); f.write(getpass.getpass("Bark Device Key: ")+"\n"); f.close()'
+```
+
+The key remains plaintext in this private file; protect the workspace and backups, do not share or commit it. To revoke local delivery, stop scheduled delivery and remove or securely relocate the key file; rotate the Bark key in the app if exposed. Do not paste the actual key into chat. If no key file exists, delivery is disabled.
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" notify-bark
+```
+
+Explicit delivery reconciles the latest local check receipt under the workspace lock. One request at most per invocation and at least six hours between attempts, even after failure. A private bounded bark-delivery.json stores the latest attempt reservation and at most 25 delivered slot generations (source/kind/firstAt), no key or response body. Reservation is saved before request; success requires HTTP 200 and JSON integer code 200. A successful slot is not sent again while pending even if occurrence count increases; after acknowledgement and a new firstAt, it may be sent again. No automatic acknowledgement. Loss of state, changed clock, or uncertain relay outcome can suppress or duplicate delivery; retry only after cooldown, not exactly-once. If a process or disk fails after relay acceptance, local outcome may be unknown. TLS socket timeout 10s, response read limited to 4096 bytes; socket timeout is not a strict end-to-end deadline. No notification on normal checks. Key rotation does not reset delivery slots.
+
+Opt in to scheduled delivery explicitly: regenerate the stage 14 plist with schedule-plist --hour 9 --minute 15 --notify-bark, inspect and reinstall using the documented bootout/bootstrap procedure. The flag runs delivery after the scheduled collection commits; notification failure produces nonzero exit without undoing collection. The latest scheduled collection receipt remains separate from delivery state. If delivery is blocked, inspect local state and launchctl; no automatic installation or real push by repository changes. Missing/stale scheduled receipt heartbeat is future work. Four synthetic tests added; no actual push, checkout test run, macOS acceptance or live SHECA acceptance completed here. No new dependency or Cloudflare resource.
