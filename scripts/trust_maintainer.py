@@ -17,6 +17,7 @@ import trust_maintainer_workspace as workspace
 import trust_maintainer_schedule as schedule
 import trust_maintainer_alerts as alerts
 import trust_maintainer_webhook as webhook
+import trust_maintainer_health as health
 
 ERRORS = (ValueError, TypeError, KeyError, OSError, RecursionError)
 HEX = re.compile(r"[0-9a-f]{64}")
@@ -120,6 +121,8 @@ def parser():
     scheduled.add_argument("--notify-webhook", action="store_true")
     commands.add_parser("notify-webhook", help="explicitly send a sanitized pending alert summary")
     commands.add_parser("last-check", help="read latest scheduled check receipt")
+    hcheck = commands.add_parser("health", help="read-only local operational health")
+    hcheck.add_argument("--max-receipt-age-hours", type=int, default=36)
     commands.add_parser("alerts", help="read local pending operational alerts")
     ack = commands.add_parser("alert-ack", help="acknowledge one alert without granting trust")
     ack.add_argument("--expected-state-sha256", required=True)
@@ -166,6 +169,11 @@ def parser():
 def execute(args):
     op = args.operation
     root = args.workspace
+    if op == "health":
+        if root is None:
+            raise ValueError("explicit --workspace path required before subcommand")
+        r = health.health(root, schedule.now(), args.max_receipt_age_hours)
+        return r, 0 if r["status"] == "LOCAL_CHECKS_OK" else 1
     if op in ("alerts", "alert-ack", "notify-webhook"):
         if root is None:
             raise ValueError("explicit --workspace path required before subcommand")

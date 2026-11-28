@@ -417,3 +417,26 @@ python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" noti
 ```
 
 To opt in for scheduled checks, regenerate the stage 14 plist with `schedule-plist --hour 9 --minute 15 --notify-webhook` and manually review/reinstall it. Without the flag no automatic webhook request; without the private config no delivery. Delivery failure does not roll back collection. No actual notification sent during development, no cloud resources or new dependencies. Synthetic tests added but full checkout tests, actual macOS and SHECA acceptance remain pending.
+
+
+## Stage 17: local health and developer acceptance gate
+
+The read-only health command checks the private workspace and CLI binding, cooperating lock presence, latest scheduled receipt age/status/current configuration digest, alert reconciliation and pending count, advisory indexed task count, and optional webhook configuration/delivery state. Default receipt age tolerance 36 hours (daily scheduling plus margin), configurable from 1–720 hours. A missing receipt, stale/future receipt, failed check, configuration mismatch, lock presence, corrupt state or pending work returns OPERATOR_REVIEW_REQUIRED and exit 1. A lock is not proof of a stale process. No lock acquisition, mutation, reconciliation, network request, scheduler query, or webhook secret output. Reads can race writers and are not a consistent atomic snapshot. LOCAL_CHECKS_OK does not establish scheduler installation, full queue coverage, connectivity, fresh source data, live parser acceptance or trust.
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" health
+```
+
+For external monitoring, run this read-only command from a separate supervisory context; an offline or stopped Mac cannot report its own absence. Do not configure an automatic restart or remove locks based on this report. Pending review and operational failure share the nonzero review signal; inspect the individual checks.
+
+Developer release validation now also runs the Python 3.11+ regression suite and tagged Go CLI tests, plus the existing distinct default/tagged binary smoke. These are developer gates only, not Homebrew build/install dependencies. Before considering the next software preview, run from a clean checkout on a trusted Mac:
+
+```sh
+git switch main
+git pull --ff-only
+export PATH="$(brew --prefix go@1.26)/bin:$PATH"
+python3 --version
+node scripts/validate-release.mjs --mode=locked
+```
+
+Retain report.json from the printed report directory and verify status, sourceRevision, sourceClean and all stage results. Do not tag a failed or untested revision. Full suite execution remains pending in the implementation environment (GitHub DNS failure and Go 1.23.2). Separately complete stage 7 actual SHECA page acceptance and stage 14 manual macOS schedule smoke with no external webhook until desired. The developer gate does not establish live acceptance. No new release, scheduler installation, dependencies, trust or cloud changes.
