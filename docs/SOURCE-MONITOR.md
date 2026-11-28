@@ -5,7 +5,7 @@ This is the first maintainer feature, not a scheduled service or a trust-store u
 Run from current source (the released Homebrew binary does not yet include these commands):
 
 ```sh
-go build -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
+go build -tags maintainer -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
 umask 077
 mkdir -m 700 "$HOME/trust-monitor-private"
 cd "$HOME/trust-monitor-private"
@@ -125,7 +125,7 @@ git switch main
 git pull --ff-only
 export PATH="$(brew --prefix go@1.26)/bin:$PATH"
 python3 -B -m unittest discover -s scripts -p 'test_sheca_source_*.py' -v
-go build -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
+go build -tags maintainer -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
 umask 077
 work="$(mktemp -d "$HOME/trust-sheca-acceptance.XXXXXXXX")"
 /tmp/trust-registry-monitor sources monitor-fetch --id sheca-repository --out "$work/observation.json" > "$work/receipt.json"
@@ -234,8 +234,8 @@ git switch main
 git pull --ff-only
 export PATH="$(brew --prefix go@1.26)/bin:$PATH"
 python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
-go test -mod=readonly ./pkg/sources ./cmd/trust-registry
-go build -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
+go test -tags maintainer -mod=readonly ./pkg/sources ./cmd/trust-registry
+go build -tags maintainer -mod=readonly -o /tmp/trust-registry-monitor ./cmd/trust-registry
 python3 -B scripts/trust_maintainer.py --help
 ```
 
@@ -286,7 +286,7 @@ On macOS, from the repository after merge, build a fresh binary at an explicitly
 ```sh
 umask 077
 mkdir -m 700 "$HOME/trust-maintainer-bin"
-go build -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry" ./cmd/trust-registry
+go build -tags maintainer -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry" ./cmd/trust-registry
 shasum -a 256 "$HOME/trust-maintainer-bin/trust-registry"
 ```
 
@@ -313,7 +313,7 @@ Use a fresh version-specific private binary path, not the path currently in use.
 
 ```sh
 umask 077
-go build -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry-new" ./cmd/trust-registry
+go build -tags maintainer -mod=readonly -o "$HOME/trust-maintainer-bin/trust-registry-new" ./cmd/trust-registry
 shasum -a 256 "$HOME/trust-maintainer-bin/trust-registry-new"
 python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" workspace-info
 ```
@@ -396,3 +396,24 @@ python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" aler
 ```
 
 A changed state rejects stale acknowledgement. Acknowledgement removes only the local alert slot, not the review batch, failure streak, historical observation or CA trust. New events may open the slot again. No Bark credentials, external requests, automated delivery, certificate inventory changes or trust approval. Next stage may add optional sanitized delivery with explicit endpoint/credential setup and delivery deduplication. Four synthetic tests added; not executed against checkout (GitHub DNS failure confirmed; Go 1.23.2 only). Real source and macOS acceptance remain open.
+
+
+## Stage 16: optional product-neutral HTTPS webhook and distribution boundary
+
+The Maintainer is an operator-only source deployment, not part of the consumer Homebrew package. Default Go CLI builds omit the monitor command implementation; opt in with `go build -tags maintainer -mod=readonly -o /path/to/private/trust-registry ./cmd/trust-registry`. Python maintenance scripts, workspace, scheduling and notification credentials must not be installed by the consumer Formula or binary release. Existing research/intake/review commands from the previous preview retain compatibility; this boundary specifically excludes the new monitor and automated Maintainer layer. SDK source APIs remain available to developers. Consumer release acceptance checks default CLI monitor rejection and tagged maintainer build separately. Do not add the maintainer tag to the Homebrew Formula. No change to the current pinned Formula or release.
+
+Default notification delivery remains disabled. An operator can explicitly create a private regular owner-only file `notification-webhook.json` inside the existing workspace, outside the repository, using a local editor and umask 077. Example (placeholder only):
+
+```json
+{"url":"https://receiver.example/events","bearerToken":"REPLACE_WITH_OPTIONAL_TOKEN"}
+```
+
+Omit bearerToken when unnecessary. HTTPS only, ordinary TLS verification, operator-selected DNS hostname and port, path/query allowed; no userinfo, fragment, redirects, proxy settings, arbitrary headers, commands or response echo. The endpoint URL may contain a secret query/path, so treat the entire config as a credential. Never print or commit it. Restrict local permissions to 0600. It may point to a trusted internal or external receiver; verify the destination independently before enabling it. DNS/endpoint authentication is ordinary HTTPS, not pinning. This is not a network sandbox or protection against a malicious local config. No configured provider integration.
+
+The webhook sends one JSON POST containing schemaVersion, event (trust-registry.maintenance.alerts), title, alertCount, alerts (sourceId, kind, fixed message). Optional Authorization: Bearer token. No raw page data, fingerprints, paths, timestamps, notes or secrets in the payload. HTTP 2xx is receiver acceptance only; downstream delivery is not established. Receivers translate the payload to their desired notification service. The socket timeout is 10s (not a strict total deadline); response bodies are not consumed or persisted. One request per invocation, persistent six-hour attempt cooldown including failures, deduplication by pending slot generation. No automatic acknowledgement. Changing endpoint/config does not reset previous delivery slots. Lost responses or state may cause duplicate or missed notifications.
+
+```sh
+python3 -B scripts/trust_maintainer.py --workspace "$HOME/trust-maintainer" notify-webhook
+```
+
+To opt in for scheduled checks, regenerate the stage 14 plist with `schedule-plist --hour 9 --minute 15 --notify-webhook` and manually review/reinstall it. Without the flag no automatic webhook request; without the private config no delivery. Delivery failure does not roll back collection. No actual notification sent during development, no cloud resources or new dependencies. Synthetic tests added but full checkout tests, actual macOS and SHECA acceptance remain pending.

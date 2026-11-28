@@ -36,3 +36,6 @@
 
 # Do not globally ignore PEM, DER, JSON or testdata: reviewed public and
 # synthetic fixtures must remain visible to code review.
+
+# Private webhook configuration (workspace must stay outside checkout)
+notification-webhook.json

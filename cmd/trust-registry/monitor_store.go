@@ -1,3 +1,5 @@
+//go:build maintainer
+
 package main
 
 import (

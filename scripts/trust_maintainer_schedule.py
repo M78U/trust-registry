@@ -25,7 +25,7 @@ def now():
     return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def plist(root, hour, minute, script, python):
+def plist(root, hour, minute, script, python, notify_webhook=False):
     if not root.is_absolute() or not script.is_absolute() or not python.is_absolute():
         raise ValueError("absolute workspace, script and interpreter paths required")
     if type(hour) is not int or type(minute) is not int or not 0 <= hour <= 23 or not 0 <= minute <= 59:
@@ -35,10 +35,12 @@ def plist(root, hour, minute, script, python):
         raise ValueError("trusted script and Python interpreter must exist")
     root = root.resolve(strict=True)
     label = "com.m78u.trust-registry.maintainer." + digest(os.fsencode(root))[:16]
+    arguments = [str(python), "-E", "-s", "-B", str(script), "--workspace", str(root), "scheduled-check"]
+    if notify_webhook:
+        arguments.append("--notify-webhook")
     return plistlib.dumps({
         "Label": label,
-        "ProgramArguments": [str(python), "-E", "-s", "-B", str(script),
-                             "--workspace", str(root), "scheduled-check"],
+        "ProgramArguments": arguments,
         "WorkingDirectory": str(root),
         "StartCalendarInterval": {"Hour": hour, "Minute": minute},
         "RunAtLoad": False,
